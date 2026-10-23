@@ -1,0 +1,403 @@
+{
+  "actual": "4.40",
+  "versiones": [
+    {
+      "version": "4.40",
+      "fecha": "2026-10-18",
+      "notas": "Los reportes ahora se pueden COMPARTIR: al generar el PDF se abre el menu del telefono con WhatsApp, correo o Drive, sin pasar por la carpeta de Descargas. Si el equipo no permite compartir archivos, el PDF se descarga igual que antes. El boton \"Exportar PDF\" pasa a \"Compartir PDF\" con un boton \"Descargar\" al lado."
+    },
+    {
+      "version": "4.39",
+      "fecha": "2026-10-18",
+      "notas": "Fotos de los animales: miniatura en la lista del hato y foto en la ficha (se ven sin conexion gracias a una copia local). Boton \"Tomar o subir foto\" en la ficha: la imagen se comprime en el telefono, se guarda en el equipo si no hay senal y se sube sola en la siguiente sincronizacion al servidor (dist/img/fotos_animales + manimales.imagen), igual que la version web."
+    },
+    {
+      "version": "4.38",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Seis reportes nuevos sin conexión: Consecutivo de peso, Movimiento de rebaño, Grupos etarios, Hembras servidas, Productoras de leche y Animales por lote.",
+        "'Exportar PDF' ahora descarga el archivo PDF directamente, sin pasar por el diálogo de impresión del celular. Funciona sin internet.",
+        "La vista previa sigue disponible para revisar el reporte antes de descargarlo.",
+        "Corregido: el reporte de Animales activos mostraba las hembras como machos y al revés."
+      ]
+    },
+    {
+      "version": "4.37",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Ahora podés deshacer un movimiento de rebaño aunque ya se haya sincronizado: la app pide el motivo y el sistema devuelve los animales a su lote/potrero de origen, igual que desde la web.",
+        "Los movimientos revertidos quedan marcados como 'Revertido' con su motivo, y ya no se pueden volver a revertir.",
+        "La pantalla de conflictos ahora muestra campo por campo qué cambió en el servidor y con qué valor, para decidir con más información."
+      ]
+    },
+    {
+      "version": "4.36",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Ya podés eliminar un registro que se cargó por error: producción de leche, pesaje, control sanitario o servicio. Se anula también en el sistema al sincronizar, igual que si lo hubieras borrado desde la web.",
+        "Si el registro todavía no se envió al servidor, se descarta directo del equipo.",
+        "Un servicio que ya tiene un parto registrado no se puede eliminar (el sistema no lo permite).",
+        "Nuevo respaldo del equipo: desde el estado de sincronización podés descargar una copia de los datos y restaurarla en el mismo fundo."
+      ]
+    },
+    {
+      "version": "4.35",
+      "fecha": "2026-10-18",
+      "notas": [
+        "La app ya no permite cargar dos veces el mismo animal en la misma fecha en producción de leche, pesaje ni control sanitario: avisa al instante, igual que el sistema web.",
+        "Si la fecha de un servicio es anterior al último parto de la vaca, la app lo rechaza al sincronizar con un mensaje claro.",
+        "Las causas de baja ahora se eligen de la lista del sistema (con la opción 'Otra' para escribir), así los reportes de bajas quedan parejos con la web.",
+        "Un control sanitario por lote ya no incluye animales dados de baja, y el aviso cuenta solo los animales activos."
+      ]
+    },
+    {
+      "version": "4.34",
+      "fecha": "2026-10-18",
+      "notas": [
+        "El módulo que se llamaba 'Bajas' ahora se llama 'Desincorporaciones', igual que en el sistema web, tanto en la pestaña como en el título del módulo.",
+        "Los textos de los registros siguen hablando de 'baja' (tipo de baja, fecha de la baja), porque así se llama cada registro; solo cambió el nombre del módulo."
+      ]
+    },
+    {
+      "version": "4.33",
+      "fecha": "2026-10-18",
+      "notas": [
+        "La sincronización ahora funciona de verdad en las dos direcciones: los cambios hechos en el sistema web (o en otro equipo) sobre animales, servicios, nacimientos, controles sanitarios, producción de leche, pesajes, bajas y movimientos también llegan a este dispositivo.",
+        "Se corrigió un problema por el cual una edición hecha justo después de descargar un registro podía no llegar nunca al dispositivo.",
+        "Cuando hay una versión nueva o una corrección en el servidor, la app muestra un aviso con el botón 'Actualizar ahora'. Antes de actualizar sube los datos pendientes, y nunca recarga la pantalla por su cuenta.",
+        "Si preferís seguir trabajando, 'Después' pospone el aviso hasta que cambie la versión o vuelvas a abrir la app.",
+        "Los registros que tenés sin subir ya no se pisan con la copia del servidor: si el servidor tiene una versión más nueva, la app te muestra el conflicto para que elijas qué hacer."
+      ]
+    },
+    {
+      "version": "4.32",
+      "fecha": "2026-10-18",
+      "notas": [
+        "La revisión automática de sincronización (cada 2 minutos) ya no recarga la pantalla ni vuelve a pintar las listas: ahora trabaja en segundo plano y solo actualiza el indicador de pendientes.",
+        "Si no hay nada por enviar ni por recibir, la app se queda en silencio: no muestra avisos ni mueve la pantalla.",
+        "Cuando sí se envía o se recibe algo, aparece el aviso 'Sincronizado: N enviado(s), M recibido(s).' y las listas se actualizan con los datos nuevos.",
+        "La app tampoco se recarga sola mientras estás llenando un formulario o tienes una ventana abierta: si llega una versión nueva, se aplica la próxima vez que abras la app."
+      ]
+    },
+    {
+      "version": "4.31",
+      "fecha": "2026-10-18",
+      "notas": [
+        "En Control Sanitario hay un filtro por tipo de registro: 'Todos', 'Individual' o 'Por lote'. Al elegir un tipo se muestran solo los registros de ese control, que se guardan por separado.",
+        "Cada opción del filtro muestra cuántos registros hay de ese tipo.",
+        "La lista de controles por lote ahora tiene su propio buscador (por código, lote o evento), igual que la de controles individuales."
+      ]
+    },
+    {
+      "version": "4.30",
+      "fecha": "2026-10-18",
+      "notas": [
+        "En Control Sanitario las dos acciones quedaron al mismo nivel: ahora son 'Control individual' y 'Control por lote', dos botones del mismo tamaño, uno en cuero y el otro en verde corporativo.",
+        "Antes 'Control por lote' era una etiqueta pequeña que parecía un enlace secundario y se perdía al lado del botón grande; ahora se ve como el módulo que es.",
+        "En pantallas anchas los dos botones se acomodan lado a lado."
+      ]
+    },
+    {
+      "version": "4.29",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Los módulos quedaron en el orden de trabajo del campo: Animales, Nacimientos, Servicios, Control Sanitario, Producción de Leche, Pesos, Movimiento, Bajas y Reportes.",
+        "Cada módulo es ahora una tarjeta con su franja verde en la cabecera, el nombre y el icono del módulo bien visibles: se sabe dónde se está parado sin volver a la tira de pestañas.",
+        "Los formularios llevan la franja verde de cierre que usan las tarjetas del sistema web, y los títulos de bloque van en mayúsculas pequeñas, como en la web.",
+        "La pestaña activa se ve en verde corporativo con el texto en blanco, y el botón de registrar toma un tono cuero con degradado, manteniendo el toque ganadero."
+      ]
+    },
+    {
+      "version": "4.28",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Corregido: en las bajas la causa salía como un número (por ejemplo 'Causa: 3') cuando la baja se había registrado en la web, porque ahí se guarda el código del catálogo de causas. Ahora se muestra el nombre ('Error al cargar la ficha animal', 'Vejez', 'Improductividad'...).",
+        "La corrección aplica en la lista de Bajas, en el detalle de la baja, en la ficha del animal y en el reporte de bajas y desincorporados.",
+        "Los catálogos de causas de descarte y de muerte se descargan junto con los demás catálogos al sincronizar; hasta que el equipo sincronice una vez, la causa simplemente no se muestra (antes se veía el número).",
+        "Las bajas registradas desde la app, donde la causa se escribe a mano, se siguen viendo tal cual se escribió."
+      ]
+    },
+    {
+      "version": "4.27",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Corregido: en la pestaña Bajas cada animal aparecía dos veces (una vez como registro de baja y otra como animal), porque convivían las dos listas. Ahora hay una sola lista: una tarjeta por animal, con su tipo de baja, la fecha, la causa y el estado de sincronización.",
+        "Cada tarjeta de baja reúne las dos acciones: Ficha (historial del animal) y Ver baja (detalle del registro), así no hay que buscar el mismo animal en dos sitios.",
+        "Los animales dados de baja desde la web, que no tienen registro de baja en el equipo, siguen apareciendo (solo con Ficha), y ninguna baja se pierde.",
+        "El buscador de Bajas ahora también encuentra por nombre, número de arete y fecha."
+      ]
+    },
+    {
+      "version": "4.26",
+      "fecha": "2026-10-18",
+      "notas": [
+        "En Animales ahora aparecen solo los animales plenamente activos. Los que salieron del rebaño (descarte, muerte, venta, extravío o migración a otro fundo) se mudaron a la pestaña Bajas, donde tienen su propia lista con el estado de cada uno.",
+        "Cada animal de esa lista conserva su botón Ficha, así que se puede revisar su historial completo sin volver a Animales.",
+        "Se quitó el check 'Ocultar animales de baja' de Animales: ya no hace falta, porque esa lista no mezcla estados.",
+        "El buscador de Bajas filtra a la vez los registros de baja y la lista de animales dados de baja."
+      ]
+    },
+    {
+      "version": "4.25",
+      "fecha": "2026-10-18",
+      "notas": [
+        "En Animales el check ahora dice qué hace de verdad: 'Ocultar animales de baja (3)'. Antes decía 'Mostrar solo animales activos', que se confundía con el estado del animal (activo/inactivo) cuando en realidad aparta los que ya salieron del rebaño: descarte, muerte, venta, extravío o migración a otro fundo.",
+        "El check solo aparece cuando hay animales de baja en el equipo; si todos están activos no se muestra, porque no habría nada que ocultar.",
+        "El contador dejó de repetir el mismo número dos veces: ahora dice '158 animales activos · 3 de baja ocultos' (o '161 animales · 3 de baja' cuando se destilda)."
+      ]
+    },
+    {
+      "version": "4.24",
+      "fecha": "2026-10-18",
+      "notas": [
+        "El detalle de sincronización ya no aparece como una ventana en el centro de la pantalla (que se sentía como una alerta grave): ahora sale una burbuja suave pegada al chip, con una flechita que apunta a él, y se abre con un desvanecido corto. Se cierra al tocar Entendido, al tocar afuera o con Escape.",
+        "Al cerrarla, el chip hace un destello breve y la etiqueta se desteñe para mostrar el estado que corresponde: 'Todo sincronizado' cuando no queda nada por subir, o los registros pendientes cuando los hay.",
+        "Los cambios de texto del chip se animan (se desteñe y aparece el nuevo) en vez de cambiar de golpe."
+      ]
+    },
+    {
+      "version": "4.23",
+      "fecha": "2026-10-18",
+      "notas": [
+        "El estado de sincronización se mudó al encabezado, junto al nombre del usuario, como un chip que ocupa solo el espacio de su texto ('hace 4 min', '3 por subir', 'Sin sincronizar'). Al tocarlo se abre el detalle: fecha y hora del último envío y, si hay registros esperando, el desglose por módulo.",
+        "Con eso desaparece la tarjeta que estaba debajo del encabezado y la pantalla gana unos 80 px de alto: el contenido empieza más arriba y los iconos de las pestañas son un poco más grandes.",
+        "Los nombres que están en mayúsculas pero con una vocal acentuada en minúscula ahora se ven bien: 'FERNANDO PéREZ' pasa a 'FERNANDO PÉREZ', igual que 'NIñA' o 'RóSETO'. Se aplica en toda la app y en los reportes."
+      ]
+    },
+    {
+      "version": "4.22",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Se quitó el mensaje repetido: después de sincronizar aparecía 'Todo sincronizado' en la tarjeta y otra vez justo debajo. Ahora, cuando la sincronización no trae novedades, no se escribe nada debajo porque la tarjeta ya lo dice.",
+        "El resumen de lo que se movió ahora dice 'Sincronizado: 3 enviado(s), 5 recibido(s).' en lugar de repetir 'Última sincronización', que ya está en la tarjeta."
+      ]
+    },
+    {
+      "version": "4.21",
+      "fecha": "2026-10-18",
+      "notas": [
+        "El estado de sincronización ahora se muestra en una sola tarjeta debajo del encabezado. Antes estaba repartido en dos sitios (el texto 'Todo sincronizado.' a la izquierda y el chip 'Sync hace …' con el contador a la derecha) y había que juntar las dos partes con la vista.",
+        "La tarjeta dice las tres cosas que importan en campo: cuántos registros faltan por subir, hace cuánto fue la última sincronización y la fecha y hora exactas de esa sincronización.",
+        "Cambia de color según la situación: verde cuando todo está al día, ámbar cuando hay registros esperando o el último envío tiene horas, y rojo cuando el equipo nunca sincronizó o el dato tiene más de un día.",
+        "Cuando quedan registros pendientes aparece el botón 'Ver' con el detalle por módulo, y la tarjeta avisa si se subirán solos al recuperar la señal."
+      ]
+    },
+    {
+      "version": "4.20",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Se quitó el botón Compartir de los reportes: la app se usa justamente donde no hay conexión, así que enviar por WhatsApp o correo no aportaba y solo sumaba confusión. Los reportes quedan como antes: Exportar PDF y Cerrar."
+      ]
+    },
+    {
+      "version": "4.19",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Los reportes ahora se pueden compartir sin salir de la app: el botón Compartir abre la hoja del sistema (WhatsApp, correo, etc.) con el resumen del reporte ya escrito (título, fundo, fecha y la tabla con los primeros registros).",
+        "Si el equipo no puede compartir, el texto se copia al portapapeles para pegarlo a mano; si tampoco hay portapapeles, queda en un cuadro de texto seleccionado para copiar con Ctrl+C.",
+        "El texto incluye hasta 25 filas por tabla y avisa cuántas quedaron fuera, para que el mensaje no se vuelva inmanejable en el teléfono."
+      ]
+    },
+    {
+      "version": "4.18",
+      "fecha": "2026-10-18",
+      "notas": [
+        "El menú de módulos ahora es una tira horizontal compacta de una sola fila: en un teléfono pasó de ocupar media pantalla (5 filas) a ~44 px, y se desliza con el dedo. La pestaña activa se centra sola al cambiar de módulo.",
+        "Al cambiar de módulo la pantalla vuelve al inicio, en vez de quedar a mitad de la lista anterior.",
+        "Las pestañas se pueden recorrer con las flechas del teclado (y Home/End), y los lectores de pantalla anuncian cada módulo y su contenido."
+      ]
+    },
+    {
+      "version": "4.17",
+      "fecha": "2026-10-18",
+      "notas": [
+        "Nueva ficha del animal sin conexión: cada tarjeta de Animales tiene un botón \"Ficha\" que abre todo el historial de ese animal en una sola pantalla (identificación, resumen, pesajes, servicios, partos con sus crías, controles sanitarios individuales y por lote, movimientos de rebaño, producción de leche y la baja si la tiene).",
+        "El resumen muestra de un vistazo el último peso con su variación, la ganancia diaria, el último servicio, los partos, los controles con el próximo programado y el promedio de leche de los últimos registros.",
+        "Cada registro del historial indica si ya se sincronizó o si sigue pendiente (o falló), y los datos se leen solo del dispositivo: funciona igual sin conexión.",
+        "Corregido: el service worker guardaba en su caché la copia de 30 días que el servidor mantiene de los archivos JS y CSS, así que una actualización podía no llegar nunca al equipo. Ahora los archivos del shell se piden revalidando contra el servidor y la versión nueva se aplica al reconectar."
+      ]
+    },
+    {
+      "version": "4.16",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Un doble toque en Guardar ya no crea dos registros: mientras el formulario se está guardando el botón queda deshabilitado (aplica a Animales, Control sanitario, Control por lote, Bajas, Movimiento, Producción de leche, Pesos, Servicios y Nacimientos). El pesaje por lote también ignora un segundo Enter mientras guarda el animal.",
+        "Al guardar aparece un aviso breve abajo de la pantalla (por ejemplo “Pesaje guardado · 385 kg”) sin obligar a tocar Aceptar. Si el guardado falla, el motivo se muestra en el mismo aviso y en el formulario.",
+        "El encabezado muestra cuándo se sincronizó por última vez este fundo (“Sync hace 4 min · 2 pend.”), en verde si es reciente, ámbar si pasaron horas y rojo si pasó más de un día o nunca se sincronizó.",
+        "Si quedan registros sin sincronizar, la app avisa antes de cerrarse o recargarse, y también pide confirmación al cerrar sesión."
+      ]
+    },
+    {
+      "version": "4.15",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Se puede revertir un movimiento de rebaño que todavía no llegó al servidor (pendiente de envío o con el último envío fallido): los animales vuelven a su lote y/o potrero de origen, y el movimiento se borra del dispositivo y de la cola de envío.",
+        "El botón Revertir aparece en la tarjeta del movimiento y pide confirmación indicando cuántos animales vuelven a su origen. Si el último envío falló, avisa que también hay que revertirlo en la web cuando el servidor lo haya recibido.",
+        "Los movimientos ya sincronizados no muestran el botón: esos se revierten desde la versión web, igual que antes."
+      ]
+    },
+    {
+      "version": "4.14",
+      "fecha": "2026-10-17",
+      "notas": [
+        "El reporte \"Bajas y desincorporados\" ahora usa el tipo de baja real (descarte, muerte, venta, extravío o migrado a otro fundo) y muestra fecha, causa, lote y observaciones tomadas del registro de la baja.",
+        "Se agregó un resumen de animales por tipo de baja y el filtro del reporte ahora es \"Tipo de baja\".",
+        "Corregido: el reporte tomaba como bajas los animales con estatus de donadora (4/5) y dejaba fuera a los muertos o vendidos; ahora se basa en el estado del animal (mestatus_id).",
+        "Corregido el sexo en todos los reportes: el sistema guarda 1 = hembra y 2 = macho, y varios reportes los mostraban invertidos (las vacas aparecían como machos).",
+        "Corregido: el selector de animal de Producción de leche ofrecía solo machos; ahora lista las hembras."
+      ]
+    },
+    {
+      "version": "4.13",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Las tarjetas con error de sincronización ahora muestran el motivo real que devolvió el servidor, debajo del estado (antes el mensaje se guardaba pero no se veía en ninguna pantalla).",
+        "En Bajas se valida en el propio dispositivo que la hembra no tenga crías vivas sin ficha: en vez de guardar una baja que el servidor iba a rechazar, se avisa antes y se lista el código de cada cría pendiente.",
+        "En la lista de Animales los que están dados de baja aparecen marcados (Baja · Descarte / Muerte / Venta / Extravío), y se agregó el filtro «Mostrar solo animales activos», que viene marcado por defecto."
+      ]
+    },
+    {
+      "version": "4.12",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Nuevo módulo de Bajas (desincorporación): se elige el animal, el tipo (descarte, muerte, venta o extravío) y la fecha, con la causa y las observaciones.",
+        "La baja por MIGRADO A OTRO FUNDO no se puede elegir: la registra el sistema cuando el animal se migra, y es solo informativa.",
+        "Al guardar la baja el animal deja de figurar como activo en el dispositivo, y el servidor aplica el mismo estado al sincronizar (con los mismos controles de la web: sin bajas duplicadas y sin hembras con crías vivas sin fichar).",
+        "Nuevo módulo de Movimiento de rebaño: se elige el lote y/o potrero de ORIGEN, se seleccionan los animales que están ahí y se los mueve a un lote y/o potrero de DESTINO.",
+        "El servidor guarda el detalle de cada animal (lote, potrero y categoría antes y después) y actualiza el rebaño, igual que el movimiento de la versión web.",
+        "El catálogo del dispositivo ahora incluye los potreros activos del fundo."
+      ]
+    },
+    {
+      "version": "4.11",
+      "fecha": "2026-10-17",
+      "notas": [
+        "En control sanitario (individual y por lote) solo se muestran las categorías que tienen productos cargados para el fundo, igual que en la versión web.",
+        "Los catálogos que descarga el dispositivo ya vienen con esas categorías filtradas."
+      ]
+    },
+    {
+      "version": "4.10",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Nuevo control sanitario por lote: se elige el lote, la fecha, el evento y los productos, y el control se aplica a todos los animales activos del lote (equivale al control sanitario masivo de la web).",
+        "El código del control (RCS-0<fundo>-0<n>) lo asigna el servidor al sincronizar; en el dispositivo queda como pendiente hasta entonces.",
+        "Los controles por lote se pueden editar sin conexión: evento, responsable, próximo control, observaciones, productos y animales incluidos.",
+        "El detalle del control por lote muestra los productos aplicados y los códigos de los animales incluidos."
+      ]
+    },
+    {
+      "version": "4.9",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Nacimientos: un parto puede registrar varias crías, cada una con su estado al nacer, sexo, peso, ID/arete y aptitud, igual que en la versión web.",
+        "Se quitó la pregunta ¿Entrará a producción de leche?: ahora el propósito (lactancia o producción de leche) define si la cría entra a producción y con qué período se calcula la fecha de secado.",
+        "El estado al nacer y el propósito ahora se eligen de listas (Vivo/Muerto, Lactancia/Producción de leche), evitando valores inválidos al sincronizar.",
+        "Si la cría entra a producción de leche, el servidor calcula la fecha de secado con los períodos del fundo y cierra el ciclo del servicio gestante.",
+        "Nuevo pesaje rápido por lote: se elige el lote y la fecha, y la app va pidiendo el peso de cada animal uno detrás de otro, mostrando el último peso y la ganancia diaria.",
+        "El detalle del nacimiento muestra todas las crías del parto y la tarjeta indica cuántas fueron.",
+        "Sincronización más rápida: los catálogos se refrescan cada 12 horas (el botón Sincronizar siempre los actualiza), los módulos se descargan en paralelo y un guardado durante la sincronización dispara una segunda pasada."
+      ]
+    },
+    {
+      "version": "4.8",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Las fechas de registros ya ocurridos (control sanitario, producción, pesos, servicios, nacimientos, nacimiento del animal, secado y filtros de reportes) solo permiten hoy o fechas anteriores.",
+        "Las fechas de planificación (próximo control y fecha probable de parto) permiten hoy en adelante.",
+        "El calendario deshabilita los días fuera de rango y bloquea la navegación hacia meses no permitidos."
+      ]
+    },
+    {
+      "version": "4.7",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Nuevo calendario en la app: se eligen mes y año con listas desplegables y los días quedan visibles en la misma vista.",
+        "Se aplica a todas las fechas: control sanitario, producción, pesos, servicios, nacimientos y reportes.",
+        "Incluye botones Hoy y Limpiar, y cierra con el botón Cerrar o la tecla Esc."
+      ]
+    },
+    {
+      "version": "4.6",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Corregido el selector de fechas: al elegir mes y año ya se puede seleccionar el día.",
+        "Las fechas se normalizan a AAAA-MM-DD antes de cargar los formularios de edición.",
+        "Los formularios abiertos ya no se destruyen cuando la lista se actualiza (sincronización), evitando los errores de consola y el formulario que quedaba pegado."
+      ]
+    },
+    {
+      "version": "4.5",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Control Sanitario: al agregar un producto se limpian los selectores de categoría y producto para cargar el siguiente."
+      ]
+    },
+    {
+      "version": "4.4",
+      "fecha": "2026-10-17",
+      "notas": [
+        "Control Sanitario: el selector de categorías muestra solo las que tienen productos disponibles para el fundo activo.",
+        "Se evita seleccionar una categoría sin productos asociados."
+      ]
+    },
+    {
+      "version": "4.3",
+      "fecha": "2026-10-15",
+      "notas": [
+        "Catálogo de estatus del animal: ACTIVO (hembras y machos), DONADOR ACTIVO / DONADOR (solo machos) y DONADORA ACTIVO / DONADORA (solo hembras).",
+        "Los servicios y nacimientos validan la donadora con los estatus de hembra (4 y 5).",
+        "Las etiquetas y los filtros de reportes muestran los estados correctos de donador y donadora."
+      ]
+    },
+    {
+      "version": "4.2",
+      "fecha": "2026-10-16",
+      "notas": [
+        "El administrador puede permitir o bloquear el acceso sin conexión para cada usuario.",
+        "Si la cuenta no tiene el permiso, al iniciar sesión la app avisa que debe contactar al administrador del sistema y no permite continuar.",
+        "El permiso se verifica en el servidor en cada inicio de sesión y validación del equipo."
+      ]
+    },
+    {
+      "version": "4.1",
+      "fecha": "2026-10-13",
+      "notas": [
+        "MULTIFUNDO: un mismo usuario puede trabajar sin conexión con varios de sus fundos.",
+        "Selector de fundo en el encabezado y pantalla para elegir/quitar los fundos del equipo.",
+        "Cada fundo guarda sus datos por separado: animales, pesos, servicios, reportes, conflictos y pendientes no se mezclan.",
+        "La sincronización recorre todos los fundos del equipo, con rangos de códigos y catálogos propios de cada uno.",
+        "Migración automática de los datos que ya estaban guardados en el equipo."
+      ]
+    },
+    {
+      "version": "4.0",
+      "fecha": "2026-10-05",
+      "notas": [
+        "Búsqueda de animales por código, nombre o arete en todos los módulos.",
+        "Modo consulta: dispositivos de solo lectura (sin registro ni edición).",
+        "Fichar ternero directamente desde el registro de nacimientos.",
+        "Resumen de pendientes al tocar el badge naranja del encabezado.",
+        "Modal de detalle de registros con toda la información disponible.",
+        "Bloqueo de scroll del fondo mientras hay un modal abierto."
+      ]
+    },
+    {
+      "version": "3.0",
+      "fecha": "2026-09-20",
+      "notas": [
+        "Validación de arete duplicado al crear un animal.",
+        "Vínculo usuario-dispositivo: un solo dispositivo de gestión por usuario.",
+        "Detección automática si el dispositivo fue desvinculado desde la web."
+      ]
+    },
+    {
+      "version": "2.1",
+      "fecha": "2026-09-01",
+      "notas": [
+        "Sincronización en modo consulta (solo lectura).",
+        "Reintentos automáticos de push cuando vuelve la conexión."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,969 @@
+/* =========================================================================
+   crud-form.css
+   Estilos unificados para formularios (frm_registrar, frm_editar, frm_ficha).
+   Compatible con PHP 7.4+ / 8.3+ (CSS puro).
+
+   Novedades v3:
+   - Ancho máximo del formulario: 1100px centrado
+   - Variantes de card: --compact (720px) y --mini (480px)
+   - Row de 3 columnas para campos cortos
+   - Todo lo demás intacto (labels ampliadas, campos legibles,
+     botones jerarquizados, modales grandes)
+   ========================================================================= */
+
+/* =========================================================================
+   1. BASE
+   ========================================================================= */
+.crud-form {
+    --cf-radius: 12px;
+    --cf-radius-sm: 8px;
+    --cf-border: #e5e7eb;
+    --cf-border-focus: #16a34a;
+    --cf-text: #1f2937;
+    --cf-muted: #6b7280;
+    --cf-bg: #ffffff;
+    --cf-bg-soft: #f8fafc;
+    --cf-success: #16a34a;
+    --cf-success-dark: #15803d;
+    --cf-warning: #d97706;
+    --cf-danger: #dc2626;
+    --cf-primary: #2563eb;
+    --cf-transition: .18s ease;
+
+    width: 100%;
+    max-width: clamp(1100px, 94vw, 1600px);  /* ← ancho fluido según viewport */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 18px;
+    box-sizing: border-box;
+    font-family: inherit;
+    color: var(--cf-text);
+    font-size: 15px;
+}
+.crud-form *, .crud-form *::before, .crud-form *::after { box-sizing: border-box; }
+
+/* =========================================================================
+   2. HEADER PRINCIPAL
+   ========================================================================= */
+.crud-form__header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 22px; background: #fff;
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+    margin-bottom: 16px;
+}
+.crud-form__icon {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: rgba(22, 163, 74, .10); color: var(--cf-success);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+}
+.crud-form__title {
+    margin: 0; font-size: 1.1rem; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase;
+    color: var(--cf-text); line-height: 1.2;
+}
+.crud-form__subtitle {
+    margin: 6px 0 0;
+    font-size: 1.05rem;        /* antes .875rem (~14px) → ahora ~17px */
+    font-weight: 500;           /* un poco más de cuerpo */
+    color: #475569;             /* antes #6b7280 → gris más oscuro y legible */
+    line-height: 1.4;
+    letter-spacing: .01em;
+}
+.crud-form__header-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* Botón Regresar del header */
+.crud-form__header-actions .btn.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: var(--cf-radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, .25);
+    transition: transform var(--cf-transition),
+                box-shadow var(--cf-transition),
+                background var(--cf-transition);
+}
+.crud-form__header-actions .btn.btn-warning i { font-size: 14px; }
+.crud-form__header-actions .btn.btn-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(217, 119, 6, .40);
+}
+
+/* =========================================================================
+   3. GRID DE CARDS
+   ========================================================================= */
+.crud-form__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+@media (max-width: 1200px) { .crud-form__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px)  { .crud-form__grid { grid-template-columns: 1fr; } }
+
+/* =========================================================================
+   4. CARDS
+   ========================================================================= */
+.crud-form__card {
+    background: var(--cf-bg);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+}
+.crud-form__card--full { grid-column: 1 / -1; }
+
+/* Franja de cierre del bloque: UNA sola por tarjeta, pegada al borde
+   inferior, para delimitar dónde termina el bloque (Datos Básicos, Categorías /
+   Parentescos, Localización / Foto…). Se dibuja con ::after para que aparezca en
+   TODAS las tarjetas sin tocar el marcado de las vistas y sin depender de los
+   contenedores de mensaje (que pueden faltar en varios campos); el
+   `overflow: hidden` de la tarjeta la recorta siguiendo el border-radius.
+   Verde de la marca ganadera, en degradado de fuerte a suave (izq. → der.). */
+.crud-form__card::after {
+    content: '';
+    display: block;
+    height: 10px;
+    background: linear-gradient(90deg,
+        var(--cf-success-dark) 0%,
+        var(--cf-success) 35%,
+        #4ade80 65%,
+        #dcfce7 100%);
+}
+
+/* Card compacta (2-3 campos) */
+.crud-form__card--compact {
+    grid-column: 1 / -1;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+}
+
+/* Card mini (1 solo campo) */
+.crud-form__card--mini {
+    grid-column: 1 / -1;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+}
+
+.crud-form__card-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%);
+    border-bottom: 1px solid var(--cf-border);
+}
+.crud-form__card-head i { color: var(--cf-success); font-size: 20px; }
+.crud-form__card-head h3 {
+    margin: 0;
+    font-size: 1.31rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #334155;
+}
+
+.crud-form__card-body {
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+}
+
+/* =========================================================================
+   5. FIELDS Y LABELS (etiquetas ampliadas 60%)
+   ========================================================================= */
+.crud-form__field { display: flex; flex-direction: column; gap: 5px; position: relative; }
+
+.crud-form__field label,
+.crud-form__card-body > label {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin: 0;
+}
+.crud-form__field label img,
+.crud-form__card-body > label img {
+    vertical-align: middle; opacity: .65;
+    transition: opacity .18s ease;
+}
+.crud-form__field label:hover img,
+.crud-form__card-body > label:hover img { opacity: 1; }
+
+.crud-form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+@media (max-width: 480px) { .crud-form__row { grid-template-columns: 1fr; } }
+
+.crud-form__row--3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+@media (max-width: 768px) {
+    .crud-form__row--3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+    .crud-form__row--3 { grid-template-columns: 1fr; }
+}
+
+/* =========================================================================
+   6. INPUTS BASE
+   ========================================================================= */
+.crud-form .form-control,
+.crud-form select.form-control,
+.crud-form input.form-control,
+.crud-form textarea.form-control {
+    display: block; width: 100%; height: 42px;
+    padding: 8px 12px; font-size: 14.5px; line-height: 1.4;
+    color: var(--cf-text); background: #fff;
+    border: 1.5px solid #d1d5db;
+    border-radius: var(--cf-radius-sm);
+    box-shadow: none;
+    transition: border-color var(--cf-transition),
+                box-shadow var(--cf-transition),
+                background var(--cf-transition);
+}
+.crud-form textarea.form-control {
+    height: auto; min-height: 84px; resize: vertical;
+}
+.crud-form .form-control:focus,
+.crud-form select.form-control:focus,
+.crud-form input.form-control:focus,
+.crud-form textarea.form-control:focus {
+    border-color: var(--cf-success);
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, .12);
+    outline: none;
+}
+
+/* Select con flecha SVG personalizada */
+.crud-form select.form-control {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236b7280'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+    padding-right: 32px;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+}
+.crud-form select.btn-sm {
+    height: 42px; padding: 8px 12px; font-size: 14.5px;
+    border: 1.5px solid #d1d5db;
+    border-radius: var(--cf-radius-sm);
+    background: #fff; width: 100%;
+    transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+}
+.crud-form select.btn-sm:focus {
+    border-color: var(--cf-success);
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, .12);
+    outline: none;
+}
+
+/* =========================================================================
+   7. CAMPOS BLOQUEADOS (fondo rayado + texto legible)
+   ========================================================================= */
+.crud-form .form-control:disabled,
+.crud-form .form-control[disabled],
+.crud-form select.btn-sm:disabled,
+.crud-form select.btn-sm[disabled],
+.crud-form input.form-control:disabled,
+.crud-form select.form-control:disabled,
+.crud-form textarea.form-control:disabled {
+    background: repeating-linear-gradient(
+        45deg,
+        #f1f5f9,
+        #f1f5f9 8px,
+        #e2e8f0 8px,
+        #e2e8f0 16px
+    ) !important;
+    color: #334155 !important;
+    font-weight: 600 !important;
+    -webkit-text-fill-color: #334155 !important;
+    opacity: 1 !important;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+}
+
+.crud-form .form-control:disabled::placeholder,
+.crud-form input.form-control:disabled::placeholder,
+.crud-form textarea.form-control:disabled::placeholder {
+    color: #64748b !important;
+    opacity: 1;
+}
+
+.crud-form .form-control[readonly] {
+    background: #f1f5f9;
+    color: #334155 !important;
+    font-weight: 600 !important;
+    -webkit-text-fill-color: #334155 !important;
+    opacity: 1 !important;
+    cursor: not-allowed;
+    border-color: #cbd5e1;
+}
+
+.crud-form select.form-control:disabled,
+.crud-form select.btn-sm:disabled {
+    background-color: #f1f5f9 !important;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23475569'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 14px !important;
+}
+
+.crud-form__lock {
+    display: none;
+    position: absolute;
+    right: 12px;
+    top: 40px;
+    color: #cbd5e1;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 2;
+}
+.crud-form__field select:disabled ~ .crud-form__lock,
+.crud-form__field input:disabled ~ .crud-form__lock,
+.crud-form__field textarea:disabled ~ .crud-form__lock {
+    display: inline-flex;
+}
+
+/* =========================================================================
+   8. ANIMACIÓN DE DESBLOQUEO
+   ========================================================================= */
+@keyframes crud-field-unlock {
+    0%   { background-color: #fef3c7; box-shadow: 0 0 0 0 rgba(245, 158, 11, .6); }
+    40%  { background-color: #fef9c3; box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+    100% { background-color: #ffffff; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.crud-form .form-control.crud-unlocked,
+.crud-form select.btn-sm.crud-unlocked,
+.crud-form input.form-control.crud-unlocked,
+.crud-form select.form-control.crud-unlocked,
+.crud-form textarea.form-control.crud-unlocked {
+    animation: crud-field-unlock 1s ease;
+    border-color: var(--cf-success);
+}
+
+/* =========================================================================
+   9. MENSAJES DE VALIDACIÓN
+   ========================================================================= */
+.crud-form div[id^="ms_"] {
+    border-radius: 6px !important;
+    font-size: 14px;
+    padding: 0; margin-top: 4px;
+    display: none;
+    background: transparent !important;
+    color: transparent !important;
+    transition: all .2s ease;
+}
+.crud-form div[id^="ms_"]:not(:empty) {
+    display: block;
+    padding: 6px 10px;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    border-left: 3px solid #dc2626;
+    font-weight: 600;
+}
+.crud-form div[id^="ms_"] p { margin: 0; padding: 0; }
+
+/* =========================================================================
+   10. FOTO PREVIEW + INPUT FILE
+   ========================================================================= */
+.crud-form .imgusr {
+    display: block; margin: 8px auto;
+    border-radius: 10px; border: 2px solid var(--cf-border);
+    background: var(--cf-bg-soft); object-fit: cover;
+    max-width: 100%; height: auto;
+}
+.crud-form input[type="file"] {
+    display: block; width: 100%; font-size: 13px;
+    color: var(--cf-muted); padding: 8px 10px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: var(--cf-radius-sm);
+    background: var(--cf-bg-soft);
+    transition: border-color var(--cf-transition), background var(--cf-transition);
+    cursor: pointer;
+}
+.crud-form input[type="file"]:hover {
+    border-color: var(--cf-success); background: #f0fdf4;
+}
+
+/* =========================================================================
+   11. CHECKBOXES INLINE (madre/padre)
+   ========================================================================= */
+.crud-form .input-group-addon {
+    display: flex !important; flex-wrap: wrap; align-items: center;
+    gap: 8px; padding: 10px 0 0;
+    background: transparent; border: none;
+    font-size: 20px;
+    color: var(--cf-muted);
+}
+.crud-form .input-group-addon label {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 20px;
+    margin: 0;
+    color: #475569;
+}
+.crud-form .input-group-addon input[type="checkbox"] {
+    margin: 0 6px 0 0;
+    vertical-align: middle;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+.crud-form .input-group-addon .btn {
+    padding: 7px 14px;
+    font-size: 15px;
+    border-radius: 6px;
+}
+
+/* =========================================================================
+   12. BOTONES DE ACCIÓN
+   ========================================================================= */
+.crud-form__actions {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    align-items: center;
+    gap: 12px; padding: 22px 18px; margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.crud-form__actions .btn {
+    min-width: 140px; min-height: 46px;
+    padding: 11px 22px;
+    border-radius: var(--cf-radius-sm);
+    font-size: 15px; font-weight: 700; letter-spacing: .02em;
+    border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform var(--cf-transition),
+                box-shadow var(--cf-transition),
+                background var(--cf-transition);
+}
+.crud-form__actions .btn i { font-size: 16px; }
+.crud-form__actions .btn:active { transform: translateY(1px); }
+.crud-form__actions .btn:disabled,
+.crud-form__actions .btn.disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+.crud-form__actions .btn-success {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: #fff; box-shadow: 0 4px 12px rgba(22, 163, 74, .30);
+}
+.crud-form__actions .btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #15803d 0%, #14532d 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(22, 163, 74, .45);
+}
+.crud-form__actions .btn-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, .30);
+}
+.crud-form__actions .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, .45);
+}
+.crud-form__actions .btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff; box-shadow: 0 4px 12px rgba(217, 119, 6, .30);
+}
+.crud-form__actions .btn-warning:hover:not(:disabled) {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(217, 119, 6, .45);
+}
+
+.crud-form__actions #save.btn-success {
+    min-width: 240px;
+    min-height: 54px;
+    padding: 14px 32px;
+    font-size: 16.5px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    box-shadow: 0 6px 18px rgba(22, 163, 74, .35),
+                0 12px 28px -10px rgba(22, 163, 74, .55);
+}
+.crud-form__actions #save.btn-success:hover:not(:disabled) {
+    box-shadow: 0 8px 22px rgba(22, 163, 74, .45),
+                0 16px 32px -10px rgba(22, 163, 74, .70);
+}
+
+.crud-form__actions #modificar.btn-primary {
+    min-width: 180px;
+    min-height: 54px;
+    padding: 14px 26px;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+/* =========================================================================
+   13. HISTORIAL DE MOVIMIENTOS (frm_editar)
+   ========================================================================= */
+.crud-form .historial-card {
+    margin-top: 16px; background: #fff;
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+}
+.crud-form .historial-card .box-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; margin: 0;
+    background: linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%);
+    border-bottom: 1px solid var(--cf-border);
+}
+.crud-form .historial-card .box-title {
+    margin: 0;
+    font-size: 1.31rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #334155;
+}
+.crud-form .historial-card .box-body { padding: 16px 18px; overflow-x: auto; }
+.crud-form .historial-card table {
+    min-width: 640px; width: 100%; font-size: 14px; border-collapse: collapse;
+}
+.crud-form .historial-card table thead th {
+    background: #f8fafc; color: #475569; font-weight: 700;
+    font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+    padding: 12px; text-align: left;
+    border-bottom: 1px solid var(--cf-border); white-space: nowrap;
+}
+.crud-form .historial-card table tbody td {
+    padding: 12px; border-bottom: 1px solid #eef1f4;
+    color: var(--cf-text); vertical-align: middle;
+}
+.crud-form .historial-card table tbody tr:hover { background: #f0fdf4; }
+
+/* =========================================================================
+   14. MODALES DE CONFIRMACIÓN (jquery-confirm)
+   ========================================================================= */
+.jconfirm .jconfirm-bg {
+    background-color: rgba(15, 23, 42, .55) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.jconfirm .jconfirm-box {
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px -20px rgba(0, 0, 0, .35),
+                0 8px 24px -8px rgba(0, 0, 0, .25) !important;
+    padding: 32px 36px !important;
+    max-width: 620px !important;
+    min-width: 460px !important;
+    border: 1px solid #e5e7eb !important;
+    background: #ffffff !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-title-c {
+    padding-bottom: 16px !important;
+    border-bottom: 2px dashed #e5e7eb !important;
+    margin-bottom: 12px !important;
+}
+.jconfirm .jconfirm-box .jconfirm-title {
+    font-size: 1.6rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    letter-spacing: .01em !important;
+    line-height: 1.25 !important;
+    font-family: inherit !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-content {
+    font-size: 1.15rem !important;
+    color: #334155 !important;
+    line-height: 1.6 !important;
+    padding: 4px 0 8px !important;
+    font-family: inherit !important;
+    min-height: 30px;
+}
+.jconfirm .jconfirm-box .jconfirm-content p { margin: 0 0 10px !important; }
+.jconfirm .jconfirm-box .jconfirm-content strong {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-buttons {
+    padding-top: 24px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn,
+.jconfirm .jconfirm-box .jconfirm-buttons button {
+    min-width: 130px !important;
+    min-height: 52px !important;
+    padding: 14px 28px !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    letter-spacing: .04em !important;
+    text-transform: uppercase !important;
+    border-radius: 10px !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font-family: inherit !important;
+    transition: transform .18s ease,
+                box-shadow .18s ease,
+                background .18s ease !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn:hover {
+    transform: translateY(-2px) !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-primary,
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-success {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 16px rgba(22, 163, 74, .40) !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-primary:hover,
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-success:hover {
+    background: linear-gradient(135deg, #15803d 0%, #14532d 100%) !important;
+    box-shadow: 0 8px 22px rgba(22, 163, 74, .50) !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-default,
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-secondary {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    color: #1f2937 !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, .12) !important;
+    border: 1px solid #cbd5e1 !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-default:hover,
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-secondary:hover {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%) !important;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, .20) !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 16px rgba(220, 38, 38, .40) !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
+    box-shadow: 0 8px 22px rgba(220, 38, 38, .50) !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-info {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: #fff !important;
+}
+.jconfirm .jconfirm-box .jconfirm-buttons button.btn-info:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+}
+
+.jconfirm .jconfirm-box .jconfirm-closeIcon {
+    font-size: 26px !important;
+    top: 14px !important;
+    right: 16px !important;
+    color: #94a3b8 !important;
+    opacity: .8 !important;
+    transition: color .18s ease, opacity .18s ease !important;
+}
+.jconfirm .jconfirm-box .jconfirm-closeIcon:hover {
+    color: #1f2937 !important;
+    opacity: 1 !important;
+}
+
+.jconfirm .jconfirm-box.jconfirm-type-blue,
+.jconfirm .jconfirm-box.jconfirm-type-green,
+.jconfirm .jconfirm-box.jconfirm-type-red,
+.jconfirm .jconfirm-box.jconfirm-type-orange {
+    padding-left: 90px !important;
+}
+.jconfirm .jconfirm-box .jconfirm-icon-c {
+    font-size: 40px !important;
+    left: 28px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    position: absolute !important;
+}
+
+.jconfirm .jconfirm-box.jconfirm-animation-top   { animation-duration: .32s !important; }
+.jconfirm .jconfirm-box.jconfirm-animation-scale { animation-duration: .28s !important; }
+.jconfirm .jconfirm-box.jconfirm-animation-zoom  { animation-duration: .32s !important; }
+
+/* =========================================================================
+   15. RESPONSIVE GENERAL
+   ========================================================================= */
+@media (max-width: 992px) {
+    .crud-form { padding: 12px; font-size: 14.5px; }
+    .crud-form__header { padding: 14px 18px; }
+    .crud-form__icon { width: 40px; height: 40px; font-size: 17px; }
+    .crud-form__title { font-size: 1rem; }
+.crud-form__subtitle { font-size: .95rem; }
+    .crud-form__card-body { padding: 14px; gap: 12px; }
+    .crud-form__card-head h3 { font-size: 1.1rem; }
+    .crud-form__field label,
+    .crud-form__card-body > label { font-size: 1.05rem; }
+    .crud-form .input-group-addon,
+    .crud-form .input-group-addon label { font-size: 16px; }
+    .crud-form__actions { padding: 16px 12px; gap: 10px; }
+    .crud-form__actions .btn { min-width: 120px; min-height: 44px; padding: 10px 18px; font-size: 14px; }
+    .crud-form__actions #save.btn-success { min-width: 200px; min-height: 50px; font-size: 15px; padding: 12px 24px; }
+    .crud-form__actions #modificar.btn-primary { min-width: 150px; min-height: 50px; font-size: 14px; }
+}
+
+@media (max-width: 640px) {
+    .crud-form { padding: 8px; font-size: 14px; }
+    .crud-form__header { flex-wrap: wrap; gap: 10px; padding: 12px; }
+    .crud-form__title { font-size: .9rem; }
+    .crud-form__subtitle { font-size: .85rem; }
+    .crud-form__header-actions { width: 100%; margin-left: 0; }
+    .crud-form__header-actions .btn { flex: 1; justify-content: center; }
+
+    .crud-form__card-body { padding: 12px; gap: 10px; }
+    .crud-form__card-head { padding: 12px 14px; }
+    .crud-form__card-head h3 { font-size: 1rem; }
+    .crud-form__field label,
+    .crud-form__card-body > label { font-size: 1rem; }
+    .crud-form .input-group-addon,
+    .crud-form .input-group-addon label { font-size: 15px; }
+    .crud-form .input-group-addon input[type="checkbox"] { width: 16px; height: 16px; }
+
+    .crud-form .form-control,
+    .crud-form select.form-control,
+    .crud-form input.form-control,
+    .crud-form textarea.form-control,
+    .crud-form select.btn-sm {
+        height: 44px; font-size: 15px; padding: 9px 12px;
+    }
+
+    .crud-form__actions { flex-direction: column-reverse; gap: 10px; padding: 16px 12px; }
+    .crud-form__actions .btn,
+    .crud-form__actions #save.btn-success,
+    .crud-form__actions #modificar.btn-primary {
+        width: 100%; min-width: 0; min-height: 50px; font-size: 15px; padding: 13px 18px;
+    }
+}
+
+/* =========================================================================
+   16. RESPONSIVE MODALES
+   ========================================================================= */
+@media (max-width: 640px) {
+    .jconfirm .jconfirm-box {
+        padding: 22px 20px !important;
+        max-width: 92vw !important;
+        min-width: 0 !important;
+        border-radius: 14px !important;
+    }
+    .jconfirm .jconfirm-box .jconfirm-title { font-size: 1.15rem !important; }
+    .jconfirm .jconfirm-box .jconfirm-content {
+        font-size: .98rem !important;
+        line-height: 1.5 !important;
+    }
+    .jconfirm .jconfirm-box .jconfirm-buttons {
+        flex-direction: column-reverse !important;
+        gap: 10px !important;
+        padding-top: 18px !important;
+    }
+    .jconfirm .jconfirm-box .jconfirm-buttons button.btn,
+    .jconfirm .jconfirm-box .jconfirm-buttons button {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 50px !important;
+        font-size: 1rem !important;
+        padding: 13px 20px !important;
+    }
+    .jconfirm .jconfirm-box.jconfirm-type-blue,
+    .jconfirm .jconfirm-box.jconfirm-type-green,
+    .jconfirm .jconfirm-box.jconfirm-type-red,
+    .jconfirm .jconfirm-box.jconfirm-type-orange {
+        padding-left: 20px !important;
+    }
+    .jconfirm .jconfirm-box .jconfirm-icon-c { display: none !important; }
+}
+/* ============================================================
+   ANCHOS RESPONSIVOS PARA FORMULARIOS COMPLEJOS
+   Los formularios multi-card (como animales) usan todo el ancho
+   disponible hasta 1600px en monitores grandes.
+   ============================================================ */
+
+/* Formularios multi-card: sin restricción de 720px */
+.crud-form .crud-form__grid {
+    max-width: 100%;
+}
+
+/* En pantallas muy anchas, dar un poco más de aire */
+@media (min-width: 1600px) {
+    .crud-form { max-width: 1600px; }
+}
+
+/* Los formularios mini/compact conservan su límite propio */
+.crud-form__card--mini    { max-width: 480px !important; }
+.crud-form__card--compact { max-width: 720px !important; }
+
+/* =========================================================================
+   17. FEEDBACK VISUAL DE DESBLOQUEO
+   Cuando un campo, botón o checkbox pasa de disabled → enabled,
+   se resalta brevemente para que el usuario sepa qué se activó.
+   ========================================================================= */
+
+/* ---------- INPUTS / SELECTS / TEXTAREAS ---------- */
+@keyframes crud-flash-input {
+    0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, .75);
+           background-color: #dcfce7;
+           border-color: #16a34a; }
+    30%  { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0);
+           background-color: #f0fdf4;
+           border-color: #16a34a; }
+    70%  { box-shadow: 0 0 0 0 rgba(22, 163, 74, .35);
+           background-color: #ffffff; }
+    100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+           background-color: inherit; }
+}
+.crud-form .form-control.crud-unlocked,
+.crud-form input.crud-unlocked,
+.crud-form select.crud-unlocked,
+.crud-form textarea.crud-unlocked,
+.crud-form select.btn-sm.crud-unlocked {
+    animation: crud-flash-input 2.4s ease !important;
+    border-color: #16a34a !important;
+    transition: none !important;
+}
+
+/* ---------- BOTONES ---------- */
+@keyframes crud-flash-btn {
+    0%   { transform: scale(1);
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, .65); }
+    18%  { transform: scale(1.08);
+           box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); }
+    45%  { transform: scale(1);
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, .45); }
+    70%  { transform: scale(1.05);
+           box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+    100% { transform: scale(1);
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+.crud-form button.crud-just-unlocked-btn,
+.crud-form .btn.crud-just-unlocked-btn {
+    animation: crud-flash-btn 2.4s ease !important;
+    outline: 3px solid rgba(22, 163, 74, .60) !important;
+    outline-offset: 3px !important;
+    position: relative;
+    z-index: 2;
+}
+
+/* ---------- CHECKBOXES + SU LABEL ---------- */
+@keyframes crud-flash-check {
+    0%   { transform: scale(1);
+           background-color: rgba(22, 163, 74, .30);
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, .55); }
+    25%  { transform: scale(1.25);
+           background-color: rgba(22, 163, 74, .55);
+           box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+    60%  { transform: scale(1);
+           background-color: rgba(22, 163, 74, .30);
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, .30); }
+    100% { transform: scale(1);
+           background-color: transparent;
+           box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+.crud-form input[type="checkbox"].crud-just-unlocked-check {
+    animation: crud-flash-check 2.4s ease !important;
+    outline: 2px solid #16a34a !important;
+    outline-offset: 2px !important;
+    border-radius: 3px;
+}
+
+@keyframes crud-flash-check-label {
+    0%   { background-color: rgba(22, 163, 74, .30);
+           color: #15803d;
+           transform: translateX(0); }
+    30%  { background-color: rgba(22, 163, 74, .18);
+           color: #15803d;
+           transform: translateX(-3px); }
+    60%  { background-color: rgba(22, 163, 74, .08);
+           color: #15803d;
+           transform: translateX(0); }
+    100% { background-color: transparent;
+           color: inherit; }
+}
+.crud-form label.crud-just-unlocked-check-label {
+    animation: crud-flash-check-label 2.4s ease !important;
+    border-radius: 6px !important;
+    padding: 3px 8px !important;
+    font-weight: 800 !important;
+    transition: none !important;
+}
+/* =========================================================================
+   18. BOTONES COMO ENLACES (<a>)
+   Evita que AdminLTE o el navegador apliquen el color por defecto de
+   los enlaces (verde/azul/subrayado) a los botones.
+   ========================================================================= */
+
+a.crud-btn,
+a.crud-btn:link,
+a.crud-btn:visited,
+a.crud-btn:hover,
+a.crud-btn:focus,
+a.crud-btn:active {
+    text-decoration: none !important;
+}
+
+/* Colores por variante — anulan el color de enlaces de AdminLTE */
+a.crud-btn--primary,
+a.crud-btn--primary span,
+a.crud-btn--primary i,
+a.crud-btn--primary:visited { color: #ffffff !important; }
+
+a.crud-btn--success,
+a.crud-btn--success span,
+a.crud-btn--success i,
+a.crud-btn--success:visited { color: #ffffff !important; }
+
+a.crud-btn--warning,
+a.crud-btn--warning span,
+a.crud-btn--warning i,
+a.crud-btn--warning:visited { color: #ffffff !important; }
+
+a.crud-btn--danger,
+a.crud-btn--danger span,
+a.crud-btn--danger i,
+a.crud-btn--danger:visited { color: #ffffff !important; }
+
+a.crud-btn--info,
+a.crud-btn--info span,
+a.crud-btn--info i,
+a.crud-btn--info:visited { color: #ffffff !important; }
+
+a.crud-btn--excel,
+a.crud-btn--excel span,
+a.crud-btn--excel i,
+a.crud-btn--excel:visited { color: #ffffff !important; }
+
+a.crud-btn--ghost,
+a.crud-btn--ghost span,
+a.crud-btn--ghost i,
+a.crud-btn--ghost:visited { color: #1f2937 !important; }
+
+a.crud-btn--back span,
+a.crud-btn--back i { color: #7c2d12 !important; }

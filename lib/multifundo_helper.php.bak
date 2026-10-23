@@ -1,0 +1,123 @@
+<?php
+/**
+ * Helper multi-fundo.
+ * Compatible con PHP 7.4 y 8.3.
+ */
+
+require_once __DIR__ . '/../models/Mfundosxusuario.php';
+require_once __DIR__ . '/../models/Mfundo.php';
+require_once __DIR__ . '/../models/Mplanes.php';
+require_once __DIR__ . '/../models/Manimalxfundo.php';
+
+/**
+ * Devuelve todos los fundos activos vinculados a un usuario.
+ * Retorna array de objetos con: id, nombre, cid_rif, mplanes_id,
+ * max_reg, mtipoganaderias_id, es_activo
+ */
+function mf_listar_fundos_usuario($usuario_id) {
+    $usuario_id = (int)$usuario_id;
+    $q = Mfundosxusuario::find_by_sql("
+        SELECT
+            f.id                AS mfundos_id,
+            f.nombre,
+            f.cid_rif,
+            f.mtipoganaderias_id,
+            f.mplanes_id,
+            p.max_reg,
+            p.nombre            AS plan_nombre,
+            (SELECT COUNT(*) FROM manimales a 
+              WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales
+          FROM mfundosxusuarios fxu
+    INNER JOIN mfundos f    ON f.id = fxu.mfundos_id
+     LEFT JOIN mplanes p    ON p.id = f.mplanes_id
+         WHERE fxu.musuarios_id = $usuario_id
+           AND fxu.status = 1
+           AND f.status = 1
+      ORDER BY f.nombre ASC
+    ");
+    return $q ? $q : array();
+}
+
+/**
+ * Cuenta cuántos fundos activos tiene un usuario.
+ */
+function mf_contar_fundos_usuario($usuario_id) {
+    $usuario_id = (int)$usuario_id;
+    $q = Mfundosxusuario::find_by_sql("
+        SELECT COUNT(*) AS total
+          FROM mfundosxusuarios fxu
+    INNER JOIN mfundos f ON f.id = fxu.mfundos_id
+         WHERE fxu.musuarios_id = $usuario_id
+           AND fxu.status = 1
+           AND f.status = 1
+    ");
+    return ($q && isset($q[0]->total)) ? (int)$q[0]->total : 0;
+}
+
+/**
+ * Valida si el usuario puede crear más fundos.
+ */
+function mf_puede_crear_fundo($usuario_id) {
+    require_once __DIR__ . '/../models/Musuario.php';
+    $usuario_id = (int)$usuario_id;
+    $usr = Musuario::find('all', array('conditions' => array('id=?', $usuario_id)));
+    if (!$usr) return false;
+
+    $max = (int)$usr[0]->max_fundos;
+    $actual = mf_contar_fundos_usuario($usuario_id);
+
+    return ($actual < $max);
+}
+
+/**
+ * Carga en $_SESSION los datos del fundo activo:
+ *   - mfundos_id
+ *   - tipo_ganaderia
+ *   - maximo_registros
+ *   - acceso_reg_animales
+ *   - mplanes_id
+ *   - fundo_nombre
+ *
+ * Devuelve true si se pudo cargar, false si el fundo no existe/no pertenece al usuario.
+ */
+function mf_cargar_fundo_en_sesion($usuario_id, $fundo_id) {
+    $usuario_id = (int)$usuario_id;
+    $fundo_id   = (int)$fundo_id;
+
+    // Verificar acceso
+    $q = Mfundosxusuario::find_by_sql("
+        SELECT f.id, f.nombre, f.mtipoganaderias_id, f.mplanes_id, p.max_reg
+          FROM mfundosxusuarios fxu
+    INNER JOIN mfundos f ON f.id = fxu.mfundos_id
+     LEFT JOIN mplanes p ON p.id = f.mplanes_id
+         WHERE fxu.musuarios_id = $usuario_id
+           AND fxu.mfundos_id  = $fundo_id
+           AND fxu.status      = 1
+           AND f.status        = 1
+         LIMIT 1
+    ");
+
+    if (!$q || !isset($q[0])) {
+        return false;
+    }
+
+    $f = $q[0];
+
+    $_SESSION['mfundos_id']      = (int)$f->id;
+    $_SESSION['fundo_nombre']    = $f->nombre;
+    $_SESSION['tipo_ganaderia']  = (int)$f->mtipoganaderias_id;
+    $_SESSION['mplanes_id']      = (int)$f->mplanes_id;
+    $_SESSION['maximo_registros'] = (int)$f->max_reg;
+
+    // Recalcular acceso a registro de animales
+    $cnt = Manimalxfundo::find_by_sql("
+        SELECT COUNT(id) AS total
+          FROM manimalxfundos
+         WHERE status = 1 AND mfundos_id = " . (int)$f->id
+    );
+    $usados = ($cnt && isset($cnt[0]->total)) ? (int)$cnt[0]->total : 0;
+
+    $_SESSION['acceso_reg_animales'] = ($_SESSION['maximo_registros'] > $usados) ? 1 : 0;
+
+    return true;
+}

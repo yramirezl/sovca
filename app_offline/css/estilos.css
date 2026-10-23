@@ -1,0 +1,2321 @@
+:root {
+  --verde-pasto: #2F5233;
+  --verde-pasto-oscuro: #203923;
+  --tierra: #7A5230;
+  --hueso: #F1ECDD;
+  --hueso-oscuro: #E4DCC6;
+  --tinta: #201D18;
+  --ambar: #D98E2B;
+  --rojo: #A83A2C;
+  --verde-sync: #3E7A44;
+
+  --radio: 14px;
+  --sombra: 0 2px 6px rgba(32, 29, 24, 0.15);
+
+  /* Contenedores de módulo (mismo lenguaje que las tarjetas de la web) */
+  --radio-panel: 22px;
+  --borde-suave: #E8E0CD;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--hueso);
+  color: var(--tinta);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.oculto { display: none !important; }
+
+/* Cuando hay un modal abierto (detalle, aviso, elección, nacimiento),
+   bloqueamos el scroll del body. Sin esto, al hacer scroll con el
+   modal abierto se mueve el contenido que está debajo (listado,
+   formularios, etc.), y el modal parece no tener el foco. */
+body.modal-abierto,
+body.modal-nacimiento-abierto {
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--ambar);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Pantalla de login                                                 */
+/* ---------------------------------------------------------------- */
+
+.pantalla-login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  width: 100%;
+}
+
+#pantalla-reconexion-local {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+#pantalla-reconexion-local.oculto {
+  display: none !important;
+}
+
+.tarjeta-login {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 32px 28px;
+}
+
+.tarjeta-login__logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.tarjeta-login__logo img { width: 44px; height: 44px; }
+
+.tarjeta-login__titulo {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tarjeta-login__subtitulo {
+  color: #6b6455;
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+.tarjeta-login--reconexion {
+  max-width: 420px;
+}
+
+.tarjeta-login__subtitulo--reconexion {
+  text-align: center;
+}
+
+.acciones-reconexion {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.acciones-reconexion__separador {
+  color: #7a7467;
+}
+
+.enlace-reconexion {
+  background: none;
+  border: none;
+  color: #234e35;
+  font-size: 13px;
+  padding: 0;
+}
+
+.enlace-reconexion--alerta {
+  color: #a33;
+}
+
+.campo {
+  margin-bottom: 16px;
+}
+
+.campo label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--verde-pasto-oscuro);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--hueso-oscuro);
+  border-radius: 10px;
+  font-size: 16px;
+  background: #fff;
+  color: var(--tinta);
+}
+
+.boton-primario {
+  width: 100%;
+  background: var(--verde-pasto);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.boton-primario:active { background: var(--verde-pasto-oscuro); }
+.boton-primario:disabled { opacity: 0.6; }
+
+.mensaje-error {
+  color: var(--rojo);
+  font-size: 14px;
+  min-height: 20px;
+  margin-top: 10px;
+}
+
+.instalacion-app {
+  margin-top: 14px;
+  border: 1px solid var(--hueso-oscuro);
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.instalacion-app__texto {
+  margin: 0 0 8px;
+  color: #6b6455;
+  font-size: 13px;
+}
+
+.instalacion-app__acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.instalacion-app__acciones .boton-secundario {
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.actualizacion-frontend {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2500;
+  background: #fff;
+  border: 1px solid var(--hueso-oscuro);
+  box-shadow: var(--sombra);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.actualizacion-frontend__texto {
+  margin: 0 0 8px;
+  color: #3b372f;
+  font-size: 13px;
+}
+
+.actualizacion-frontend__acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.actualizacion-frontend__acciones .boton-secundario {
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.diagnostico-frontend {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2510;
+  background: #fff;
+  border: 1px solid var(--hueso-oscuro);
+  box-shadow: var(--sombra);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.diagnostico-frontend__titulo {
+  margin: 0 0 8px;
+  color: var(--verde-pasto-oscuro);
+  font-size: 14px;
+}
+
+.diagnostico-frontend__linea {
+  margin: 0 0 4px;
+  color: #3b372f;
+  font-size: 12px;
+}
+
+.diagnostico-frontend__acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.diagnostico-frontend__acciones .boton-secundario {
+  padding: 10px;
+  border-radius: 8px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Pantalla principal                                                */
+/* ---------------------------------------------------------------- */
+
+.encabezado {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--verde-pasto);
+  color: #fff;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
+  box-shadow: var(--sombra);
+}
+
+.encabezado__marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  min-width: 0;
+}
+.encabezado__marca img { width: 28px; height: 28px; flex: 0 0 auto; }
+
+.encabezado__marca-texto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Chip de estado de sincronización: vive al lado del nombre del usuario
+   y ocupa solo el ancho de su texto. Antes esta misma información
+   tenía una tarjeta entera debajo del encabezado, que empujaba todo el
+   contenido hacia abajo. */
+.chip-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 3px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.chip-sync:active { background: rgba(255, 255, 255, 0.3); }
+
+.chip-sync__icono {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  background: #9FD08A;
+  color: #1F3D22;
+}
+
+.chip-sync__texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Cambio de texto suave: se desteñe un instante antes de escribir el
+   nuevo valor (ver actualizarIndicadorSincronizacion). */
+.chip-sync__texto--cambio {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+/* Destello al cerrar la burbuja: la etiqueta "respira" una vez para
+   dar por vista la información, en vez de quedarse igual. */
+@keyframes chip-sync-destello {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  55%  { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.chip-sync--destello { animation: chip-sync-destello 0.85s ease-out; }
+
+.chip-sync--aviso { background: rgba(217, 142, 43, 0.42); color: #FFE7C4; }
+.chip-sync--aviso .chip-sync__icono { background: var(--ambar); color: #3A2A00; }
+
+.chip-sync--error { background: rgba(200, 80, 60, 0.42); color: #FFD9D0; }
+.chip-sync--error .chip-sync__icono { background: #E8806B; color: #4A1109; }
+
+/* Burbuja de detalle del chip. Va anclada al chip (no un modal
+   centrado: es información, no una alerta grave) y entra con un
+   desvanecido corto desde arriba. */
+.popover-sync {
+  position: fixed;
+  z-index: 40;
+  padding: 12px 14px 12px;
+  border-radius: 13px;
+  background: #fff;
+  color: var(--tinta);
+  box-shadow: 0 12px 28px rgba(32, 29, 24, 0.22), 0 1px 4px rgba(32, 29, 24, 0.12);
+  font-size: 12.5px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top center;
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.popover-sync--visible { opacity: 1; transform: none; }
+.popover-sync--arriba { transform-origin: bottom center; }
+
+.popover-sync__flecha {
+  position: absolute;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+.popover-sync--arriba .popover-sync__flecha { top: auto; bottom: -6px; }
+
+.popover-sync__titulo {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--verde-pasto-oscuro);
+}
+
+.popover-sync__texto { margin: 0 0 8px; }
+.popover-sync__texto:last-child { margin-bottom: 0; }
+
+.popover-sync__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.popover-sync__fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popover-sync__cantidad {
+  flex: 0 0 auto;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #FFF1DA;
+  color: #6B4708;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.popover-sync__nota {
+  margin: 0;
+  font-size: 11.5px;
+  color: #6b6455;
+}
+.popover-sync__nota + .popover-sync__nota { margin-top: 4px; }
+
+.popover-sync__aviso {
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #FBEBE7;
+  color: #7A2A1E;
+  font-size: 11.5px;
+}
+
+.popover-sync__boton {
+  width: 100%;
+  margin-top: 11px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: var(--verde-pasto);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.popover-sync__boton:active { background: var(--verde-pasto-oscuro); }
+
+/* Respaldo local dentro del popover de sincronización */
+.popover-sync__respaldo {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e6e0d3;
+}
+.popover-sync__subtitulo {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #4a4438;
+}
+.popover-sync__acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.popover-sync__boton--secundario {
+  margin-top: 0;
+  background: #f1ece0;
+  color: #4a4438;
+  border: 1px solid #ddd5c4;
+}
+.popover-sync__boton--secundario:active { background: #e6dfd0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-sync,
+  .chip-sync__texto { transition: none; }
+  .chip-sync--destello { animation: none; }
+}
+
+.encabezado__acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.indicador {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+}
+.indicador--online { color: #C9E8B8; }
+.indicador--offline { color: #F0C6A8; }
+
+.etiqueta-version-frontend {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.etiqueta-version-frontend:hover {
+  background: rgba(255,255,255,0.28);
+}
+
+.etiqueta-version-frontend:active {
+  background: rgba(255,255,255,0.35);
+}
+
+.boton-icono {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.boton-icono:active { background: rgba(255,255,255,0.3); }
+
+.estado-sync {
+  font-size: 12px;
+  color: var(--tierra);
+  padding: 6px 16px 0;
+}
+
+/* Cuando no hay mensaje que mostrar no ocupa espacio (antes dejaba
+   una franja vacía de 20px bajo el encabezado). */
+.estado-sync:empty { display: none; }
+
+/* ----------------------------------------------------------------
+   Aviso de versión nueva (hay mejoras en la nube esperando)
+   ---------------------------------------------------------------- */
+.aviso-actualizacion {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 16px 0;
+  padding: 12px 14px;
+  border: 1px solid #E6D89A;
+  border-left: 5px solid var(--ambar);
+  border-radius: var(--radio);
+  background: linear-gradient(180deg, #FFF8E8 0%, #FDF1D6 100%);
+  box-shadow: var(--sombra);
+}
+
+.aviso-actualizacion__icono {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ambar);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 26px;
+  text-align: center;
+}
+
+.aviso-actualizacion__cuerpo { flex: 1 1 auto; min-width: 0; }
+
+.aviso-actualizacion__titulo {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #6B4A0E;
+}
+
+.aviso-actualizacion__detalle {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #5C4A26;
+}
+
+.aviso-actualizacion__notas {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5C4A26;
+}
+
+.aviso-actualizacion__notas li { margin-bottom: 3px; }
+
+.aviso-actualizacion__pendientes {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8A5A00;
+}
+
+.aviso-actualizacion__acciones {
+  display: grid;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-content: start;
+}
+
+.aviso-actualizacion__boton {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #E8A33C 0%, var(--ambar) 55%, #B06F14 100%);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aviso-actualizacion__boton:disabled { opacity: 0.7; cursor: default; }
+
+.aviso-actualizacion__omitir {
+  padding: 8px 12px;
+  border: 1px solid #E0CE9C;
+  border-radius: 10px;
+  background: #fff;
+  color: #6B4A0E;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* El badge de versión del encabezado se marca cuando hay una nueva. */
+.etiqueta-version-frontend--nueva {
+  background: var(--ambar) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(217, 142, 43, 0.28);
+  animation: latido-version 1.6s ease-in-out 3;
+}
+
+@keyframes latido-version {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .etiqueta-version-frontend--nueva { animation: none; }
+}
+
+/* En pantallas angostas el botón pasa debajo del texto. */
+@media (max-width: 359px) {
+  .aviso-actualizacion { flex-wrap: wrap; }
+  .aviso-actualizacion__acciones { width: 100%; grid-template-columns: 1fr 1fr; }
+}
+
+.contenido {
+  padding: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 96px;
+}
+
+.boton-registrar {
+  width: 100%;
+  background: linear-gradient(160deg, #8A5F3A 0%, var(--tierra) 55%, #65452A 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0 0 18px;
+  box-shadow: 0 3px 10px rgba(122, 82, 48, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.boton-registrar:active { filter: brightness(0.92); }
+
+/* Dos acciones principales del mismo nivel dentro de un módulo (Control
+   Sanitario: control individual y control por lote). En pantallas donde
+   entran cómodas van lado a lado y con la misma altura. */
+.acciones-modulo {
+  display: grid;
+  /* Las dos acciones miden lo mismo aunque un rótulo sea más largo. */
+  grid-auto-rows: 1fr;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+/* El margen lo maneja el contenedor, no cada botón. */
+.acciones-modulo .boton-registrar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0;
+}
+
+@media (min-width: 430px) {
+  .acciones-modulo--dos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Variante verde: la acción de lote es igual de importante que la
+   individual, pero se distingue por color. */
+.boton-registrar--lote {
+  background: linear-gradient(160deg, #3B6B42 0%, var(--verde-pasto) 55%, var(--verde-pasto-oscuro) 100%);
+  box-shadow: 0 3px 10px rgba(32, 57, 35, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* Filtro por tipo de registro (Control Sanitario: individual o por lote).
+   Cada opción lleva su contador para saber cuántos hay de cada tipo. */
+.filtro-tipo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.filtro-tipo__opcion {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1.5px solid var(--borde-suave);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b6455;
+  box-shadow: 0 1px 2px rgba(32, 29, 24, 0.05);
+}
+
+.filtro-tipo__opcion--activa {
+  background: linear-gradient(160deg, #EDF4E7 0%, #DEEAD4 100%);
+  border-color: var(--verde-pasto);
+  color: var(--verde-pasto-oscuro);
+}
+
+.filtro-tipo__cuenta {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #EFE9DA;
+  color: var(--tierra);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.filtro-tipo__opcion--activa .filtro-tipo__cuenta {
+  background: #fff;
+}
+
+/* ---------------------------------------------------------------- */
+/* Pestañas                                                          */
+/* ---------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0 -16px 16px;
+  padding: 2px 16px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-padding-left: 16px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+/* La tira se desplaza con el dedo: la barra de scroll solo estorba. */
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  background: #FFFDF8;
+  border: 1.5px solid var(--borde-suave);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b6455;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  scroll-snap-align: center;
+  box-shadow: 0 1px 2px rgba(32, 29, 24, 0.06);
+}
+
+.tab:active { filter: brightness(0.96); }
+
+.tab:focus-visible {
+  outline: 2px solid var(--verde-pasto);
+  outline-offset: 2px;
+}
+
+.tab__icono {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.tab__icono svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.tab__texto { white-space: nowrap; }
+
+.tab--activa {
+  color: #fff;
+  background: linear-gradient(160deg, #34603A 0%, var(--verde-pasto) 45%, var(--verde-pasto-oscuro) 100%);
+  border-color: var(--verde-pasto-oscuro);
+  box-shadow: 0 4px 12px rgba(32, 57, 35, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* En pantallas anchas entran todas: mejor acomodarlas en varias filas
+   que obligar a desplazar la tira con el mouse. */
+@media (min-width: 720px) {
+  .tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Contenedor de cada módulo                                         */
+/* ---------------------------------------------------------------- */
+
+/* Cada módulo es una tarjeta blanca cálida con la franja verde de la
+   cabecera, el mismo lenguaje que usan las tarjetas del sistema web.
+   OJO: sin overflow:hidden, porque los desplegables del buscador de
+   animales son position:absolute y se recortarían. */
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF5 140px, #FBF7EE 100%);
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio-panel);
+  padding: 20px 16px 22px;
+  box-shadow: 0 2px 5px rgba(32, 29, 24, 0.05), 0 14px 30px rgba(32, 29, 24, 0.07);
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: var(--radio-panel) var(--radio-panel) 0 0;
+  background: linear-gradient(90deg,
+    var(--verde-pasto-oscuro) 0%,
+    var(--verde-pasto) 45%,
+    var(--verde-sync) 75%,
+    #B7D5AE 100%);
+}
+
+/* Encabezado del módulo (lo arma app.js con el nombre y el icono de la
+   pestaña): así se sabe qué módulo se está viendo sin volver arriba. */
+.panel__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #EEE7D6;
+}
+
+.panel__cabecera-icono {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #EDF4E7 0%, #DEEAD4 100%);
+  border: 1px solid #CFE0C4;
+  color: var(--verde-pasto-oscuro);
+}
+
+.panel__cabecera-icono svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.panel__cabecera-titulo {
+  margin: 0;
+  /* min-width:0 permite que el texto se recorte con puntos suspensivos
+     en vez de salirse del panel cuando el nombre del módulo es largo. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--verde-pasto-oscuro);
+}
+
+/* Nombres de módulo largos ("Desincorporaciones"): se compactan para
+   que entren completos en pantallas angostas. */
+.panel__cabecera-titulo--largo {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.panel.oculto { display: none; }
+
+/* ---------------------------------------------------------------- */
+/* Formulario                                                        */
+/* ---------------------------------------------------------------- */
+
+.form-animal-contenedor {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--borde-suave);
+  border-radius: 18px;
+  box-shadow: 0 2px 6px rgba(32, 29, 24, 0.06), 0 12px 26px rgba(32, 29, 24, 0.06);
+  padding: 20px 18px 26px;
+  margin-bottom: 24px;
+}
+
+/* Franja verde de cierre del bloque, igual que crud-form__card::after en
+   la web: es la firma visual de BOVS. */
+.form-animal-contenedor::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  border-radius: 0 0 17px 17px;
+  background: linear-gradient(90deg, #15803D 0%, #16A34A 35%, #4ADE80 65%, #DCFCE7 100%);
+}
+
+.form-animal-contenedor h2 {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F0EADA;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--verde-pasto-oscuro);
+}
+
+.form-animal-codigo {
+  font-family: ui-monospace, "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-weight: 700;
+  color: var(--verde-pasto-oscuro);
+  background: var(--hueso);
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  margin: -8px 0 16px;
+  font-size: 13px;
+}
+
+.fila-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.form-acciones {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.form-acciones .boton-primario { flex: 2; }
+.boton-secundario {
+  flex: 1;
+  background: var(--hueso-oscuro);
+  color: var(--tinta);
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* Terneros del parto (nacimientos): una o varias crías por evento. */
+.terneros-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.terneros-cabecera label {
+  margin-bottom: 0;
+}
+.terneros-cabecera .boton-secundario {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.terneros-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ternero-fila {
+  border: 2px solid var(--hueso-oscuro);
+  border-radius: 12px;
+  padding: 10px 12px 4px;
+  background: #fff;
+}
+.ternero-fila__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ternero-fila__titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--verde-pasto-oscuro);
+}
+.ternero-fila__quitar {
+  background: none;
+  border: none;
+  color: #a33;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 4px;
+}
+.ternero-fila__campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.ternero-fila__campos .campo {
+  margin-bottom: 10px;
+}
+.ternero-fila__campos .campo label {
+  font-size: 12px;
+}
+.ternero-fila__campos .campo input,
+.ternero-fila__campos .campo select {
+  padding: 9px 10px;
+  font-size: 15px;
+}
+.ternero-fila__ancho {
+  grid-column: 1 / -1;
+}
+
+/* Pesaje rápido por lote */
+.pesaje-lote__progreso {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--verde-pasto-oscuro);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: 0 0 8px;
+}
+.pesaje-lote__animal {
+  border: 2px solid var(--hueso-oscuro);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--hueso);
+  margin-bottom: 14px;
+}
+.pesaje-lote__codigo {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--verde-pasto-oscuro);
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+.pesaje-lote__nombre {
+  font-size: 15px;
+  color: var(--tinta);
+  margin-top: 2px;
+}
+.pesaje-lote__animal .texto-ayuda {
+  margin: 6px 0 0;
+}
+
+/* Separador de listas dentro de un panel (ej. controles por lote) */
+.subtitulo-lista {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--verde-pasto-oscuro);
+  margin: 24px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hueso-oscuro);
+}
+
+/* ---------------------------------------------------------------- */
+/* Chapetas (tarjetas de animal)                                     */
+/* ---------------------------------------------------------------- */
+
+.lista-animales {
+  display: grid;
+  gap: 14px;
+}
+
+.texto-vacio {
+  color: #6b6455;
+  font-size: 14px;
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.chapeta {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 18px 16px 22px;
+  box-shadow: 0 2px 6px rgba(32, 29, 24, 0.10), 0 10px 22px rgba(32, 29, 24, 0.05);
+  border: 1px solid #EFE8D7;
+  border-left: 8px solid var(--verde-sync);
+  cursor: pointer;
+}
+.chapeta:active { filter: brightness(0.97); }
+.chapeta--pendiente { border-left-color: var(--ambar); }
+.chapeta--conflicto { border-left-color: var(--rojo); }
+.chapeta--error { border-left-color: var(--rojo); }
+.chapeta--sincronizado { border-left-color: var(--verde-sync); }
+
+.chapeta__ojal {
+  position: absolute;
+  top: -8px;
+  left: 34px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--hueso);
+  border: 3px solid #fff;
+  box-shadow: var(--sombra);
+}
+
+.chapeta__codigo {
+  font-family: ui-monospace, "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--verde-pasto-oscuro);
+  letter-spacing: 0.02em;
+}
+
+.chapeta__provisional {
+  font-family: -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ambar);
+  background: #FBEFDA;
+  padding: 2px 6px;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+
+.chapeta__nombre {
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.chapeta__detalle {
+  font-size: 13px;
+  color: #6b6455;
+  margin-top: 2px;
+}
+
+.chapeta__estado {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tierra);
+}
+
+/* Motivo del último error de sincronización (sync.js lo guarda en
+   ultimo_error). Va debajo del estado, en rojo y en varias líneas. */
+.chapeta__error {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #b91c1c;
+  text-transform: none;
+}
+
+/* Animal dado de baja (descarte, muerte, venta o extravío). */
+.chapeta__baja {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fde8e8;
+  border: 1px solid #f5b5b5;
+  color: #9b1c1c;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.chapeta--baja {
+  opacity: .88;
+}
+
+.chapeta--baja .chapeta__nombre {
+  text-decoration: line-through;
+  text-decoration-color: rgba(155, 28, 28, .45);
+}
+
+.chapeta__acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.chapeta__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* Movimiento ya revertido: se atenúa para distinguirlo de uno vigente. */
+.chapeta--revertido {
+  opacity: 0.72;
+}
+
+/* Panel de motivo de la reversión (dentro de la tarjeta) */
+.chapeta__reversion {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #fdf6e7;
+  border: 1px solid #f0dfb5;
+}
+.chapeta__reversion-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b5a2b;
+  margin-bottom: 6px;
+}
+.chapeta__reversion-texto {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d9cfa8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+.chapeta__reversion-aviso {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--rojo);
+}
+.chapeta__reversion-aviso:empty { display: none; }
+.chapeta__reversion-acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chapeta__reversion-confirmar,
+.chapeta__reversion-cancelar {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.chapeta__reversion-confirmar {
+  background: #b45309;
+  color: #fff;
+}
+.chapeta__reversion-cancelar {
+  background: var(--hueso-oscuro);
+  color: var(--tinta);
+}
+
+/* Botones de la tarjeta: se agrupan para que, si no entran, bajen
+   juntos a la línea siguiente en vez de partirse. */
+.chapeta__acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.chapeta__boton-eliminar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 9px 14px;
+  background: #fdeceb;
+  color: #b42318;
+  border: 1px solid #f3b7b2;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chapeta__boton-eliminar svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.chapeta__boton-eliminar:active {
+  background: #f9d7d4;
+}
+
+/* En pantallas de celular la tarjeta es muy angosta: el botón de
+   eliminar queda como icono (mismo patrón que las apps de campo) para
+   que quepa al lado de Editar sin partir el pie en dos líneas. */
+@media (max-width: 430px) {
+  .chapeta__boton-eliminar {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+  .chapeta__boton-eliminar-texto {
+    display: none;
+  }
+}
+
+.chapeta__boton-editar,
+.chapeta__boton-ver {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 9px 18px;
+  background: var(--verde-pasto);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(32, 29, 24, 0.18);
+}
+
+/* Ficha e historial del animal: acción secundaria, más discreta. */
+.chapeta__boton-ficha {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 9px 14px;
+  background: #EDE7D8;
+  color: var(--verde-pasto-oscuro);
+  border: 1px solid #D8CFB8;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chapeta__boton-ficha svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.chapeta__boton-ficha:active {
+  background: #E0D8C4;
+}
+
+/* Revertir un movimiento que todavía no llegó al servidor. */
+.chapeta__boton-revertir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 9px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f0c96b;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chapeta__boton-revertir svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.chapeta__boton-revertir:active {
+  background: #fde68a;
+}
+
+.chapeta__boton-ver {
+  background: var(--verde-pasto-oscuro);
+}
+
+.chapeta__boton-editar svg,
+.chapeta__boton-ver svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.chapeta__boton-editar:active,
+.chapeta__boton-ver:active {
+  background: var(--verde-pasto-oscuro);
+}
+
+/* ---------------------------------------------------------------- */
+/* Conflictos                                                        */
+/* ---------------------------------------------------------------- */
+
+.seccion-conflictos {
+  margin-bottom: 20px;
+}
+.seccion-conflictos h2 {
+  font-size: 15px;
+  color: var(--rojo);
+}
+
+.conflicto {
+  background: #FBEAE6;
+  border: 1px solid var(--rojo);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.conflicto__titulo { font-size: 13px; margin: 0 0 10px; }
+.conflicto__comparacion {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 13px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.conflicto__acciones { display: flex; gap: 10px; }
+
+/* Diff campo por campo de un conflicto de versión */
+.conflicto__resumen {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #4a3b36;
+}
+.conflicto__nota {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: #6b5a52;
+}
+.conflicto__campos {
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.conflicto__campo {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 6px;
+  padding: 5px 2px;
+  border-bottom: 1px solid #f0e9e5;
+  word-break: break-word;
+}
+.conflicto__campo:last-child { border-bottom: none; }
+.conflicto__campo--cabecera {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #8a7f76;
+  border-bottom: 1px solid #e6ddd8;
+}
+.conflicto__campo-nombre { font-weight: 700; color: #4a3b36; }
+.conflicto__campo-valor { color: #5d5350; }
+.conflicto__acciones button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.conflicto__acciones button[data-accion="mantener_mio"] { background: var(--verde-pasto); color: #fff; }
+.conflicto__acciones button[data-accion="usar_servidor"] { background: var(--hueso-oscuro); color: var(--tinta); }
+
+/* ---------------------------------------------------------------- */
+
+.campo--checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.campo--checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.campo--checkbox .texto-ayuda { margin: 4px 0 0 26px; }
+
+.texto-ayuda {
+  color: #6b6455;
+  font-size: 12px;
+  margin: 4px 0 12px;
+}
+
+.productos-control {
+  margin: 18px 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--hueso-oscuro);
+}
+
+.productos-control__encabezado {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.productos-control__encabezado h3 {
+  margin: 0;
+  color: var(--verde-pasto-oscuro);
+  font-size: 15px;
+}
+
+.productos-control__encabezado span {
+  color: #6b6455;
+  font-size: 12px;
+}
+
+.productos-control__lista {
+  margin-top: 10px;
+}
+
+.producto-control-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #e8e2d4;
+}
+
+.producto-control-item__datos {
+  min-width: 0;
+  color: var(--tinta);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.producto-control-item__datos strong {
+  display: block;
+  color: var(--verde-pasto-oscuro);
+}
+
+.producto-control-item__datos small {
+  display: block;
+  margin-top: 3px;
+  color: #6b6455;
+}
+
+.producto-control-item__quitar {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #b65045;
+  border-radius: 8px;
+  background: #fff;
+  color: #8d332b;
+  font-weight: 700;
+}
+
+.validacion-arete {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.validacion-arete:empty {
+  display: none;
+}
+
+.validacion-arete--comprobando {
+  color: #6b6455;
+}
+
+.validacion-arete--disponible {
+  color: #2f6844;
+}
+
+.validacion-arete--aviso {
+  color: #8a5a00;
+}
+
+.validacion-arete--error {
+  color: var(--rojo);
+}
+
+.valor-bloqueado {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--hueso-oscuro, #ece4d3);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--tinta, #2b2620);
+}
+
+@media (max-width: 400px) {
+  .fila-campos { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .pantalla-login {
+    align-items: flex-start;
+    padding: 16px 12px 20px;
+  }
+
+  #pantalla-reconexion-local {
+    align-items: flex-start;
+    padding: 16px 12px 20px;
+  }
+
+  .tarjeta-login {
+    max-width: 100%;
+    padding: 24px 18px;
+  }
+
+  .encabezado {
+    gap: 10px;
+  }
+
+  .encabezado__marca {
+    width: 100%;
+  }
+
+  .encabezado__acciones {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .encabezado__acciones > * {
+    flex: 0 1 auto;
+  }
+
+  .etiqueta-version-frontend {
+    order: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   Combo de animal con búsqueda por código, nombre o arete
+--------------------------------------------------------------------- */
+
+.buscador-animal {
+  position: relative;
+}
+
+.buscador-animal__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.buscador-animal__input:focus {
+  outline: none;
+  border-color: #7c9473;
+  box-shadow: 0 0 0 3px rgba(47, 82, 51, 0.12);
+}
+
+.buscador-animal__opciones {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.buscador-animal__item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f2f4f7;
+  font-size: 13px;
+}
+
+.buscador-animal__item:last-child {
+  border-bottom: none;
+}
+
+.buscador-animal__item:hover,
+.buscador-animal__item--activa {
+  background: #f8f5ef;
+}
+
+.buscador-animal__codigo {
+  display: block;
+  font-weight: 700;
+  color: #234e35;
+}
+
+.buscador-animal__detalle {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+}
+
+.buscador-animal__vacio {
+  padding: 8px 12px;
+  color: #667085;
+  font-size: 12px;
+}
+
+/* =====================================================================
+   Modal de detalle de registro
+   ===================================================================== */
+
+#modal-detalle-registro-overlay .modal-aviso-card {
+  max-width: 540px;
+}
+
+#modal-detalle-registro-overlay .modal-aviso-contenido {
+  margin-bottom: 10px;
+}
+
+.modal-detalle-registro-grupo {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hueso-oscuro);
+}
+
+.modal-detalle-registro-grupo:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.modal-detalle-registro-grupo h4 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--verde-pasto-oscuro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.modal-detalle-registro-grupo dl {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.modal-detalle-registro-campo {
+  display: grid;
+  grid-template-columns: minmax(120px, 42%) 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  align-items: baseline;
+  border-bottom: 1px dashed #ece4d3;
+}
+
+.modal-detalle-registro-campo:last-child {
+  border-bottom: none;
+}
+
+.modal-detalle-registro-campo dt {
+  font-size: 12px;
+  color: #6b6455;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.modal-detalle-registro-campo dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tinta);
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+@media (max-width: 480px) {
+  .modal-detalle-registro-campo {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding: 6px 0;
+  }
+
+  .modal-detalle-registro-campo dt {
+    font-size: 11px;
+  }
+
+  .modal-detalle-registro-campo dd {
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+   MULTIFUNDO: selector y administración de fundos del equipo
+   ============================================================ */
+.fundo-activo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  max-width: 340px;
+}
+
+.fundo-activo__nombre {
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fundo-activo__select {
+  max-width: 190px;
+  font-size: 12px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.fundo-activo__config {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  color: inherit;
+}
+
+.modal-fundos-card {
+  max-width: 520px;
+}
+
+.modal-fundos__lista {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 10px 0;
+  border: 1px solid #e5e8eb;
+  border-radius: 8px;
+}
+
+.modal-fundos__fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f3f5;
+  cursor: pointer;
+  margin: 0;
+}
+
+.modal-fundos__fila:last-child {
+  border-bottom: 0;
+}
+
+.modal-fundos__fila:hover {
+  background: #f7faf8;
+}
+
+.modal-fundos__fila input {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.modal-fundos__fila span {
+  display: flex;
+  flex-direction: column;
+  font-size: 13.5px;
+  color: #233e2d;
+  line-height: 1.35;
+}
+
+.modal-fundos__fila small {
+  color: #7b8794;
+  font-size: 11.5px;
+}
+
+.modal-fundos__mensaje {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: #c0392b;
+}
+
+.modal-fundos__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.boton-primario {
+  background: #2f8f4a;
+  color: #fff;
+  border-color: #2f8f4a;
+}
+
+/* ---- Movimiento de rebaño: selección de animales del origen ---- */
+.movreb-seleccion-todos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #233e2d;
+  padding: 6px 0 8px;
+}
+
+.movreb-animal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(35, 62, 45, .12);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.movreb-animal__codigo {
+  font-weight: 700;
+  color: #233e2d;
+}
+
+.movreb-animal__nombre {
+  color: #7b8794;
+}
+
+@media (max-width: 480px) {
+  .movreb-animal {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Comodidad en campo: última sincronización, avisos y guardado      */
+/* ---------------------------------------------------------------- */
+
+/* Chip del encabezado: "Sync hace 4 min · 2 pend." */
+/* Aviso breve al guardar: aparece abajo, no tapa el formulario ni
+   exige tocar "Aceptar". */
+.toast-contenedor {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 3100; /* por encima de los modales (3000): el aviso de guardado siempre se ve */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100% - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--verde-pasto-oscuro);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(32, 29, 24, 0.28);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast--visible { opacity: 1; transform: translateY(0); }
+
+.toast--aviso { background: #8A5A00; }
+.toast--error { background: var(--rojo); }
+
+/* Mientras un formulario se está guardando (evita el doble toque). */
+.formulario--guardando button[type="submit"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ---------------------------------------------------------------- */
+/* Ficha e historial del animal                                      */
+/* ---------------------------------------------------------------- */
+
+.ficha-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.ficha-indicador {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #F7F3E8;
+  border: 1px solid #E7DFCB;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.ficha-indicador__valor {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--verde-pasto-oscuro);
+}
+
+.ficha-indicador__etiqueta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #7A725F;
+}
+
+.ficha-indicador__detalle {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #6B6455;
+}
+
+.ficha-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.ficha-evento {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ECE4D3;
+}
+
+.ficha-evento:last-child {
+  border-bottom: none;
+}
+
+.ficha-evento__fecha {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B6455;
+  white-space: nowrap;
+}
+
+.ficha-evento__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ficha-evento__titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta);
+  overflow-wrap: anywhere;
+}
+
+.ficha-evento__detalle {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6B6455;
+  overflow-wrap: anywhere;
+}
+
+.ficha-pendiente {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #FBF0D2;
+  color: #8A5A00;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ficha-vacio {
+  margin: 0;
+  font-size: 12.5px;
+  color: #7A725F;
+}
+
+.ficha-origen {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6B6455;
+}
+
+.ficha-campo__extra {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #FBF0D2;
+  color: #8A5A00;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .ficha-evento {
+    grid-template-columns: 78px 1fr;
+  }
+}
+
+/* ============================================================
+   FOTOS DE LOS ANIMALES
+   ------------------------------------------------------------
+   Miniatura en la tarjeta del hato y foto grande en la ficha.
+   La tarjeta solo reserva espacio cuando hay foto: si el equipo no
+   tiene la imagen (o un archivo viejo no existe en el servidor), se
+   pinta igual que siempre, sin huecos ni iconos roscos.
+   ============================================================ */
+
+.chapeta--con-foto {
+  padding-right: 62px;
+}
+
+.chapeta__foto {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #EFE8D7;
+  border: 1px solid #E6DECB;
+}
+
+.ficha-foto {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.ficha-foto__marco {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #EFE8D7;
+  border: 1px solid #E6DECB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ficha-foto__imagen {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ficha-foto__vacio {
+  font-family: ui-monospace, "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 34px;
+  font-weight: 700;
+  color: #B6AC93;
+}
+
+.ficha-foto__datos {
+  min-width: 0;
+}
+
+.ficha-foto__datos h4 {
+  margin: 0 0 4px;
+}
+
+.ficha-foto__estado {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #6B6455;
+}
+
+.ficha-foto__boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #D8CFB8;
+  border-radius: 10px;
+  background: #FBF7EC;
+  color: #3F3A2E;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ficha-foto__boton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ficha-foto__boton:active {
+  background: #EFE8D7;
+}
+
+@media (max-width: 430px) {
+  .chapeta--con-foto {
+    padding-right: 56px;
+  }
+  .chapeta__foto {
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+  }
+  .ficha-foto {
+    gap: 12px;
+  }
+  .ficha-foto__marco {
+    width: 78px;
+    height: 78px;
+  }
+}

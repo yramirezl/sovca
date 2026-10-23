@@ -1,0 +1,20 @@
+<?php
+require_once '../models/Mcausamortalidade.php';
+	$result = array();
+	$data = Mcausamortalidade::find_by_sql("select id, nombre, status from Mcausamortalidades where status>0 order by id desc;");
+	$items = 0;
+	foreach ($data as &$rs) {
+
+
+
+
+		array_push($result,array(   "id"=>$rs->id,
+		                            "nombre"=>$rs->nombre,
+									"status"=>$rs->status
+
+		                         ));
+		$items++;
+	}
+
+	print_r(json_encode($result));
+?>

@@ -1,0 +1,830 @@
+/* ============================================================
+   BOVS | Tema visual - Capa override sobre AdminLTE
+   ------------------------------------------------------------
+   Se carga DESPUÉS de:
+     - bootstrap.min.css
+     - AdminLTE.min.css
+     - skins/skin-green-light.css
+
+   Todas las reglas usan el prefijo .skin-green-light para
+   igualar la especificidad de la skin y ganarle por orden
+   de carga.
+
+   ------------------------------------------------------------
+   ESQUEMA:
+     Banner ......... verde marca    #22B34E + línea ámbar al pie
+     Banner texto ... blanco         #FFFFFF
+     Sidebar ........ gris muy claro #F4F6F8
+     Sidebar texto .. slate oscuro   #2C3440
+     Item activo .... verde claro    #DCEEE1 + barra verde izq
+     Submenú ........ blanco         #FFFFFF
+     Acento ......... verde marca    #22B34E
+     Ámbar .......... solo en star del botón upgrade
+     Contenido ...... blanco / gris muy claro
+   ============================================================ */
+
+:root {
+  /* Verde de marca */
+  --bovs-green:         #22B34E;
+  --bovs-green-dark:    #1A8C3D;
+  --bovs-green-darker:  #146B2E;
+  --bovs-green-light:   #3FC96A;
+  --bovs-green-soft:    #DCEEE1;
+  --bovs-green-mint:    #C8E6C9;
+
+  /* Acento ámbar (solo en star del botón upgrade) */
+  --bovs-accent:        #FFD24A;
+
+  /* ---- BANNER: verde marca ---- */
+  --bovs-header-bg:     #22B34E;
+  --bovs-header-text:   #FFFFFF;
+  --bovs-header-hover:  #1A8C3D;
+
+  /* ---- SIDEBAR: gris muy claro ---- */
+  --bovs-sidebar-bg:     #F4F6F8;
+  --bovs-sidebar-hover:  #E8ECEF;
+  --bovs-sidebar-active: #DCEEE1;
+  --bovs-sidebar-text:   #2C3440;
+  --bovs-sidebar-muted:  #6B7480;
+  --bovs-sidebar-border: #E1E5EA;
+
+  /* ---- Submenú: texto casi negro ---- */
+  --bovs-menu-ink:       #0C2414;
+  --bovs-menu-ink-hover: #05130A;
+
+  /* ---- Código de colores de los iconos del submenú ----
+     Verde  = campos / pastoreo
+     Azul   = producción / leche
+     Rojo   = salud / reproducción
+     Ámbar  = nutrición / inventario
+     Gris   = sistema / administración (por defecto) */
+  --bovs-ic-campo:         #2E7D32;
+  --bovs-ic-campo-hover:   #43A047;
+  --bovs-ic-prod:          #1565C0;
+  --bovs-ic-prod-hover:    #1E88E5;
+  --bovs-ic-salud:         #C2185B;
+  --bovs-ic-salud-hover:   #E91E63;
+  --bovs-ic-inv:           #A1682A;
+  --bovs-ic-inv-hover:     #C98A2E;
+  --bovs-ic-sistema:       #5B6B78;
+  --bovs-ic-sistema-hover: #78909C;
+
+  /* ---- Contenido ---- */
+  --bovs-content-bg:    #F4F6F9;
+  --bovs-card-bg:       #FFFFFF;
+  --bovs-border:        #E3E7ED;
+  --bovs-text:          #2C3440;
+  --bovs-text-muted:    #6B7480;
+
+  /* ---- Anchos del menú lateral (una sola fuente de verdad) ----
+     Los usan .content-wrapper y el pie de página para no quedar
+     desalineados cuando el menú se abre, se colapsa o está oculto. */
+  --bovs-sidebar-w:       230px;
+  --bovs-sidebar-mini-w:  50px;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+.skin-green-light body {
+  color: var(--bovs-text);
+}
+.skin-green-light .content-wrapper,
+.skin-green-light .right-side {
+  background-color: var(--bovs-content-bg);
+}
+.skin-green-light a {
+  color: var(--bovs-green-dark);
+}
+.skin-green-light a:hover,
+.skin-green-light a:focus {
+  color: var(--bovs-green);
+}
+
+/* ============================================================
+   BANNER SUPERIOR — VERDE MARCA
+   ============================================================ */
+.skin-green-light .main-header > .navbar {
+  background-color: var(--bovs-header-bg) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+/* Línea de acento ámbar al pie del banner */
+.skin-green-light .main-header > .navbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+              var(--bovs-accent) 0%,
+              rgba(255, 210, 74, 0.4) 35%,
+              rgba(255, 210, 74, 0) 100%);
+  pointer-events: none;
+}
+
+/* Logo (bloque izquierdo del banner) */
+.skin-green-light .main-header .logo,
+.skin-green-light .main-header .logo:hover {
+  background-color: var(--bovs-header-bg) !important;
+  color: var(--bovs-header-text);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background-color 0.25s ease, width 0.3s ease-in-out;
+}
+.skin-green-light .main-header .logo img {
+  max-height: 34px;
+  width: auto;
+  vertical-align: middle;
+  margin-top: -3px;
+}
+
+/* Botón hamburguesa (sidebar-toggle) */
+.skin-green-light .main-header .sidebar-toggle {
+  color: rgba(255, 255, 255, 0.9) !important;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.skin-green-light .main-header .sidebar-toggle:hover,
+.skin-green-light .main-header .sidebar-toggle:focus {
+  color: #FFFFFF !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Mini logo cuando el sidebar está colapsado */
+.skin-green-light .main-header .pull-left .logo-mini {
+  display: inline-block;
+  padding: 8px 12px;
+}
+.skin-green-light .main-header .pull-left .logo-mini img {
+  max-height: 32px;
+}
+@media (min-width: 768px) {
+  .skin-green-light .main-header .pull-left { display: none; }
+  .skin-green-light.sidebar-collapse .main-header .pull-left { display: block; }
+}
+@media (max-width: 767px) {
+  .skin-green-light .main-header .pull-left { display: block; }
+  .skin-green-light .main-header .logo { display: none; }
+}
+
+/* Links del navbar (USUARIO DEMO, notificaciones, etc.) */
+.skin-green-light .main-header .navbar .nav > li > a {
+  color: rgba(255, 255, 255, 0.92) !important;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.skin-green-light .main-header .navbar .nav > li > a:hover,
+.skin-green-light .main-header .navbar .nav > li > a:focus {
+  color: #FFFFFF !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Iconos del navbar (sobre, campana, etc.) */
+.skin-green-light .main-header .navbar .nav > li > a > .fa,
+.skin-green-light .main-header .navbar .nav > li > a > .glyphicon,
+.skin-green-light .main-header .navbar .nav > li > a > .ion {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.skin-green-light .main-header .navbar .nav > li > a:hover > .fa,
+.skin-green-light .main-header .navbar .nav > li > a:hover > .glyphicon,
+.skin-green-light .main-header .navbar .nav > li > a:hover > .ion {
+  color: #FFFFFF !important;
+}
+
+/* ============================================================
+   SIDEBAR — gris muy claro
+   ============================================================ */
+.skin-green-light .main-sidebar,
+.skin-green-light .left-side {
+  background-color: var(--bovs-sidebar-bg) !important;
+  border-right: 1px solid var(--bovs-sidebar-border);
+}
+.skin-green-light .sidebar {
+  padding-bottom: 60px;
+  position: relative;
+  min-height: calc(100vh - 50px);
+}
+
+/* Footer discreto al pie del sidebar */
+.skin-green-light .sidebar::after {
+  /* content: "Sistema de Gestión GANADERA"; */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 15px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: var(--bovs-sidebar-muted);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--bovs-sidebar-border);
+}
+
+/* Panel de usuario dentro del sidebar */
+.skin-green-light .user-panel {
+  border-bottom: 1px solid var(--bovs-sidebar-border);
+  padding: 14px 12px;
+}
+.skin-green-light .user-panel > .image > img {
+  border: 2px solid var(--bovs-green);
+  box-shadow: 0 0 0 3px rgba(34, 179, 78, 0.15);
+  max-width: 42px;
+}
+.skin-green-light .user-panel > .info {
+  color: var(--bovs-sidebar-text);
+}
+.skin-green-light .user-panel > .info > p {
+  color: var(--bovs-sidebar-text) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.3px;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.skin-green-light .user-panel > .info > a {
+  color: var(--bovs-sidebar-muted);
+}
+.skin-green-light .user-panel > .info > a > .text-success {
+  color: var(--bovs-green) !important;
+}
+
+/* Headers de sección (MAESTROS, GESTION, etc.) */
+.skin-green-light .sidebar-menu > li.header {
+  color: var(--bovs-sidebar-muted) !important;
+  background-color: transparent !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 1.6px !important;
+  text-transform: uppercase !important;
+  padding: 16px 15px 6px 15px !important;
+  border-bottom: none !important;
+  border-top: 1px solid var(--bovs-sidebar-border);
+}
+
+/* ============================================================
+   ITEMS DE PRIMER NIVEL
+   ============================================================ */
+.skin-green-light .sidebar-menu > li > a {
+  color: var(--bovs-sidebar-text) !important;
+  border-left: 4px solid transparent !important;
+  padding: 13px 12px 13px 14px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+  text-transform: none !important;
+  transition: background-color 0.15s ease,
+              color 0.15s ease,
+              border-color 0.15s ease,
+              padding-left 0.15s ease !important;
+}
+
+/* Iconos de primer nivel */
+.skin-green-light .sidebar-menu > li > a > .fa,
+.skin-green-light .sidebar-menu > li > a > .glyphicon,
+.skin-green-light .sidebar-menu > li > a > .ion {
+  color: var(--bovs-sidebar-muted) !important;
+  opacity: 1 !important;
+  font-size: 16px !important;
+  width: 22px !important;
+  text-align: center !important;
+  transition: color 0.15s ease !important;
+}
+
+/* Hover de primer nivel */
+.skin-green-light .sidebar-menu > li > a:hover,
+.skin-green-light .sidebar-menu > li > a:focus {
+  background-color: var(--bovs-sidebar-hover) !important;
+  color: var(--bovs-green-dark) !important;
+  border-left-color: var(--bovs-green) !important;
+}
+.skin-green-light .sidebar-menu > li > a:hover > .fa,
+.skin-green-light .sidebar-menu > li > a:focus > .fa,
+.skin-green-light .sidebar-menu > li > a:hover > .glyphicon,
+.skin-green-light .sidebar-menu > li > a:hover > .ion {
+  color: var(--bovs-green-dark) !important;
+}
+
+/* Item ACTIVO de primer nivel */
+.skin-green-light .sidebar-menu > li.active > a {
+  background-color: var(--bovs-sidebar-active) !important;
+  color: var(--bovs-green-darker) !important;
+  border-left-color: var(--bovs-green) !important;
+  font-weight: 700 !important;
+}
+
+/* El botón INICIO lleva fondo verde propio: el texto debe seguir en blanco
+   aunque el JS le añada la clase .active (si no, queda verde sobre verde). */
+.skin-green-light .sidebar-menu > li.bovs-menu-inicio.active > a {
+  color: #ffffff !important;
+}
+.skin-green-light .sidebar-menu > li.bovs-menu-inicio.active > a > .fa {
+  color: #ffffff !important;
+}
+.skin-green-light .sidebar-menu > li.active > a > .fa,
+.skin-green-light .sidebar-menu > li.active > a > .glyphicon,
+.skin-green-light .sidebar-menu > li.active > a > .ion {
+  color: var(--bovs-green-dark) !important;
+}
+
+/* Chevron de treeview (> que rota a v) */
+.skin-green-light .sidebar-menu li > a > .fa-angle-left,
+.skin-green-light .sidebar-menu li > a > .fa-angle-down {
+  color: var(--bovs-sidebar-muted) !important;
+  transition: transform 0.3s ease, color 0.15s ease !important;
+}
+.skin-green-light .sidebar-menu li.active > a > .fa-angle-left {
+  color: var(--bovs-green-dark) !important;
+}
+
+/* ============================================================
+   SUBMENÚ (treeview-menu) — blanco puro
+   ============================================================ */
+.skin-green-light .sidebar-menu .treeview-menu {
+  background-color: #FFFFFF !important;
+  padding: 8px 0 !important;
+  border-top: 1px solid var(--bovs-sidebar-border) !important;
+  border-left: 3px solid var(--bovs-green) !important;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Items del submenú */
+.skin-green-light .sidebar-menu .treeview-menu > li > a {
+  color: var(--bovs-sidebar-text) !important;
+  opacity: 1 !important;
+  padding: 10px 10px 10px 46px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.1px !important;
+  line-height: 1.35 !important;
+  border-left: 3px solid transparent !important;
+  transition: background-color 0.15s ease,
+              color 0.15s ease,
+              border-color 0.15s ease !important;
+  position: relative !important;
+}
+
+/* Iconos del submenú */
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .fa,
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .glyphicon,
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .ion {
+  color: var(--bovs-sidebar-muted) !important;
+  opacity: 1 !important;
+  font-size: 12px !important;
+  width: 20px !important;
+  margin-right: 4px !important;
+}
+
+/* Hover del submenú */
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus {
+  background-color: #F0F9F2 !important;
+  color: var(--bovs-green-darker) !important;
+  border-left-color: var(--bovs-green) !important;
+}
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .fa,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .fa {
+  color: var(--bovs-green-dark) !important;
+}
+
+/* Item ACTIVO del submenú */
+.skin-green-light .sidebar-menu .treeview-menu > li.active > a {
+  background-color: var(--bovs-green-mint) !important;
+  color: var(--bovs-green-darker) !important;
+  border-left-color: var(--bovs-green) !important;
+  font-weight: 700 !important;
+}
+.skin-green-light .sidebar-menu .treeview-menu > li.active > a > .fa {
+  color: var(--bovs-green-dark) !important;
+}
+
+/* Guía vertical (efecto "árbol") */
+.skin-green-light .sidebar-menu .treeview-menu > li > a::before {
+  content: "";
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background-color: #C7CFD6;
+  transform: translateY(-50%);
+}
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover::before,
+.skin-green-light .sidebar-menu .treeview-menu > li.active > a::before {
+  background-color: var(--bovs-green);
+}
+
+/* Scrollbar fino para el sidebar */
+.skin-green-light .main-sidebar::-webkit-scrollbar,
+.skin-green-light .sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.skin-green-light .main-sidebar::-webkit-scrollbar-thumb,
+.skin-green-light .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   SIDEBAR COLAPSADO (popouts flotantes)
+   ============================================================ */
+@media (min-width: 768px) {
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > a > span,
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > .treeview-menu {
+    background-color: #FFFFFF !important;
+    color: var(--bovs-sidebar-text) !important;
+    border-left: 3px solid var(--bovs-green) !important;
+    box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.12) !important;
+  }
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > .treeview-menu {
+    background-color: #FFFFFF !important;
+    border-radius: 0 0 6px 0 !important;
+  }
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > .treeview-menu > li > a {
+    padding-left: 15px !important;
+    border-left-color: transparent !important;
+    color: var(--bovs-sidebar-text) !important;
+  }
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > .treeview-menu > li > a:hover {
+    border-left-color: var(--bovs-green) !important;
+    background-color: #F0F9F2 !important;
+    color: var(--bovs-green-darker) !important;
+  }
+}
+
+/* ============================================================
+   DROPDOWNS
+   ============================================================ */
+.skin-green-light .navbar-nav > .notifications-menu > .dropdown-menu,
+.skin-green-light .navbar-nav > .messages-menu > .dropdown-menu,
+.skin-green-light .navbar-nav > .tasks-menu > .dropdown-menu,
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu {
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--bovs-border);
+  border-top: none;
+  overflow: hidden;
+}
+
+/* Cabecera del dropdown del usuario */
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > li.user-header {
+  background: linear-gradient(135deg,
+              var(--bovs-green-darker) 0%,
+              var(--bovs-green-dark) 50%,
+              var(--bovs-green) 100%);
+  position: relative;
+  height: 190px;
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > li.user-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: var(--bovs-accent);
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > li.user-header > img {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 4px rgba(255, 210, 74, 0.35);
+  height: 100px;
+  width: 100px;
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > li.user-header > p {
+  font-size: 16px;
+  margin-top: 12px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > li.user-header > p > small {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Footer del dropdown del usuario */
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > .user-footer {
+  background-color: #F7F8FA;
+  border-top: 1px solid var(--bovs-border);
+  padding: 12px 15px;
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > .user-footer .btn-default {
+  background-color: #FFFFFF;
+  border: 1px solid #D8DEE6;
+  color: #444;
+  font-weight: 500;
+}
+.skin-green-light .navbar-nav > .user-menu > .dropdown-menu > .user-footer .btn-default:hover {
+  background-color: #EEF1F5;
+  border-color: #B8C0CC;
+}
+
+/* Hover en items del dropdown */
+.skin-green-light .navbar-nav > .notifications-menu > .dropdown-menu > li .menu > li > a:hover,
+.skin-green-light .navbar-nav > .messages-menu > .dropdown-menu > li .menu > li > a:hover,
+.skin-green-light .navbar-nav > .tasks-menu > .dropdown-menu > li .menu > li > a:hover {
+  background-color: #F4F6F9;
+}
+
+/* ============================================================
+   BOTÓN "MEJORA TU PLAN"
+   ------------------------------------------------------------
+   Ajuste: más padding derecho y gap amplio para que el icono
+   de WhatsApp no quede pegado al borde de la pastilla.
+   ============================================================ */
+.skin-green-light .btn-upgrade-plan-item {
+  display: inline-flex;
+  align-items: center;
+  height: 50px;
+  padding: 0 12px;
+}
+.skin-green-light .btn-upgrade-plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 20px 7px 16px;   /* derecha más ancha para el ícono */
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, #11998E 0%, #38EF7D 100%);
+  border-radius: 22px;
+  border: 1px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(56, 239, 125, 0.35), 0 4px 12px rgba(0, 0, 0, 0.12);
+  text-decoration: none !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+  line-height: 1;
+}
+.skin-green-light .btn-upgrade-plan::before {
+  content: "";
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: linear-gradient(60deg,
+              transparent 30%,
+              rgba(255, 255, 255, 0.35) 50%,
+              transparent 70%);
+  transform: rotate(30deg);
+  animation: bovs-shine-sweep 3.5s infinite;
+}
+.skin-green-light .btn-upgrade-plan:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 0 4px rgba(56, 239, 125, 0.45), 0 6px 18px rgba(0, 0, 0, 0.2);
+  color: #FFFFFF !important;
+}
+.skin-green-light .btn-upgrade-plan .badge-star {
+  color: #FFD700;
+  font-size: 14px;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+  animation: bovs-pulse-star 1.8s infinite alternate;
+  flex-shrink: 0;
+}
+.skin-green-light .btn-upgrade-plan .icon-wa {
+  font-size: 16px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+@keyframes bovs-shine-sweep {
+  0%   { left: -100%; }
+  20%  { left: 100%;  }
+  100% { left: 100%;  }
+}
+@keyframes bovs-pulse-star {
+  0%   { transform: scale(1);    }
+  100% { transform: scale(1.25); }
+}
+
+/* ============================================================
+   CONTENIDO: cajas, botones, tablas
+   ============================================================ */
+.skin-green-light .box {
+  border-top-width: 3px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(28, 44, 32, 0.06), 0 1px 2px rgba(28, 44, 32, 0.04);
+}
+.skin-green-light .box.box-primary { border-top-color: var(--bovs-green); }
+.skin-green-light .box.box-success { border-top-color: var(--bovs-green-dark); }
+.skin-green-light .box.box-info    { border-top-color: var(--bovs-accent); }
+
+.skin-green-light .box-header.with-border {
+  border-bottom-color: var(--bovs-border);
+}
+.skin-green-light .box-header .box-title {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--bovs-text);
+}
+
+/* Botón primario global = verde marca */
+.skin-green-light .btn-primary {
+  background-color: var(--bovs-green) !important;
+  border-color: var(--bovs-green-dark) !important;
+}
+.skin-green-light .btn-primary:hover,
+.skin-green-light .btn-primary:active,
+.skin-green-light .btn-primary:focus {
+  background-color: var(--bovs-green-dark) !important;
+  border-color: var(--bovs-green-darker) !important;
+}
+
+.skin-green-light .text-muted,
+.skin-green-light small {
+  color: var(--bovs-text-muted);
+}
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+@media print {
+  .skin-green-light .btn-upgrade-plan-item { display: none !important; }
+  .skin-green-light .sidebar::after { display: none; }
+}
+
+/* ============================================================
+   MENÚ LATERAL — LEGIBILIDAD Y AJUSTE DEL CONTENEDOR (2026-10)
+   Se conserva el mismo agrupador (MAESTROS, GESTIÓN, REPORTES…)
+   con el contenedor un poco más ancho y el texto en mayúsculas,
+   legible y sin desbordar.
+   ============================================================ */
+@media (min-width: 768px) {
+  :root {
+    --bovs-sidebar-w: 280px;
+  }
+
+  /* Contenedor más ancho: las etiquetas largas ya no se cortan */
+  .skin-green-light .main-sidebar { width: var(--bovs-sidebar-w); }
+  .skin-green-light .main-header .logo { width: var(--bovs-sidebar-w); }
+  .skin-green-light .main-header .navbar,
+  .skin-green-light .content-wrapper,
+  .skin-green-light .main-footer,
+  .skin-green-light .right-side { margin-left: var(--bovs-sidebar-w); }
+
+  /* Popout del sidebar colapsado: más ancho para el texto en mayúsculas */
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > a > span:not(.pull-right),
+  .skin-green-light.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > .treeview-menu {
+    width: 240px !important;
+  }
+}
+
+/* ---- Grupos de primer nivel ---- */
+.skin-green-light .sidebar-menu > li > a {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: .3px !important;
+  text-transform: none !important;
+  line-height: 1.25 !important;
+  padding: 12px 30px 12px 14px !important;
+}
+.skin-green-light .sidebar-menu > li > a > .fa,
+.skin-green-light .sidebar-menu > li > a > .glyphicon,
+.skin-green-light .sidebar-menu > li > a > .ion {
+  font-size: 17px !important;
+  width: 24px !important;
+}
+.skin-green-light .sidebar-menu > li > a > span {
+  white-space: normal !important;
+  overflow-wrap: break-word;
+}
+
+/* Separación sutil entre grupos */
+.skin-green-light .sidebar-menu > li.treeview {
+  border-top: 1px solid var(--bovs-sidebar-border);
+}
+.skin-green-light .sidebar-menu > li.treeview:first-of-type {
+  border-top: none;
+}
+
+/* ---- Submenú ---- */
+.skin-green-light .sidebar-menu .treeview-menu > li > a {
+  color: var(--bovs-menu-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: .1px !important;
+  text-transform: none !important;
+  line-height: 1.3 !important;
+  padding: 9px 10px 9px 36px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+}
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .fa,
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .glyphicon,
+.skin-green-light .sidebar-menu .treeview-menu > li > a > .ion {
+  /* Respaldo sólido para navegadores sin background-clip: text.
+     El color real lo aporta la categoría del enlace (--bovs-ic-solid). */
+  color: var(--bovs-ic-solid, var(--bovs-ic-sistema)) !important;
+  font-size: 16.2px !important;   /* +20% sobre 13.5px */
+  width: 22px !important;
+  margin-right: 7px !important;
+  transition: color .15s ease !important;
+}
+
+/* ============================================================
+   CÓDIGO DE COLORES DE LOS ICONOS DEL SUBMENÚ
+   Verde  → campos / pastoreo
+   Azul   → producción / leche
+   Rojo   → salud / reproducción
+   Ámbar  → nutrición / inventario
+   Gris   → sistema / administración (valor por defecto)
+   Cada <a> declara su paleta; el icono la hereda.
+   ============================================================ */
+
+/* 1) VERDE — campos y pastoreo */
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/potreros/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/movreb/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/lotes/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/fundos/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/migracion/"] {
+  --bovs-ic-solid:   var(--bovs-ic-campo);
+  --bovs-ic-solid-h: var(--bovs-ic-campo-hover);
+  --bovs-ic-grad:    linear-gradient(135deg, #1B5E20 0%, #66BB6A 100%);
+  --bovs-ic-grad-h:  linear-gradient(135deg, #2E7D32 0%, #81C784 100%);
+}
+
+/* 2) AZUL — producción y leche */
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/prodleche/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/consecutivopesos/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/dashboard/"] {
+  --bovs-ic-solid:   var(--bovs-ic-prod);
+  --bovs-ic-solid-h: var(--bovs-ic-prod-hover);
+  --bovs-ic-grad:    linear-gradient(135deg, #0D47A1 0%, #42A5F5 100%);
+  --bovs-ic-grad-h:  linear-gradient(135deg, #1565C0 0%, #64B5F6 100%);
+}
+
+/* 3) ROJO / ROSA — salud y reproducción */
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/controlsanitario/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/servicios/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/nacimientos/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/estadosfisiologicos/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/tiposervicios/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/causademortalidad/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/causadescartes/"] {
+  --bovs-ic-solid:   var(--bovs-ic-salud);
+  --bovs-ic-solid-h: var(--bovs-ic-salud-hover);
+  --bovs-ic-grad:    linear-gradient(135deg, #B71C1C 0%, #EC407A 100%);
+  --bovs-ic-grad-h:  linear-gradient(135deg, #C62828 0%, #F06292 100%);
+}
+
+/* 4) AMARILLO / MARRÓN — nutrición e inventario */
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/productos/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/animales/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/desincorporacion/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/categorias/"],
+.skin-green-light .sidebar-menu .treeview-menu > li > a[href*="/razas/"] {
+  --bovs-ic-solid:   var(--bovs-ic-inv);
+  --bovs-ic-solid-h: var(--bovs-ic-inv-hover);
+  --bovs-ic-grad:    linear-gradient(135deg, #8D5524 0%, #E0A72C 100%);
+  --bovs-ic-grad-h:  linear-gradient(135deg, #A1682A 0%, #F0B429 100%);
+}
+
+/* Degradado del icono según la categoría heredada */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .skin-green-light .sidebar-menu .treeview-menu > li > a > .fa::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a > .glyphicon::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a > .ion::before {
+    background-image: var(--bovs-ic-grad,
+      linear-gradient(135deg, #455A64 0%, #90A4AE 100%)) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    color: transparent !important;
+  }
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .fa::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .fa::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .glyphicon::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .glyphicon::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .ion::before,
+  .skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .ion::before {
+    background-image: var(--bovs-ic-grad-h,
+      linear-gradient(135deg, #546E7A 0%, #B0BEC5 100%)) !important;
+  }
+}
+
+/* Hover del submenú: el texto se mantiene casi negro y el icono sube de tono */
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus {
+  color: var(--bovs-menu-ink-hover) !important;
+}
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .fa,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .fa,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .glyphicon,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .glyphicon,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:hover > .ion,
+.skin-green-light .sidebar-menu .treeview-menu > li > a:focus > .ion {
+  color: var(--bovs-ic-solid-h, var(--bovs-ic-sistema-hover)) !important;
+}
+
+.skin-green-light .sidebar-menu .treeview-menu > li.active > a {
+  color: var(--bovs-menu-ink-hover) !important;
+}
+
+/* Guía del árbol alineada con el nuevo padding */
+.skin-green-light .sidebar-menu .treeview-menu > li > a::before {
+  left: 17px;
+  width: 10px;
+}

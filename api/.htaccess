@@ -1,0 +1,16 @@
+# Por defecto, Apache + mod_php/mod_fcgid puede descartar el header
+# "Authorization" antes de que llegue a PHP (comportamiento heredado
+# de una política de seguridad antigua). Esta regla lo reenvía como
+# variable de entorno para que $_SERVER['HTTP_AUTHORIZATION'] exista.
+#
+# Nota: el API ya funciona sin esto gracias a un respaldo en el código
+# (el token también viaja en el cuerpo JSON de cada petición), pero es
+# buena práctica tenerlo igual — así el header llega limpio si en el
+# futuro otro cliente distinto a esta PWA consume el API de forma más
+# estándar.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+</IfModule>

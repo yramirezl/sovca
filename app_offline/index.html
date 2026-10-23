@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SOVCA Offline</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#2F5233">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/modal.css">
+<link rel="stylesheet" href="css/calendario.css">
+</head>
+<body>
+
+<div id="pantalla-reconexion-local" class="pantalla-login oculto">
+  <div class="tarjeta-login tarjeta-login--reconexion">
+    <div class="tarjeta-login__logo">
+      <img src="icons/icon-192.png" alt="">
+      <div>
+        <p class="tarjeta-login__titulo">BOVS Offline</p>
+      </div>
+    </div>
+
+    <p class="tarjeta-login__subtitulo tarjeta-login__subtitulo--reconexion">
+      Este equipo ya tiene modo offline activado para
+      <strong id="reconexion-usuario-nombre"></strong>.
+      Ingresa tu contrasena para continuar, con o sin conexion.
+    </p>
+
+    <form id="form-reconexion-local">
+      <input type="hidden" id="reconexion-usuario">
+
+      <div class="campo">
+        <label for="reconexion-password">Contrasena</label>
+        <input id="reconexion-password" type="password" placeholder="Contrasena" required autocomplete="current-password">
+      </div>
+
+      <p id="reconexion-mensaje" class="mensaje-error"></p>
+
+      <button type="submit" id="reconexion-boton" class="boton-primario">Continuar</button>
+    </form>
+
+    <div class="acciones-reconexion">
+      <button type="button" id="boton-usar-otro-usuario" class="enlace-reconexion">Usar otro usuario</button>
+      <span class="acciones-reconexion__separador">·</span>
+      <button type="button" id="boton-olvidar-equipo" class="enlace-reconexion enlace-reconexion--alerta">Olvidar este equipo</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmar-offline-contenedor" class="oculto" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000;">
+  <div style="background:#fff;max-width:380px;width:90%;padding:20px;border-radius:10px;">
+    <h4 style="margin-top:0;color:#234e35;">Activar reconexion sin conexion en este equipo</h4>
+    <p style="color:#5a5a5a;font-size:14px;">
+      Ya iniciaste sesion. Para poder seguir trabajando en este equipo
+      si mas adelante se corta la conexion, confirma tu contrasena una
+      vez mas.
+    </p>
+    <form id="form-confirmar-offline">
+      <input type="hidden" id="confirmar-offline-usuario">
+      <div class="form-group">
+        <input id="confirmar-offline-password" type="password" class="form-control" placeholder="Contrasena" required autocomplete="current-password">
+      </div>
+      <p id="confirmar-offline-mensaje" class="mensaje-error"></p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" id="boton-omitir-confirmar-offline" class="boton-secundario">Ahora no</button>
+        <button type="submit" id="confirmar-offline-boton" class="boton-primario">Confirmar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="preload-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:18px 20px; border-radius:8px; max-width:420px; width:90%; box-shadow:0 12px 40px rgba(0,0,0,0.3); text-align:left;">
+    <h3 style="margin:0 0 8px 0; color:#234e35;">Instalando modo offline</h3>
+    <p id="preload-text" style="margin:0 0 12px; color:#555;">Preparando...</p>
+    <div style="background:#eee; border-radius:6px; overflow:hidden; height:14px;">
+      <div id="preload-bar" style="width:0%; height:14px; background:linear-gradient(90deg,#2f8f4a,#7fd07a);"></div>
+    </div>
+    <p id="preload-subtext" style="margin:8px 0 0 0; font-size:13px; color:#666;">No cierres esta ventana hasta completar la instalacion.</p>
+  </div>
+</div>
+
+<div id="actualizacion-frontend-box" class="actualizacion-frontend oculto" aria-live="polite">
+  <p id="actualizacion-frontend-texto" class="actualizacion-frontend__texto"></p>
+  <div class="actualizacion-frontend__acciones">
+    <button id="boton-actualizar-frontend" type="button" class="boton-secundario">Actualizar ahora</button>
+    <button id="boton-posponer-actualizacion" type="button" class="boton-secundario">Luego</button>
+  </div>
+</div>
+
+<div id="diagnostico-frontend-box" class="diagnostico-frontend oculto" aria-live="polite">
+  <h4 class="diagnostico-frontend__titulo">Diagnóstico frontend</h4>
+  <p class="diagnostico-frontend__linea">Versión local: <strong id="diag-version-local">-</strong></p>
+  <p class="diagnostico-frontend__linea">Versión servidor: <strong id="diag-version-servidor">-</strong></p>
+  <p class="diagnostico-frontend__linea">Service Worker: <strong id="diag-sw-estado">-</strong></p>
+  <p class="diagnostico-frontend__linea">Conectividad: <strong id="diag-conectividad">-</strong></p>
+  <p class="diagnostico-frontend__linea">Latencia backend: <strong id="diag-latencia-backend">-</strong></p>
+  <p class="diagnostico-frontend__linea">Última verificación: <strong id="diag-ultima-verificacion">-</strong></p>
+  <div class="diagnostico-frontend__acciones">
+    <button id="boton-refrescar-diagnostico" type="button" class="boton-secundario">Refrescar</button>
+    <button id="boton-cerrar-diagnostico" type="button" class="boton-secundario">Cerrar</button>
+  </div>
+</div>
+
+<div id="pantalla-login" class="pantalla-login">
+  <div class="tarjeta-login">
+    <div class="tarjeta-login__logo">
+      <img src="icons/icon-192.png" alt="">
+      <div>
+        <p class="tarjeta-login__titulo">BOVS Offline</p>
+      </div>
+    </div>
+    <p class="tarjeta-login__subtitulo">Inicia sesion una vez con internet. Despues podras trabajar sin conexion.</p>
+
+    <form id="form-login">
+      <div class="campo">
+        <label for="login-usuario">Usuario</label>
+        <input type="text" id="login-usuario" autocomplete="username" required>
+      </div>
+      <div class="campo">
+        <label for="login-password">Contrasena</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" id="login-boton" class="boton-primario">Entrar</button>
+      <p id="login-mensaje" class="mensaje-error"></p>
+    </form>
+
+    <div id="instalacion-app-box" class="instalacion-app oculto" aria-live="polite">
+      <p id="instalacion-app-texto" class="instalacion-app__texto"></p>
+      <div class="instalacion-app__acciones">
+        <button id="boton-instalar-app" type="button" class="boton-secundario">Instalar app</button>
+        <button id="boton-cerrar-instalar-app" type="button" class="boton-secundario">Ahora no</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pantalla-principal" class="oculto">
+  <header class="encabezado">
+    <div class="encabezado__marca">
+      <img src="icons/icon-192.png" alt="">
+      <div class="encabezado__marca-texto">
+        <span id="etiqueta-usuario">Usuario</span>
+        <button id="boton-estado-sync" type="button" class="chip-sync chip-sync--error" title="Estado de sincronización" aria-expanded="false" aria-controls="popover-sync">
+          <span id="chip-sync-icono" class="chip-sync__icono" aria-hidden="true">?</span>
+          <span id="chip-sync-texto" class="chip-sync__texto">Sin sincronizar</span>
+        </button>
+      </div>
+    </div>
+    <div class="encabezado__acciones">
+      <div id="fundo-activo" class="fundo-activo oculto"></div>
+      <span id="indicador-conexion" class="indicador">● En linea</span>
+      <span id="etiqueta-version-frontend" class="etiqueta-version-frontend">FE ?</span>
+      <button id="boton-cargar-datos-web" class="boton-icono oculto" type="button">Cargar datos web</button>
+      <button id="boton-sincronizar" class="boton-icono" type="button">Sincronizar</button>
+      <button id="boton-logout" class="boton-icono" type="button">Salir</button>
+    </div>
+  </header>
+
+  <div id="popover-sync" class="popover-sync oculto" role="dialog" aria-labelledby="popover-sync-titulo">
+    <span id="popover-sync-flecha" class="popover-sync__flecha" aria-hidden="true"></span>
+    <p id="popover-sync-titulo" class="popover-sync__titulo">Estado de sincronización</p>
+    <div id="popover-sync-cuerpo" class="popover-sync__cuerpo"></div>
+    <button id="popover-sync-cerrar" type="button" class="popover-sync__boton">Entendido</button>
+  </div>
+
+  <p id="estado-sync" class="estado-sync"></p>
+
+  <div id="aviso-actualizacion" class="aviso-actualizacion oculto" role="status" aria-live="polite">
+    <div class="aviso-actualizacion__icono" aria-hidden="true">↑</div>
+    <div class="aviso-actualizacion__cuerpo">
+      <p id="aviso-actualizacion-titulo" class="aviso-actualizacion__titulo">Hay una versión nueva de la app</p>
+      <p id="aviso-actualizacion-detalle" class="aviso-actualizacion__detalle"></p>
+      <ul id="aviso-actualizacion-notas" class="aviso-actualizacion__notas oculto"></ul>
+      <p id="aviso-actualizacion-pendientes" class="aviso-actualizacion__pendientes oculto"></p>
+    </div>
+    <div class="aviso-actualizacion__acciones">
+      <button id="boton-actualizar-app" type="button" class="aviso-actualizacion__boton">Actualizar ahora</button>
+      <button id="boton-omitir-actualizacion" type="button" class="aviso-actualizacion__omitir">Después</button>
+    </div>
+  </div>
+
+  <main class="contenido">
+    <div id="aviso-sesion-local" class="oculto" style="background:#fff3cd;border:1px solid #e6d89a;border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+      <p style="margin:0 0 8px;font-size:13px;color:#6b5a1e;">
+        Estas trabajando sin conexion con una sesion local. Lo que registres
+        se guarda en este equipo; para subirlo al servidor, inicia sesion
+        de verdad en cuanto tengas senal.
+      </p>
+      <p id="aviso-sesion-local-plazo" class="oculto" style="margin:0 0 8px;font-size:13px;font-weight:700;color:#8a5a00;"></p>
+      <form id="form-renovar-sesion" style="display:flex;gap:8px;">
+        <input id="renovar-password" type="password" class="form-control" placeholder="Tu contrasena" required autocomplete="current-password" style="flex:1;">
+        <button type="submit" id="renovar-boton" class="boton-primario">Sincronizar</button>
+      </form>
+      <p id="renovar-mensaje" class="mensaje-error"></p>
+    </div>
+
+    <div id="aviso-equipo-ocupado" class="oculto" style="background:#e7f0fa;border:1px solid #b9d3ec;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
+      <p id="aviso-equipo-ocupado-texto" style="margin:0;font-size:13px;color:#2c4a66;"></p>
+      <button id="boton-cerrar-aviso-equipo-ocupado" type="button" class="boton-icono" style="background:none;color:#2c4a66;flex-shrink:0;padding:2px 8px;">✕</button>
+    </div>
+
+    <div id="aviso-modo-consulta" class="oculto" style="background:#e7f0fa;border:1px solid #b9d3ec;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#2c4a66;">
+      <strong>Modo CONSULTA activo.</strong> Podés ver los datos pero no registrar ni editar.
+      Si nnecesitas gestionar en este dispositivo, cambiá a modo gestión desde la pantalla de reconexión.
+    </div>
+
+    <nav class="tabs">
+      <button type="button" class="tab tab--activa" id="tab-animales" data-tab="animales"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 40 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M38 6c-3 6-6 7.5-9 6.5"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M31 10c1.6 1 2.6 2.6 2 4-.6 1.4-2.3 1.7-3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h6c4.5 0 8.1-4 8.1-9 0-2.5-1.1-5-3.1-6.8-2.2-1.9-4.9-2.9-8-2.9s-5.8 1-8 2.9Z" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="24.8" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><path d="M15 23.5c1.4 1 3 1.5 5 1.5s3.6-.5 5-1.5"/><circle cx="17.3" cy="22.3" r="0.6" fill="currentColor" stroke="none"/><circle cx="22.7" cy="22.3" r="0.6" fill="currentColor" stroke="none"/></svg></span><span class="tab__texto">Animales</span></button>
+      <button type="button" class="tab" id="tab-control_sanitario" data-tab="control_sanitario"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3 6 11"/><path d="M12 5l2 2"/><path d="M15 8l2 2"/><path d="M9.5 10.5l4 4"/><path d="M6 11c-1 1-2.5 3.5-1 5s4-0 5-1"/><circle cx="18" cy="6" r="1.8" fill="var(--verde-sync)" stroke="none"/></svg></span><span class="tab__texto">Control Sanitario</span></button>
+      <button type="button" class="tab" id="tab-produccion_leche" data-tab="produccion_leche"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10.5 2c0 1.5-.5 2.3-1 3.2-.6 1-1 1.8-1 3.3v10c0 1.4 1.1 2.5 2.5 2.5h2c1.4 0 2.5-1.1 2.5-2.5v-10c0-1.5-.4-2.3-1-3.3-.5-.9-1-1.7-1-3.2" fill="var(--hueso-oscuro)"/><path d="M8.5 12h7"/></svg></span><span class="tab__texto">Producción de Leche</span></button>
+      <button type="button" class="tab" id="tab-pesos" data-tab="pesos"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M4 6h16"/><path d="M12 6 4 6l3 6a3 3 0 0 0 6 0Z" fill="var(--ambar)"/><path d="M12 6l8 0-3 6a3 3 0 0 1-6 0Z" fill="var(--ambar)"/></svg></span><span class="tab__texto">Pesos</span></button>
+      <button type="button" class="tab" id="tab-servicios" data-tab="servicios"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 40 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.9"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M38 6c-3 6-6 7.5-9 6.5"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M31 10c1.6 1 2.6 2.6 2 4-.6 1.4-2.3 1.7-3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h6c4.5 0 8.1-4 8.1-9 0-2.5-1.1-5-3.1-6.8-2.2-1.9-4.9-2.9-8-2.9s-5.8 1-8 2.9Z" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="24.8" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><path d="M15 23.5c1.4 1 3 1.5 5 1.5s3.6-.5 5-1.5"/></g><path d="M33.2 3.6c1.6-1.1 3.8-.3 3.8 1.7s-3.8 4.2-3.8 4.2-3.8-2.2-3.8-4.2 2.2-2.8 3.8-1.7Z" fill="var(--ambar)" stroke="none"/></svg></span><span class="tab__texto">Servicios</span></button>
+      <button type="button" class="tab" id="tab-nacimientos" data-tab="nacimientos"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.7" transform="translate(0,2) scale(0.82)"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M28 6c-2 5-4.4 6.6-6.6 6.2"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h3c3.6 0 6.6-2.9 7.2-6.7" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1" fill="currentColor" stroke="none"/><path d="M15 23.5c1.1.8 2.3 1.2 3.6 1.2"/></g><g stroke-width="1.9" transform="translate(24,10) scale(0.62)"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M38 6c-3 6-6 7.5-9 6.5"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M31 10c1.6 1 2.6 2.6 2 4-.6 1.4-2.3 1.7-3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h6c4.5 0 8.1-4 8.1-9 0-2.5-1.1-5-3.1-6.8-2.2-1.9-4.9-2.9-8-2.9s-5.8 1-8 2.9Z" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="24.8" cy="17.5" r="1.3" fill="currentColor" stroke="none"/></g></svg></span><span class="tab__texto">Nacimientos</span></button>
+      <button type="button" class="tab" id="tab-reportes" data-tab="reportes"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="10" width="3.6" height="10" rx="1" fill="var(--verde-pasto)" stroke="none"/><rect x="10.2" y="4" width="3.6" height="16" rx="1" fill="var(--verde-pasto)" stroke="none"/><rect x="17.2" y="13" width="3.6" height="7" rx="1" fill="var(--verde-pasto)" stroke="none"/><path d="M2 20h20"/></svg></span><span class="tab__texto">Reportes</span></button>
+      <button type="button" class="tab" id="tab-desincorporacion" data-tab="desincorporacion"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M9 6V4h6v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 10v6"/><path d="M14 10v6"/></svg></span><span class="tab__texto">Desincorporaciones</span></button>
+      <button type="button" class="tab" id="tab-movimiento_rebano" data-tab="movimiento_rebano"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11"/><path d="M11 5l3 3-3 3"/><path d="M21 16H10"/><path d="M13 13l-3 3 3 3"/></svg></span><span class="tab__texto">Movimiento</span></button>
+    </nav>
+
+    <section id="panel-reportes" class="panel oculto">
+      <div class="form-animal-contenedor">
+        <h2>Elegir reporte</h2>
+
+        <div id="filtros-reporte" class="oculto" style="display:none;">
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="fecha_desde">
+            <label for="reporte-fecha-desde">Fecha desde</label>
+            <input type="date" id="reporte-fecha-desde" data-solo-pasado>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="fecha_hasta">
+            <label for="reporte-fecha-hasta">Fecha hasta</label>
+            <input type="date" id="reporte-fecha-hasta" data-solo-pasado>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="sexo">
+            <label for="reporte-sexo">Sexo</label>
+            <select id="reporte-sexo">
+              <option value="">Todos</option>
+              <option value="1">Hembra</option>
+              <option value="2">Macho</option>
+            </select>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="lote_id">
+            <label for="reporte-lote">Lote</label>
+            <select id="reporte-lote">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="animal">
+            <label for="reporte-animal">Animal</label>
+            <input type="text" id="reporte-animal" placeholder="Código o nombre">
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="hembra">
+            <label for="reporte-hembra">Hembra</label>
+            <input type="text" id="reporte-hembra" placeholder="Código de hembra">
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="macho">
+            <label for="reporte-macho">Macho</label>
+            <input type="text" id="reporte-macho" placeholder="Código de macho">
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="tipo_servicio">
+            <label for="reporte-tipo-servicio">Tipo de servicio</label>
+            <select id="reporte-tipo-servicio">
+              <option value="">Todos</option>
+              <option value="1">Monta</option>
+              <option value="2">Inseminación artificial</option>
+              <option value="3">Transferencia de embriones</option>
+            </select>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="estado_animal">
+            <label for="reporte-estado-animal">Estado animal</label>
+            <select id="reporte-estado-animal">
+              <option value="">Todos</option>
+              <option value="1">Activo</option>
+              <option value="2">Donador Activo</option>
+              <option value="3">Donador</option>
+              <option value="4">Donadora Activo</option>
+              <option value="5">Donadora</option>
+            </select>
+          </div>
+          <div class="campo filtro-reporte oculto" data-reporte-filtro="aptitud">
+            <label for="reporte-aptitud">Aptitud</label>
+            <select id="reporte-aptitud">
+              <option value="">Todas</option>
+              <option value="1">Carne</option>
+              <option value="2">Leche</option>
+              <option value="3">Doble propósito</option>
+              <option value="4">Reproductor</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="lista-reportes" style="display:grid; gap:12px; margin-top:12px;"></div>
+      </div>
+    </section>
+
+    <section id="panel-animales" class="panel">
+      <button id="boton-mostrar-form" type="button" class="boton-registrar">+ Registrar animal</button>
+
+      <div id="form-animal-anchor"></div>
+      <div id="form-animal-contenedor" class="form-animal-contenedor oculto">
+      <h2 id="form-animal-titulo">Nuevo animal</h2>
+      <p id="form-animal-codigo" class="form-animal-codigo oculto"></p>
+      <form id="form-animal">
+        <div class="campo">
+          <label for="campo-nombre">Nombre</label>
+          <input type="text" id="campo-nombre" required>
+        </div>
+
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-sexo">Sexo</label>
+            <select id="campo-sexo">
+              <option value="1">Hembra</option>
+              <option value="2">Macho</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="campo-arete">Nro de arete</label>
+
+            <input type="text" id="campo-arete" required autocomplete="off" aria-describedby="campo-arete-validacion">
+            <small id="campo-arete-validacion" class="validacion-arete" aria-live="polite">Se valida en este fundo al escribir y antes de guardar.</small>
+          </div>
+        </div>
+        <input type="hidden" id="campo-codigo-ternero">
+        <div class="campo oculto" id="grupo-fecha-nacimiento-animal">
+          <label for="campo-fecha-nacimiento">Fecha de nacimiento</label>
+          <input type="date" id="campo-fecha-nacimiento" data-solo-pasado>
+        </div>
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-raza">Raza</label>
+            <select id="campo-raza" required>
+              <option value="">Selecciona...</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="campo-aptitud">Aptitud</label>
+            <select id="campo-aptitud" required>
+              <option value="">Selecciona...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="campo-lote">Lote (opcional)</label>
+          <select id="campo-lote">
+            <option value="">Sin asignar</option>
+          </select>
+        </div>
+
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-categoria-ingreso">Categoria de ingreso (opcional)</label>
+            <select id="campo-categoria-ingreso">
+              <option value="">Sin categoria</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="campo-categoria-futura">Categoria esperada (opcional)</label>
+            <select id="campo-categoria-futura">
+              <option value="">Sin categoria</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="campo-peso">Peso al nacer</label>
+          <input type="text" id="campo-peso" placeholder="Ej: 32 kg">
+        </div>
+
+        <div class="campo">
+          <label for="campo-observaciones">Observaciones</label>
+          <textarea id="campo-observaciones" rows="2"></textarea>
+        </div>
+
+        <p id="form-animal-mensaje" class="mensaje-error"></p>
+
+        <div class="form-acciones">
+          <button type="button" id="boton-cancelar-form" class="boton-secundario">Cancelar</button>
+          <button type="submit" class="boton-primario">Guardar</button>
+        </div>
+      </form>
+      </div>
+
+      <section id="seccion-conflictos" class="seccion-conflictos oculto">
+        <h2>Necesitan tu decision</h2>
+        <div id="lista-conflictos"></div>
+      </section>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-animales" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+      </div>
+      <p id="buscador-animales-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-animales" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-control_sanitario" class="panel oculto">
+      <div class="acciones-modulo acciones-modulo--dos">
+        <button id="boton-mostrar-form-cs" type="button" class="boton-registrar">+ Control individual</button>
+        <button id="boton-mostrar-form-cs-lote" type="button" class="boton-registrar boton-registrar--lote">+ Control por lote</button>
+      </div>
+
+      <div id="form-cs-lote-anchor"></div>
+      <div id="form-cs-lote-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-cs-lote-titulo">Nuevo control por lote</h2>
+        <p id="form-cs-lote-codigo" class="form-animal-codigo oculto"></p>
+        <form id="form-cs-lote">
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="cs-lote-lote">Lote</label>
+              <select id="cs-lote-lote" required>
+                <option value="">Selecciona un lote...</option>
+              </select>
+              <p id="cs-lote-animales-info" class="texto-ayuda"></p>
+            </div>
+            <div class="campo">
+              <label for="cs-lote-fecha">Fecha</label>
+              <input type="date" id="cs-lote-fecha" data-solo-pasado>
+            </div>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="cs-lote-fecha-prox">Próximo control</label>
+              <input type="date" id="cs-lote-fecha-prox" data-solo-futuro>
+            </div>
+            <div class="campo">
+              <label for="cs-lote-evento">Evento</label>
+              <input type="text" id="cs-lote-evento" maxlength="200" required placeholder="Ej: Vacuna aftosa">
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="cs-lote-responsable">Responsable</label>
+            <input type="text" id="cs-lote-responsable" maxlength="100" required>
+          </div>
+
+          <div class="campo">
+            <label for="cs-lote-observaciones">Observaciones</label>
+            <textarea id="cs-lote-observaciones" rows="2" maxlength="300"></textarea>
+          </div>
+
+          <section class="productos-control" aria-labelledby="cs-lote-productos-titulo">
+            <div class="productos-control__encabezado">
+              <h3 id="cs-lote-productos-titulo">Productos aplicados</h3>
+              <span>Opcional</span>
+            </div>
+            <div class="fila-campos">
+              <div class="campo">
+                <label for="cs-lote-producto-categoria">Categoría</label>
+                <select id="cs-lote-producto-categoria">
+                  <option value="">Selecciona...</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="cs-lote-producto">Producto</label>
+                <select id="cs-lote-producto" disabled>
+                  <option value="">Selecciona una categoría...</option>
+                </select>
+              </div>
+            </div>
+            <div class="campo">
+              <label for="cs-lote-producto-dosis">Dosis</label>
+              <input type="text" id="cs-lote-producto-dosis" maxlength="60" placeholder="Ej: 5 ml">
+            </div>
+            <div class="campo">
+              <label for="cs-lote-producto-detalles">Detalles / indicaciones</label>
+              <textarea id="cs-lote-producto-detalles" rows="2" maxlength="300"></textarea>
+            </div>
+            <button type="button" id="cs-lote-producto-agregar" class="boton-secundario">Agregar producto</button>
+            <p id="cs-lote-productos-mensaje" class="texto-ayuda" aria-live="polite"></p>
+            <div id="cs-lote-productos-lista" class="productos-control__lista"></div>
+          </section>
+
+          <p id="form-cs-lote-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-cs-lote" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="form-cs-anchor"></div>
+      <div id="form-cs-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-cs-titulo">Nuevo control sanitario</h2>
+        <form id="form-cs">
+          <div class="campo">
+            <label for="cs-animal-buscar">Animal</label>
+            <div class="buscador-animal" id="cs-animal-combo">
+              <input type="text" id="cs-animal-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off" required>
+              <input type="hidden" id="cs-animal">
+              <div id="cs-animal-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="cs-animal-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="cs-fecha">Fecha</label>
+              <input type="date" id="cs-fecha" data-solo-pasado>
+            </div>
+            <div class="campo">
+              <label for="cs-fecha-prox">Proximo control</label>
+              <input type="date" id="cs-fecha-prox" data-solo-futuro>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="cs-evento">Evento</label>
+            <input type="text" id="cs-evento" required placeholder="Ej: Vacuna aftosa">
+          </div>
+
+          <div class="campo">
+            <label for="cs-responsable">Responsable</label>
+            <input type="text" id="cs-responsable" required>
+          </div>
+
+          <div class="campo">
+            <label for="cs-observaciones">Observaciones</label>
+            <textarea id="cs-observaciones" rows="2"></textarea>
+          </div>
+
+          <section class="productos-control" aria-labelledby="cs-productos-titulo">
+            <div class="productos-control__encabezado">
+              <h3 id="cs-productos-titulo">Productos aplicados</h3>
+              <span>Opcional</span>
+            </div>
+            <div class="fila-campos">
+              <div class="campo">
+                <label for="cs-producto-categoria">Categoría</label>
+                <select id="cs-producto-categoria">
+                  <option value="">Selecciona...</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="cs-producto">Producto</label>
+                <select id="cs-producto" disabled>
+                  <option value="">Selecciona una categoría...</option>
+                </select>
+              </div>
+            </div>
+            <div class="campo">
+              <label for="cs-producto-dosis">Dosis</label>
+              <input type="text" id="cs-producto-dosis" maxlength="60" placeholder="Ej: 5 ml">
+            </div>
+            <div class="campo">
+              <label for="cs-producto-detalles">Detalles / indicaciones</label>
+              <textarea id="cs-producto-detalles" rows="2" maxlength="300"></textarea>
+            </div>
+            <button type="button" id="cs-producto-agregar" class="boton-secundario">Agregar producto</button>
+            <p id="cs-productos-mensaje" class="texto-ayuda" aria-live="polite"></p>
+            <div id="cs-productos-lista" class="productos-control__lista"></div>
+          </section>
+
+          <p id="form-cs-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-cs" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Filtro por tipo de control: muestra solo los registros del tipo
+           elegido. Los contadores se actualizan al listar. -->
+      <div class="filtro-tipo" id="filtro-tipo-control" role="group" aria-label="Filtrar por tipo de control">
+        <button type="button" class="filtro-tipo__opcion filtro-tipo__opcion--activa" data-filtro-control="todos" aria-pressed="true">Todos <span class="filtro-tipo__cuenta" data-cuenta-control="todos">0</span></button>
+        <button type="button" class="filtro-tipo__opcion" data-filtro-control="individual" aria-pressed="false">Individual <span class="filtro-tipo__cuenta" data-cuenta-control="individual">0</span></button>
+        <button type="button" class="filtro-tipo__opcion" data-filtro-control="lote" aria-pressed="false">Por lote <span class="filtro-tipo__cuenta" data-cuenta-control="lote">0</span></button>
+      </div>
+
+      <div id="bloque-control-individual">
+        <div class="campo campo-buscador">
+          <input type="search" id="buscador-control-sanitario" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+        </div>
+        <p id="buscador-control-sanitario-contador" class="texto-ayuda oculto"></p>
+        <section id="lista-control-sanitario" class="lista-animales"></section>
+      </div>
+
+      <div id="bloque-control-lote">
+        <h3 class="subtitulo-lista">Controles por lote</h3>
+        <div class="campo campo-buscador">
+          <input type="search" id="buscador-control-lote" placeholder="Buscar por código, lote o evento..." autocomplete="off">
+        </div>
+        <p id="buscador-control-lote-contador" class="texto-ayuda oculto"></p>
+        <section id="lista-control-lote" class="lista-animales"></section>
+      </div>
+    </section>
+
+    <section id="panel-produccion_leche" class="panel oculto">
+      <button id="boton-mostrar-form-pl" type="button" class="boton-registrar">+ Registrar produccion</button>
+
+      <div id="form-pl-anchor"></div>
+      <div id="form-pl-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-pl-titulo">Nueva producción de leche</h2>
+        <form id="form-pl">
+          <div class="campo">
+            <label for="pl-animal-buscar">Animal (hembra)</label>
+            <div class="buscador-animal" id="pl-animal-combo">
+              <input type="text" id="pl-animal-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off" required>
+              <input type="hidden" id="pl-animal">
+              <div id="pl-animal-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="pl-animal-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="campo">
+            <label for="pl-fecha">Fecha</label>
+            <input type="date" id="pl-fecha" data-solo-pasado>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="pl-litros-manana">Litros manana</label>
+              <input type="number" id="pl-litros-manana" step="0.1" min="0" inputmode="decimal">
+            </div>
+            <div class="campo">
+              <label for="pl-litros-tarde">Litros tarde</label>
+              <input type="number" id="pl-litros-tarde" step="0.1" min="0" inputmode="decimal">
+            </div>
+          </div>
+
+          <p id="form-pl-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-pl" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-produccion-leche" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+      </div>
+      <p id="buscador-produccion-leche-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-produccion-leche" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-pesos" class="panel oculto">
+      <button id="boton-mostrar-form-pesos" type="button" class="boton-registrar">+ Registrar pesaje</button>
+      <button id="boton-mostrar-pesaje-lote" type="button" class="boton-secundario" style="margin-bottom:16px;">Pesaje rápido por lote</button>
+
+      <div id="pesaje-lote-contenedor" class="form-animal-contenedor oculto">
+        <h2>Pesaje rápido por lote</h2>
+        <p class="texto-ayuda">Elegí el lote y cargá el peso de cada animal uno detrás de otro. Se guarda un pesaje por animal con la misma fecha.</p>
+
+        <div id="pesaje-lote-config">
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="pesaje-lote-lote">Lote</label>
+              <select id="pesaje-lote-lote">
+                <option value="">Selecciona un lote...</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="pesaje-lote-fecha">Fecha</label>
+              <input type="date" id="pesaje-lote-fecha" data-solo-pasado>
+            </div>
+          </div>
+          <p id="pesaje-lote-config-mensaje" class="mensaje-error"></p>
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-pesaje-lote" class="boton-secundario">Cancelar</button>
+            <button type="button" id="boton-iniciar-pesaje-lote" class="boton-primario">Comenzar</button>
+          </div>
+        </div>
+
+        <div id="pesaje-lote-trabajo" class="oculto">
+          <p id="pesaje-lote-progreso" class="pesaje-lote__progreso"></p>
+          <div class="pesaje-lote__animal">
+            <div class="pesaje-lote__codigo" id="pesaje-lote-codigo"></div>
+            <div class="pesaje-lote__nombre" id="pesaje-lote-nombre"></div>
+            <p class="texto-ayuda" id="pesaje-lote-anterior"></p>
+          </div>
+          <div class="campo">
+            <label for="pesaje-lote-peso">Peso (kg)</label>
+            <input type="number" id="pesaje-lote-peso" step="0.1" min="0" inputmode="decimal" placeholder="Ej: 385">
+            <p class="texto-ayuda" id="pesaje-lote-gdp"></p>
+          </div>
+          <p id="pesaje-lote-mensaje" class="mensaje-error"></p>
+          <div class="form-acciones">
+            <button type="button" id="boton-pesaje-lote-anterior" class="boton-secundario">Anterior</button>
+            <button type="button" id="boton-pesaje-lote-guardar" class="boton-primario">Guardar y siguiente</button>
+          </div>
+          <button type="button" id="boton-pesaje-lote-terminar" class="boton-secundario" style="width:100%; margin-top:10px;">Terminar pesaje</button>
+        </div>
+      </div>
+
+      <div id="form-pesos-anchor"></div>
+      <div id="form-pesos-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-pesos-titulo">Nuevo pesaje</h2>
+        <form id="form-pesos">
+          <div class="campo">
+            <label for="pesos-animal-buscar">Animal</label>
+            <div class="buscador-animal" id="pesos-animal-combo">
+              <input type="text" id="pesos-animal-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off" required>
+              <input type="hidden" id="pesos-animal">
+              <div id="pesos-animal-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="pesos-animal-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="pesos-fecha">Fecha</label>
+              <input type="date" id="pesos-fecha" data-solo-pasado>
+            </div>
+            <div class="campo">
+              <label for="pesos-valor">Peso (kg)</label>
+              <input type="number" id="pesos-valor" step="0.1" min="0" inputmode="decimal" required>
+            </div>
+          </div>
+
+          <p id="form-pesos-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-pesos" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-pesos" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+      </div>
+      <p id="buscador-pesos-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-pesos" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-servicios" class="panel oculto">
+      <button id="boton-mostrar-form-servicios" type="button" class="boton-registrar">+ Registrar servicio</button>
+
+      <div id="form-servicios-anchor"></div>
+      <div id="form-servicios-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-servicios-titulo">Nuevo servicio</h2>
+        <form id="form-servicios">
+          <div class="campo">
+            <label for="servicios-tipo">Tipo de servicio</label>
+            <select id="servicios-tipo" required>
+              <option value="">Selecciona primero el tipo de servicio...</option>
+            </select>
+          </div>
+
+          <div id="servicios-campos-dependientes" class="oculto">
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="servicios-hembra-buscar">Hembra</label>
+              <div class="buscador-animal" id="servicios-hembra-combo">
+                <input type="text" id="servicios-hembra-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+                <input type="hidden" id="servicios-hembra">
+                <div id="servicios-hembra-opciones" class="buscador-animal__opciones oculto"></div>
+              </div>
+              <p id="servicios-hembra-mostrar" class="valor-bloqueado oculto"></p>
+            </div>
+            <div class="campo" id="servicios-macho-grupo">
+              <label for="servicios-macho-buscar">Macho</label>
+              <div class="buscador-animal" id="servicios-macho-combo">
+                <input type="text" id="servicios-macho-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+                <input type="hidden" id="servicios-macho">
+                <div id="servicios-macho-opciones" class="buscador-animal__opciones oculto"></div>
+              </div>
+              <p id="servicios-macho-mostrar" class="valor-bloqueado oculto"></p>
+            </div>
+          </div>
+
+          <div class="campo oculto" id="servicios-dona-grupo">
+            <label for="servicios-dona-buscar">Donadora</label>
+            <div class="buscador-animal" id="servicios-dona-combo">
+              <input type="text" id="servicios-dona-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+              <input type="hidden" id="servicios-dona">
+              <div id="servicios-dona-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="servicios-dona-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="servicios-fecha">Fecha de servicio</label>
+              <input type="date" id="servicios-fecha" data-solo-pasado>
+            </div>
+            <div class="campo">
+              <label for="servicios-fpp">Fecha probable palpacion</label>
+              <input type="date" id="servicios-fpp" readonly>
+            </div>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="servicios-nro">Nro servicio</label>
+              <input type="number" id="servicios-nro" min="1" step="1" inputmode="numeric" readonly>
+            </div>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="servicios-aptitud">Aptitud esperada</label>
+              <select id="servicios-aptitud">
+                <option value="">Selecciona...</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="servicios-raza">Raza esperada</label>
+              <select id="servicios-raza">
+                <option value="">Selecciona...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="servicios-observaciones">Observaciones</label>
+            <textarea id="servicios-observaciones" rows="2"></textarea>
+          </div>
+
+          <div id="grupo-seguimiento-servicio" class="oculto">
+            <hr>
+            <h3 style="margin:8px 0 4px;font-size:14px;color:#234e35;">Seguimiento (palpación / parto)</h3>
+
+            <div class="fila-campos">
+              <div class="campo">
+                <label for="servicios-fecha-palpacion">Fecha de palpación</label>
+                <input type="date" id="servicios-fecha-palpacion" data-solo-pasado>
+              </div>
+              <div class="campo">
+                <label for="servicios-estado-fisiologico">Estado fisiológico</label>
+                <select id="servicios-estado-fisiologico">
+                  <option value="">Sin determinar</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="campo campo--checkbox">
+              <label>
+                <input type="checkbox" id="servicios-parto-confirmado">
+                Parto confirmado
+              </label>
+              <p class="texto-ayuda">Al marcarlo y guardar, se cierra este ciclo reproductivo de la hembra en el servidor.</p>
+            </div>
+
+            <div id="grupo-datos-parto-servicio" class="oculto">
+              <div class="fila-campos">
+                <div class="campo">
+                  <label for="servicios-fecha-parto">Fecha de parto</label>
+                  <input type="date" id="servicios-fecha-parto" data-solo-pasado>
+                </div>
+                <div class="campo">
+                  <label for="servicios-nro-terneros">N.º de terneros</label>
+                  <input type="number" id="servicios-nro-terneros" min="0">
+                </div>
+              </div>
+              <div class="campo">
+                <label for="servicios-dnp">D.N.P. (días)</label>
+                <input type="number" id="servicios-dnp" min="0">
+              </div>
+            </div>
+
+            <div class="fila-campos">
+              <div class="campo">
+                <label for="servicios-fecha-probable-parto">Fecha probable de parto</label>
+                <input type="date" id="servicios-fecha-probable-parto" data-solo-futuro>
+              </div>
+              <div class="campo">
+                <label for="servicios-fecha-ultimo-parto">Fecha de último parto</label>
+                <input type="date" id="servicios-fecha-ultimo-parto" data-solo-pasado>
+              </div>
+            </div>
+
+            <div class="campo">
+              <label for="servicios-fecha-secado">Fecha de secado</label>
+              <input type="date" id="servicios-fecha-secado" data-solo-pasado>
+            </div>
+          </div>
+          </div>
+
+          <p id="form-servicios-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-servicios" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-servicios" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+      </div>
+      <p id="buscador-servicios-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-servicios" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-nacimientos" class="panel oculto">
+      <button id="boton-mostrar-form-nacimientos" type="button" class="boton-registrar">+ Registrar nacimiento</button>
+
+      <div id="form-nacimientos-anchor"></div>
+      <div id="modal-nacimiento-overlay" class="modal-aviso-overlay modal-nacimiento-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="form-nacimientos-titulo">
+        <div id="modal-nacimiento-slot" class="modal-nacimiento-slot"></div>
+      </div>
+      <div id="form-nacimientos-contenedor" class="form-animal-contenedor oculto">
+        <div class="nacimiento-modal-header">
+          <h2 id="form-nacimientos-titulo">Nuevo nacimiento</h2>
+          <button type="button" id="boton-cancelar-modal-nacimiento" class="boton-secundario">Cancelar</button>
+        </div>
+        <p id="form-nacimientos-codigo" class="form-animal-codigo oculto"></p>
+        <button type="button" id="boton-fichar-nacimiento" class="boton-secundario oculto">Fichar ternero</button>
+        <p id="nacimiento-fichado-info" class="texto-ayuda oculto">El ternero ya tiene una ficha de animal; este nacimiento queda como histórico de solo consulta.</p>
+        <form id="form-nacimientos">
+          <div class="campo">
+            <label for="nacimientos-origen-tipo">Activar búsqueda por</label>
+            <select id="nacimientos-origen-tipo">
+              <option value="servicio">Servicio previo</option>
+              <option value="madre">Madre</option>
+            </select>
+          </div>
+
+          <div class="campo" id="nacimientos-busqueda-servicio-grupo">
+            <label for="nacimientos-servicio-buscar">Buscar servicio por código o madre</label>
+            <div class="buscador-animal">
+              <input type="search" id="nacimientos-servicio-buscar" class="buscador-animal__input" placeholder="Código de servicio, código o arete de la madre..." autocomplete="off">
+              <div id="nacimientos-servicio-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+          </div>
+          <p id="nacimientos-origen-mensaje" class="texto-ayuda" aria-live="polite"></p>
+
+          <div class="campo oculto" id="nacimientos-busqueda-madre-grupo">
+            <label for="nacimientos-hembra-buscar">Hembra (madre)</label>
+            <div class="buscador-animal" id="nacimientos-hembra-combo">
+              <input type="text" id="nacimientos-hembra-buscar" class="buscador-animal__input" placeholder="Buscar código, nombre o arete de la madre..." autocomplete="off">
+              <input type="hidden" id="nacimientos-hembra">
+              <div id="nacimientos-hembra-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="nacimientos-hembra-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+          <p id="nacimientos-madre-servicio-resumen" class="texto-ayuda oculto"></p>
+          <button type="button" id="nacimientos-cancelar-origen" class="boton-secundario oculto">Cancelar selección</button>
+
+          <div id="nacimientos-datos-contenedor" class="oculto">
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="nacimientos-macho-buscar">Macho (padre, opcional)</label>
+              <div class="buscador-animal" id="nacimientos-macho-combo">
+                <input type="text" id="nacimientos-macho-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+                <input type="hidden" id="nacimientos-macho">
+                <div id="nacimientos-macho-opciones" class="buscador-animal__opciones oculto"></div>
+              </div>
+              <p id="nacimientos-macho-mostrar" class="valor-bloqueado oculto"></p>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="nacimientos-dona-buscar">Donadora (opcional)</label>
+            <div class="buscador-animal" id="nacimientos-dona-combo">
+              <input type="text" id="nacimientos-dona-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+              <input type="hidden" id="nacimientos-dona">
+              <div id="nacimientos-dona-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="nacimientos-dona-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="campo">
+            <label for="nacimientos-fecha-parto">Fecha de parto</label>
+            <input type="date" id="nacimientos-fecha-parto" required data-solo-pasado>
+          </div>
+
+          <div class="campo">
+            <div class="terneros-cabecera">
+              <label>Terneros del parto</label>
+              <button type="button" id="nacimientos-agregar-ternero" class="boton-secundario">Agregar ternero/a</button>
+            </div>
+            <div id="nacimientos-terneros" class="terneros-lista"></div>
+            <p class="texto-ayuda">Registra una o varias crías del mismo parto. Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</p>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="nacimientos-tipo-servicio">Tipo de servicio</label>
+              <select id="nacimientos-tipo-servicio">
+                <option value="">Selecciona...</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="nacimientos-nro-parto">N.º de parto de la madre</label>
+              <input type="number" id="nacimientos-nro-parto" min="1">
+            </div>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="nacimientos-proposito">Propósito</label>
+              <select id="nacimientos-proposito">
+                <option value="0">Selecciona...</option>
+                <option value="1">Lactancia</option>
+                <option value="2">Producción de leche</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="nacimientos-fecha-secado">Fecha de secado / destete (opcional)</label>
+            <input type="date" id="nacimientos-fecha-secado" data-solo-pasado>
+            <p class="texto-ayuda">Si el propósito es lactancia o producción de leche, el servidor calcula esta fecha con los períodos del fundo.</p>
+          </div>
+
+          <div class="campo">
+            <label for="nacimientos-observaciones">Observaciones</label>
+            <textarea id="nacimientos-observaciones" rows="2"></textarea>
+          </div>
+
+          <p class="texto-ayuda">El código del ternero (MA-…) y la fecha probable de celo los asigna/calcula el servidor al sincronizar.</p>
+          <p id="form-nacimientos-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-nacimientos" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar</button>
+          </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-nacimientos" placeholder="Buscar por código, nombre o arete..." autocomplete="off">
+      </div>
+      <p id="buscador-nacimientos-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-nacimientos" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-desincorporacion" class="panel oculto">
+      <button id="boton-mostrar-form-desincorporacion" type="button" class="boton-registrar">+ Registrar baja</button>
+
+      <div id="form-desincorporacion-anchor"></div>
+      <div id="form-desincorporacion-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-desincorporacion-titulo">Nueva baja de animal</h2>
+        <form id="form-desincorporacion">
+          <div class="campo">
+            <label for="desinc-animal-buscar">Animal</label>
+            <div class="buscador-animal" id="desinc-animal-combo">
+              <input type="text" id="desinc-animal-buscar" class="buscador-animal__input" placeholder="Buscar por código, nombre o arete..." autocomplete="off" required>
+              <input type="hidden" id="desinc-animal">
+              <div id="desinc-animal-opciones" class="buscador-animal__opciones oculto"></div>
+            </div>
+            <p id="desinc-animal-mostrar" class="valor-bloqueado oculto"></p>
+          </div>
+
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="desinc-tipo">Tipo de baja</label>
+              <select id="desinc-tipo" required>
+                <option value="">Selecciona...</option>
+                <option value="2">Descarte</option>
+                <option value="3">Muerte</option>
+                <option value="4">Venta</option>
+                <option value="5">Extravío</option>
+              </select>
+              <p class="texto-ayuda">La migración a otro fundo la registra el sistema: no se elige desde acá.</p>
+            </div>
+            <div class="campo">
+              <label for="desinc-fecha">Fecha de la baja</label>
+              <input type="date" id="desinc-fecha" data-solo-pasado required>
+            </div>
+          </div>
+
+          <div class="campo oculto" id="desinc-campo-descarte">
+            <label for="desinc-causa-descarte">Causa del descarte</label>
+            <select id="desinc-causa-descarte">
+              <option value="">Selecciona...</option>
+            </select>
+            <input type="text" id="desinc-causa-descarte-otra" class="oculto" maxlength="100" placeholder="Escribí la causa" style="margin-top:8px;">
+          </div>
+
+          <div class="campo oculto" id="desinc-campo-mortalidad">
+            <label for="desinc-causa-mortalidad">Causa de la muerte</label>
+            <select id="desinc-causa-mortalidad">
+              <option value="">Selecciona...</option>
+            </select>
+            <input type="text" id="desinc-causa-mortalidad-otra" class="oculto" maxlength="100" placeholder="Escribí la causa" style="margin-top:8px;">
+          </div>
+
+          <div class="campo">
+            <label for="desinc-observaciones">Observaciones</label>
+            <textarea id="desinc-observaciones" rows="2" maxlength="300"></textarea>
+          </div>
+
+          <p id="form-desincorporacion-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-desincorporacion" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar baja</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-desincorporacion" placeholder="Buscar por código, arete, nombre o causa..." autocomplete="off">
+      </div>
+      <p id="buscador-desincorporacion-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-desincorporacion" class="lista-animales"></section>
+    </section>
+
+    <section id="panel-movimiento_rebano" class="panel oculto">
+      <button id="boton-mostrar-form-movreb" type="button" class="boton-registrar">+ Registrar movimiento</button>
+
+      <div id="form-movreb-anchor"></div>
+      <div id="form-movreb-contenedor" class="form-animal-contenedor oculto">
+        <h2 id="form-movreb-titulo">Nuevo movimiento de rebaño</h2>
+        <form id="form-movreb">
+          <div class="fila-campos">
+            <div class="campo">
+              <label for="movreb-tipo">Tipo de movimiento</label>
+              <select id="movreb-tipo" required>
+                <option value="LOTE">Cambio de lote</option>
+                <option value="POTRERO">Cambio de potrero</option>
+                <option value="AMBOS">Lote y potrero</option>
+              </select>
+              <p id="movreb-potreros-aviso" class="texto-ayuda oculto"></p>
+            </div>
+            <div class="campo">
+              <label for="movreb-fecha">Fecha</label>
+              <input type="date" id="movreb-fecha" data-solo-pasado required>
+            </div>
+          </div>
+
+          <section class="productos-control" aria-labelledby="movreb-origen-titulo">
+            <div class="productos-control__encabezado">
+              <h3 id="movreb-origen-titulo">Origen</h3>
+              <span>De dónde salen</span>
+            </div>
+            <div class="fila-campos">
+              <div class="campo" id="movreb-campo-lote-origen">
+                <label for="movreb-lote-origen">Lote de origen</label>
+                <select id="movreb-lote-origen">
+                  <option value="">Selecciona un lote...</option>
+                </select>
+              </div>
+              <div class="campo" id="movreb-campo-potrero-origen">
+                <label for="movreb-potrero-origen">Potrero de origen</label>
+                <select id="movreb-potrero-origen">
+                  <option value="">Selecciona un potrero...</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" id="movreb-cargar-animales" class="boton-secundario">Cargar animales del origen</button>
+            <p id="movreb-animales-info" class="texto-ayuda"></p>
+            <div id="movreb-animales-lista" class="productos-control__lista"></div>
+          </section>
+
+          <section class="productos-control" aria-labelledby="movreb-destino-titulo">
+            <div class="productos-control__encabezado">
+              <h3 id="movreb-destino-titulo">Destino</h3>
+              <span>A dónde van</span>
+            </div>
+            <div class="fila-campos">
+              <div class="campo" id="movreb-campo-lote-destino">
+                <label for="movreb-lote-destino">Lote de destino</label>
+                <select id="movreb-lote-destino">
+                  <option value="">Selecciona un lote...</option>
+                </select>
+              </div>
+              <div class="campo" id="movreb-campo-potrero-destino">
+                <label for="movreb-potrero-destino">Potrero de destino</label>
+                <select id="movreb-potrero-destino">
+                  <option value="">Sin potrero</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <div class="campo">
+            <label for="movreb-motivo">Motivo</label>
+            <input type="text" id="movreb-motivo" maxlength="150" required placeholder="Ej: rotación de potreros">
+          </div>
+
+          <div class="campo">
+            <label for="movreb-observaciones">Observaciones</label>
+            <textarea id="movreb-observaciones" rows="2" maxlength="500"></textarea>
+          </div>
+
+          <p id="form-movreb-mensaje" class="mensaje-error"></p>
+
+          <div class="form-acciones">
+            <button type="button" id="boton-cancelar-form-movreb" class="boton-secundario">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar movimiento</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="campo campo-buscador">
+        <input type="search" id="buscador-movimiento-rebano" placeholder="Buscar por motivo, lote o animal..." autocomplete="off">
+      </div>
+      <p id="buscador-movimiento-rebano-contador" class="texto-ayuda oculto"></p>
+
+      <section id="lista-movimiento-rebano" class="lista-animales"></section>
+    </section>
+  </main>
+</div>
+
+<!-- Modal de elección de modo offline (3 opciones, primera vez en cada equipo) -->
+<div id="modal-eleccion-modo-overlay" class="modal-aviso-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="modal-eleccion-titulo">
+  <div class="modal-aviso-card modal-eleccion-card">
+    <div class="modal-aviso-header">
+      <span class="modal-aviso-icono" aria-hidden="true">?</span>
+      <h3 class="modal-aviso-titulo" id="modal-eleccion-titulo">¿Cómo querés usar este dispositivo?</h3>
+    </div>
+    <div class="modal-aviso-contenido">
+      <p>Es la primera vez que <strong id="modal-eleccion-usuario"></strong> usa el modo sin conexión en este equipo. Elegí cómo querés usarlo:</p>
+
+      <button type="button" class="modal-eleccion-opcion" data-modo="gestion">
+        <div class="modal-eleccion-opcion__titulo">📝 Gestión</div>
+        <div class="modal-eleccion-opcion__desc">Registrás y consultás datos sin conexión. Los cambios se sincronizan al volver la red. Solo un dispositivo de gestión por usuario.</div>
+      </button>
+
+      <button type="button" class="modal-eleccion-opcion" data-modo="consulta">
+        <div class="modal-eleccion-opcion__titulo">👁 Consulta</div>
+        <div class="modal-eleccion-opcion__desc">Solo mirás los datos que ya bajaste. No registra cambios. Podés tener varios dispositivos en este modo.</div>
+      </button>
+
+      <button type="button" class="modal-eleccion-opcion modal-eleccion-opcion--secundaria" data-modo="solo_online">
+        <div class="modal-eleccion-opcion__titulo">☁ Solo online</div>
+        <div class="modal-eleccion-opcion__desc">No activa modo sin conexión. nnecesitas internet para usar la app.</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: fundos de este dispositivo (multifundo) -->
+<div id="modal-fundos-overlay" class="modal-aviso-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="modal-fundos-titulo">
+  <div class="modal-aviso-card modal-fundos-card">
+    <div class="modal-aviso-header">
+      <span class="modal-aviso-icono" aria-hidden="true">🏡</span>
+      <h3 class="modal-aviso-titulo" id="modal-fundos-titulo">Fundos en este dispositivo</h3>
+    </div>
+    <div class="modal-aviso-contenido">
+      <p>Elegí en qué fundos querés trabajar sin conexión. Cada fundo guarda sus
+         propios animales, pesos, servicios y reportes, y se sincroniza por separado.</p>
+      <div id="modal-fundos-lista" class="modal-fundos__lista"></div>
+      <p id="modal-fundos-mensaje" class="modal-fundos__mensaje"></p>
+      <div class="modal-fundos__acciones">
+        <button type="button" id="modal-fundos-cancelar" class="boton-icono">Cancelar</button>
+        <button type="button" id="modal-fundos-guardar" class="boton-icono boton-primario">Guardar y descargar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de avisos bloqueantes (sin dependencias externas) -->
+<div id="modal-aviso-overlay" class="modal-aviso-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="modal-aviso-titulo">
+  <div class="modal-aviso-card">
+    <div class="modal-aviso-header">
+      <span class="modal-aviso-icono" aria-hidden="true">!</span>
+      <h3 class="modal-aviso-titulo" id="modal-aviso-titulo"></h3>
+    </div>
+    <div class="modal-aviso-contenido" id="modal-aviso-contenido"></div>
+    <div class="modal-aviso-acciones">
+      <button type="button" id="modal-aviso-aceptar" class="boton-primario">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-detalle-registro-overlay" class="modal-aviso-overlay modal-detalle-registro-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="modal-detalle-registro-titulo" aria-describedby="modal-detalle-registro-contenido">
+  <section class="modal-aviso-card modal-detalle-registro-card" tabindex="-1">
+    <div class="modal-aviso-header">
+      <span class="modal-aviso-icono modal-detalle-registro-icono" aria-hidden="true">i</span>
+      <h3 class="modal-aviso-titulo" id="modal-detalle-registro-titulo">Detalle del registro</h3>
+    </div>
+    <div id="modal-detalle-registro-contenido" class="modal-detalle-registro-contenido"></div>
+    <div id="modal-detalle-registro-grupos" class="modal-detalle-registro-grupos"></div>
+    <div class="modal-aviso-acciones">
+      <button type="button" id="modal-detalle-registro-cerrar" class="boton-primario">Cerrar</button>
+    </div>
+  </section>
+</div>
+
+<!-- Avisos breves de "guardado" (no bloquean la pantalla) -->
+<div id="toast-contenedor" class="toast-contenedor" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/dispositivo.js"></script>
+<script src="js/credenciales.js"></script>
+<script src="js/db.js"></script>
+<script src="js/api.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/animales.js"></script>
+<script src="js/controlsanitario.js"></script>
+<script src="js/produccionleche.js"></script>
+<script src="js/pesos.js"></script>
+<script src="js/servicios.js"></script>
+<script src="js/nacimientos.js"></script>
+<script src="js/pdf-simple.js"></script>
+<script src="js/reportes.js"></script>
+<script src="js/buscador-animal.js"></script>
+<script src="js/calendario.js"></script>
+<script src="js/controlsanitariolotes.js"></script>
+<script src="js/desincorporacion.js"></script>
+<script src="js/movimientorebano.js"></script>
+<script src="js/fotos.js"></script>
+<script src="js/ficha-animal.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

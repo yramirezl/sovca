@@ -1,0 +1,625 @@
+/* =========================================================================
+   crud-index.css
+   Ubicación: /bovs/css/crud-index.css
+   ========================================================================= */
+
+.crud-page {
+    --crud-radius: 14px;
+    --crud-radius-sm: 10px;
+    --crud-border: #e5e7eb;
+    --crud-border-soft: #f1f5f9;
+    --crud-border-row: #a9d3b3;
+    --crud-text: #1f2937;
+    --crud-muted: #6b7280;
+    --crud-bg-soft: #f9fafb;
+
+    --crud-primary: #2563eb;
+    --crud-primary-dark: #1d4ed8;
+    --crud-success: #16a34a;
+    --crud-success-dark: #15803d;
+    --crud-warning: #d97706;
+    --crud-warning-dark: #b45309;
+    --crud-danger: #dc2626;
+    --crud-danger-dark: #b91c1c;
+    --crud-info: #0891b2;
+    --crud-info-dark: #0e7490;
+    --crud-excel: #217346;
+    --crud-excel-dark: #185c37;
+
+    --crud-shadow: 0 1px 2px rgba(16, 24, 40, .05),
+                   0 12px 32px -20px rgba(16, 24, 40, .45);
+    --crud-transition: .18s ease;
+
+    width: 100%;
+    padding: 18px;
+    box-sizing: border-box;
+    color: var(--crud-text);
+    font-family: inherit;
+    font-size: 16px;
+}
+.crud-page *, .crud-page *::before, .crud-page *::after { box-sizing: border-box; }
+
+/* ------------------------------- Card ---------------------------------- */
+.crud-card {
+    background: #fff;
+    border: 1px solid var(--crud-border);
+    border-radius: var(--crud-radius);
+    box-shadow: var(--crud-shadow);
+    overflow: hidden;
+}
+
+/* ------------------------------ Header --------------------------------- */
+.crud-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--crud-border);
+    background: linear-gradient(180deg, #ffffff 0%, var(--crud-bg-soft) 100%);
+}
+.crud-header__icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(37, 99, 235, .10);
+    color: var(--crud-primary);
+    font-size: 20px;
+    flex: 0 0 auto;
+}
+.crud-header__text { min-width: 0; }
+.crud-header__title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--crud-text);
+    line-height: 1.2;
+}
+.crud-header__subtitle {
+    margin: 4px 0 0;
+    font-size: .95rem;
+    color: var(--crud-muted);
+    line-height: 1.35;
+}
+.crud-header__badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    border: 1px solid #1e40af;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    padding: 14px 24px;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .12);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, .40),
+                0 10px 24px -8px rgba(37, 99, 235, .65);
+    transition: transform var(--crud-transition), box-shadow var(--crud-transition);
+}
+.crud-header__badge::before {
+    content: '\f1c0';
+    font-family: 'FontAwesome';
+    font-size: 1.1rem;
+    color: #bfdbfe;
+    font-weight: normal;
+}
+.crud-header__badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, .45),
+                0 14px 28px -8px rgba(37, 99, 235, .75);
+}
+
+/* ------------------------------ Toolbar -------------------------------- */
+.crud-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--crud-border);
+    background: #ffffff;
+}
+.crud-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.crud-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border: 1px solid transparent;
+    border-radius: var(--crud-radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background var(--crud-transition),
+                transform var(--crud-transition),
+                box-shadow var(--crud-transition);
+}
+.crud-btn:active { transform: translateY(1px); }
+.crud-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .25);
+}
+.crud-btn i { font-size: 15px; }
+
+.crud-btn--primary { background: var(--crud-primary); color: #fff; }
+.crud-btn--primary:hover, .crud-btn--primary:focus { background: var(--crud-primary-dark); color:#fff; }
+
+.crud-btn--success { background: var(--crud-success); color: #fff; }
+.crud-btn--success:hover, .crud-btn--success:focus { background: var(--crud-success-dark); color:#fff; }
+
+.crud-btn--warning { background: var(--crud-warning); color: #fff; }
+.crud-btn--warning:hover, .crud-btn--warning:focus { background: var(--crud-warning-dark); color:#fff; }
+
+.crud-btn--danger { background: var(--crud-danger); color: #fff; }
+.crud-btn--danger:hover, .crud-btn--danger:focus { background: var(--crud-danger-dark); color:#fff; }
+
+.crud-btn--info { background: var(--crud-info); color: #fff; }
+.crud-btn--info:hover, .crud-btn--info:focus { background: var(--crud-info-dark); color:#fff; }
+
+.crud-btn--excel { background: var(--crud-excel); color: #fff; }
+.crud-btn--excel:hover, .crud-btn--excel:focus { background: var(--crud-excel-dark); color: #fff; }
+
+.crud-btn--ghost {
+    background: #fff;
+    color: var(--crud-text);
+    border-color: var(--crud-border);
+}
+.crud-btn--ghost:hover, .crud-btn--ghost:focus { background: var(--crud-bg-soft); color: var(--crud-text); }
+
+/* ------------------------------- Tabla --------------------------------- */
+.crud-table-wrap { padding: 6px 12px 18px; }
+
+.crud-table {
+    width: 100% !important;
+    margin: 0 !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;   /* las columnas se ajustan al contenido */
+}
+
+/* Encabezado en gris pizarra oscuro */
+.crud-table thead th {
+    background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    padding: 18px 22px !important;
+    border-bottom: 2px solid #0f172a !important;
+    border-top: 1px solid #0f172a !important;
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+
+/* ============================================================
+   FILAS — cada registro en UNA sola línea
+   Degradado vertical uniforme (arriba oscuro → abajo claro)
+   ============================================================ */
+.crud-table tbody tr {
+    cursor: pointer;
+    transition: filter var(--crud-transition);
+}
+
+/* Celdas: sin salto de línea + padding cómodo */
+.crud-table tbody td {
+    padding: 18px 22px !important;
+    font-size: 14.5px !important;
+    line-height: 1.45 !important;
+    color: #1f2937;
+    vertical-align: middle;
+    white-space: nowrap;          /* ← evita que el valor se baje a la siguiente línea */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--crud-border-row) !important;
+    border-top: none !important;
+    transition: background var(--crud-transition), color var(--crud-transition);
+}
+
+/* Fila IMPAR — verde suave */
+.crud-table tbody tr:nth-child(odd) td {
+    background: linear-gradient(180deg, #d9eedd 0%, #eef9f0 100%);
+}
+
+/* Fila PAR — verde un escalón más marcado */
+.crud-table tbody tr:nth-child(even) td {
+    background: linear-gradient(180deg, #c3e6ca 0%, #e3f4e6 100%);
+}
+
+/* Hover */
+.crud-table tbody tr:hover td {
+    background: linear-gradient(180deg, #a9d9b3 0%, #d5ecd9 100%) !important;
+    color: #0f172a !important;
+}
+
+/* Selección */
+.crud-table tbody tr.selected td {
+    background: linear-gradient(180deg, #93c5fd 0%, #cfe1fd 100%) !important;
+    color: #0c2d6b !important;
+    font-weight: 700 !important;
+    border-bottom-color: #2563eb !important;
+}
+.crud-table tbody tr.selected {
+    box-shadow: inset 6px 0 0 var(--crud-primary);
+}
+
+/* Columna 1 — identificador principal */
+.crud-table tbody td:first-child {
+    font-weight: 700;
+    color: #0f172a !important;
+    font-size: 15.5px !important;
+}
+
+/* Columna 2 — refuerzo tipográfico */
+.crud-table tbody td:nth-child(2) {
+    font-weight: 600;
+    color: #1e293b !important;
+}
+
+/* -------------------- Controles de DataTables -------------------------- */
+.crud-table-wrap .dataTables_wrapper { padding: 0; }
+
+.crud-table-wrap .crud-table-top {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 18px 8px 10px;
+    width: 100%;
+}
+.crud-table-wrap .crud-table-top > * { margin: 0; }
+
+.crud-table-wrap .dataTables_length,
+.crud-table-wrap .dataTables_filter {
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center;
+    margin: 0 !important;
+}
+
+.crud-table-wrap .dataTables_length {
+    flex: 0 0 auto;
+    font-size: 15px;
+    color: var(--crud-muted);
+    font-weight: 500;
+    gap: 6px;
+}
+.crud-table-wrap .dataTables_length label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: 500;
+}
+.crud-table-wrap .dataTables_length select {
+    border: 1px solid var(--crud-border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 15px;
+    color: var(--crud-text);
+    background: #fff;
+    outline: none;
+    margin: 0 6px;
+    transition: border-color var(--crud-transition), box-shadow var(--crud-transition);
+}
+.crud-table-wrap .dataTables_length select:focus {
+    border-color: var(--crud-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.crud-table-wrap .dataTables_filter {
+    flex: 0 0 auto;
+    position: relative;
+    font-size: 0;
+    width: 320px;
+    max-width: 320px;
+}
+.crud-table-wrap .dataTables_filter label {
+    margin: 0;
+    width: 100%;
+    display: block;
+    position: relative;
+}
+.crud-table-wrap .dataTables_filter::before {
+    content: '\f002';
+    font-family: 'FontAwesome';
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 2;
+}
+.crud-table-wrap .dataTables_filter input {
+    width: 100% !important;
+    min-width: 0;
+    padding: 10px 14px 10px 40px;
+    border: 1px solid var(--crud-border);
+    border-radius: var(--crud-radius-sm);
+    font-size: 15px !important;
+    color: var(--crud-text);
+    background: #fff;
+    outline: none;
+    margin: 0 !important;
+    transition: border-color var(--crud-transition), box-shadow var(--crud-transition);
+}
+.crud-table-wrap .dataTables_filter input::placeholder { color: #9ca3af; }
+.crud-table-wrap .dataTables_filter input:focus {
+    border-color: var(--crud-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.crud-table-wrap .crud-table-bottom {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 8px 4px;
+    width: 100%;
+}
+.crud-table-wrap .dataTables_info {
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--crud-muted);
+    margin: 0;
+    float: none !important;
+}
+.crud-table-wrap .dataTables_paginate {
+    padding: 6px 0;
+    text-align: right;
+    margin: 0;
+    float: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* DataTables + Bootstrap genera <ul class="pagination"><li class="paginate_button"> */
+.crud-table-wrap .dataTables_paginate .pagination {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Botones del paginador: cuadros compactos con borde; el activo va relleno.
+   Se usan con pagingType 'simple_numbers' (Anterior · 1 2 3 … n · Siguiente). */
+.crud-table-wrap .dataTables_paginate .paginate_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    margin: 0;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid var(--crud-border);
+    background: #ffffff;
+    cursor: pointer;
+    transition: background var(--crud-transition),
+                border-color var(--crud-transition),
+                color var(--crud-transition);
+}
+.crud-table-wrap .dataTables_paginate .paginate_button > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    height: 100%;
+    padding: 0 11px;
+    border: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+    text-decoration: none !important;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button:hover:not(.disabled):not(.active):not(.current) {
+    background: var(--crud-bg-soft) !important;
+    border-color: #cbd5e1 !important;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button:hover:not(.disabled):not(.active):not(.current) > a {
+    color: var(--crud-primary) !important;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button.active,
+.crud-table-wrap .dataTables_paginate .paginate_button.current,
+.crud-table-wrap .dataTables_paginate .paginate_button.active:hover,
+.crud-table-wrap .dataTables_paginate .paginate_button.current:hover {
+    background: var(--crud-primary) !important;
+    border-color: var(--crud-primary) !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, .28);
+}
+.crud-table-wrap .dataTables_paginate .paginate_button.active > a,
+.crud-table-wrap .dataTables_paginate .paginate_button.current > a {
+    color: #ffffff !important;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button.disabled,
+.crud-table-wrap .dataTables_paginate .paginate_button.disabled:hover {
+    opacity: .45;
+    cursor: not-allowed;
+    background: #ffffff !important;
+    border-color: var(--crud-border) !important;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button.disabled > a {
+    color: var(--crud-muted) !important;
+}
+/* "Anterior" y "Siguiente" un poco más anchos */
+.crud-table-wrap .dataTables_paginate .paginate_button.previous > a,
+.crud-table-wrap .dataTables_paginate .paginate_button.next > a {
+    padding: 0 14px;
+}
+/* Puntos suspensivos: sin caja, solo el texto */
+.crud-table-wrap .dataTables_paginate .paginate_button.disabled:not(.previous):not(.next) {
+    opacity: 1;
+    min-width: 22px;
+    border-color: transparent !important;
+    background: transparent !important;
+}
+.crud-table-wrap .dataTables_paginate .paginate_button.disabled:not(.previous):not(.next) > a {
+    padding: 0 4px;
+    color: var(--crud-muted) !important;
+}
+.crud-table-wrap .dataTables_paginate .ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 34px;
+    color: var(--crud-muted);
+    font-size: 14px;
+    font-weight: 700;
+    user-select: none;
+}
+
+/* ------------------------------ Mensajes ------------------------------- */
+.crud-page .message { margin-bottom: 14px; }
+.crud-page .message:empty { display: none; }
+.crud-page .alert {
+    border-radius: var(--crud-radius-sm);
+    border: 1px solid var(--crud-border);
+    padding: 14px 18px;
+    font-size: 15px;
+    box-shadow: var(--crud-shadow);
+}
+
+/* ============================ TEMAS POR MÓDULO ========================== */
+.crud-page[data-theme="success"] .crud-header__icon { background: rgba(22, 163, 74, .12); color: #16a34a; }
+.crud-page[data-theme="success"] .crud-header__badge {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    border-color: #14532d;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, .40), 0 10px 24px -8px rgba(22, 163, 74, .65);
+}
+.crud-page[data-theme="success"] .crud-header__badge::before { color: #bbf7d0; }
+
+.crud-page[data-theme="warning"] .crud-header__icon { background: rgba(217, 119, 6, .12); color: #d97706; }
+.crud-page[data-theme="warning"] .crud-header__badge {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    border-color: #92400e;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, .40), 0 10px 24px -8px rgba(217, 119, 6, .65);
+}
+.crud-page[data-theme="warning"] .crud-header__badge::before { color: #fde68a; }
+
+.crud-page[data-theme="info"] .crud-header__icon { background: rgba(8, 145, 178, .12); color: #0891b2; }
+.crud-page[data-theme="info"] .crud-header__badge {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    border-color: #155e75;
+    box-shadow: 0 2px 8px rgba(8, 145, 178, .40), 0 10px 24px -8px rgba(8, 145, 178, .65);
+}
+.crud-page[data-theme="info"] .crud-header__badge::before { color: #a5f3fc; }
+
+.crud-page[data-theme="danger"] .crud-header__icon { background: rgba(220, 38, 38, .12); color: #dc2626; }
+.crud-page[data-theme="danger"] .crud-header__badge {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    border-color: #991b1b;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, .40), 0 10px 24px -8px rgba(220, 38, 38, .65);
+}
+.crud-page[data-theme="danger"] .crud-header__badge::before { color: #fecaca; }
+
+/* ============================ RESPONSIVE ================================ */
+@media (max-width: 992px) {
+    .crud-page { padding: 12px; font-size: 15px; }
+    .crud-header { padding: 16px 18px; }
+    .crud-header__title { font-size: 1.05rem; }
+    .crud-header__subtitle { font-size: .9rem; }
+    .crud-header__badge { padding: 10px 16px; font-size: 1rem; }
+    .crud-header__badge::before { font-size: .95rem; }
+
+    .crud-toolbar { padding: 14px 18px; gap: 8px; }
+    .crud-toolbar__actions { flex: 1 1 100%; }
+    .crud-toolbar__actions .crud-btn { flex: 1 1 calc(33.333% - 8px); font-size: 14px; }
+
+    .crud-table thead th { padding: 15px 16px !important; font-size: 11.5px; }
+    .crud-table tbody td { padding: 16px 16px !important; font-size: 14px !important; }
+
+    .crud-table-wrap .crud-table-top { gap: 10px; padding: 14px 6px 8px; }
+    .crud-table-wrap .dataTables_filter { width: 260px; max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+    .crud-page { padding: 8px; font-size: 14px; }
+    .crud-header { padding: 14px; gap: 10px; }
+    .crud-header__icon { width: 42px; height: 42px; font-size: 17px; }
+    .crud-header__title { font-size: .95rem; }
+    .crud-header__subtitle { font-size: .82rem; }
+    .crud-header__badge { padding: 8px 14px; font-size: .9rem; gap: 6px; }
+    .crud-header__badge::before { font-size: .85rem; }
+
+    .crud-toolbar { padding: 12px; gap: 8px; }
+    .crud-toolbar__actions .crud-btn { flex: 1 1 calc(50% - 8px); padding: 11px 10px; font-size: 13px; }
+    .crud-toolbar__actions .crud-btn span { font-size: 13px; }
+    .crud-toolbar__actions .crud-btn i { font-size: 14px; }
+
+    .crud-table-wrap { padding: 4px 8px 12px; }
+
+    .crud-table thead th { padding: 13px 14px !important; font-size: 11px; }
+    .crud-table tbody td { padding: 14px 14px !important; font-size: 13.5px !important; line-height: 1.45 !important; }
+
+    .crud-table-wrap .crud-table-top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 4px 6px;
+    }
+    .crud-table-wrap .dataTables_length,
+    .crud-table-wrap .dataTables_filter { flex: 1 1 100%; width: 100% !important; max-width: 100%; }
+    .crud-table-wrap .dataTables_filter input { font-size: 14px !important; }
+
+    .crud-table-wrap .crud-table-bottom { flex-direction: column; align-items: center; gap: 6px; }
+    .crud-table-wrap .dataTables_info,
+    .crud-table-wrap .dataTables_paginate { text-align: center; width: 100%; }
+    .crud-table-wrap .dataTables_paginate { justify-content: center; }
+    .crud-table-wrap .dataTables_paginate .paginate_button { min-width: 32px; height: 32px; padding: 0 9px; font-size: 12.5px; }
+}
+/* ============================================================
+   BADGES — etiquetas para valores tipo estado, sexo, booleanos
+   ============================================================ */
+.crud-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.crud-badge i { font-size: 10px; }
+
+.crud-badge--active   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.crud-badge--inactive { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+.crud-badge--yes      { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.crud-badge--no       { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.crud-badge--hembra   { background: #fce7f3; color: #be185d; border: 1px solid #f9a8d4; }
+.crud-badge--macho    { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+.crud-badge--warning  { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+.crud-badge--info     { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }

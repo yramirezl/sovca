@@ -1,0 +1,211 @@
+/* Modal de avisos y de elección de modo offline.
+   Sin dependencias externas. */
+
+.modal-aviso-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 16px;
+  animation: modal-aviso-fade 0.18s ease-out;
+}
+
+.modal-aviso-overlay.oculto {
+  display: none;
+}
+
+@keyframes modal-aviso-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-aviso-card {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 460px;
+  width: 100%;
+  padding: 20px 22px 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  animation: modal-aviso-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+@keyframes modal-aviso-pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-aviso-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.modal-aviso-icono {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff3cd;
+  color: #8a5a00;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-aviso-titulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #234e35;
+  line-height: 1.3;
+}
+
+.modal-aviso-contenido {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.modal-aviso-contenido p {
+  margin: 0 0 10px;
+}
+
+.modal-aviso-contenido p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-aviso-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-aviso-acciones button {
+  min-width: 110px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.modal-aviso-acciones button.boton-primario {
+  background: #2F5233;
+  color: #fff;
+}
+
+.modal-aviso-acciones button.boton-primario:hover,
+.modal-aviso-acciones button.boton-primario:focus {
+  background: #234e35;
+  outline: none;
+}
+
+.modal-eleccion-card {
+  max-width: 500px;
+}
+
+.modal-eleccion-opcion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.modal-eleccion-opcion:last-child {
+  margin-bottom: 0;
+}
+
+.modal-eleccion-opcion:hover,
+.modal-eleccion-opcion:focus {
+  background: #f0f9f3;
+  border-color: #2F5233;
+  outline: none;
+}
+
+.modal-eleccion-opcion__titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: #234e35;
+  margin-bottom: 3px;
+}
+
+.modal-eleccion-opcion__desc {
+  font-size: 12px;
+  color: #5d676d;
+  line-height: 1.4;
+  font-weight: normal;
+}
+
+.modal-eleccion-opcion--secundaria {
+  background: #fff;
+  border-color: #e5e7eb;
+}
+
+.modal-eleccion-opcion--secundaria:hover,
+.modal-eleccion-opcion--secundaria:focus {
+  background: #f5f7f9;
+  border-color: #94a3b8;
+}
+
+.modal-eleccion-opcion--secundaria .modal-eleccion-opcion__titulo {
+  color: #475467;
+}
+
+/* =====================================================================
+   MODO CONSULTA — ocultar TODA acción de escritura
+   Se aplica cuando el body tiene la clase .modo-consulta (la pone
+   aplicarModoConsultaSiAplica() en app.js). Los selectores incluyen
+   todas las variantes por si el HTML trae clases compuestas o si el
+   CSS de estilos.css define display con mayor especificidad.
+   ===================================================================== */
+
+body.modo-consulta .boton-registrar,
+body.modo-consulta button.boton-registrar,
+body.modo-consulta [id^="boton-mostrar-form"],
+body.modo-consulta .chapeta__boton-editar,
+body.modo-consulta .chapeta__boton-editar *,
+body.modo-consulta .form-acciones button[type="submit"],
+body.modo-consulta .producto-control-item__quitar,
+body.modo-consulta #cs-producto-agregar {
+  display: none !important;
+}
+
+/* En modo consulta, el buscador de las listas sigue visible, pero el
+   contador tiene que quedar claro que no hay acciones de escritura. */
+body.modo-consulta #aviso-modo-consulta {
+  display: block !important;
+}
+
+@media (max-width: 480px) {
+  .modal-aviso-card {
+    padding: 16px 16px 14px;
+  }
+  .modal-aviso-titulo {
+    font-size: 14px;
+  }
+  .modal-aviso-contenido {
+    font-size: 12.5px;
+  }
+  .modal-eleccion-opcion {
+    padding: 10px 12px;
+  }
+}

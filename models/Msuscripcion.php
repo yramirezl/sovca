@@ -1,0 +1,8 @@
+<?php
+require_once '../config/conexion.php';
+
+class Msuscripcion extends ActiveRecord\Model
+{
+	static $table_name = 'msuscripciones';
+}
+?>

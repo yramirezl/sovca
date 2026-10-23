@@ -1,0 +1,298 @@
+/* ============================================================================
+   SELECTOR DE ANIMALES DEL SERVICIO
+   Listado filtrable reutilizable: hembra receptora, hembra donadora y macho.
+   Se usa en views/servicios/frm_registrar.php (y puede reutilizarse en
+   frm_editar.php). El comportamiento está en js/servicio-selector.js.
+   ============================================================================ */
+
+.sel-animal {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dbe4ee;
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow: hidden;
+}
+
+/* ---------------- Barra de filtro ---------------- */
+.sel-animal__bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: #ffffff;
+    border-bottom: 1px solid #e6edf5;
+}
+
+.sel-animal__bar > i {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.sel-animal__filtro {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 26px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 13.5px;
+    color: #334155;
+    box-shadow: none;
+}
+
+.sel-animal__filtro::-webkit-input-placeholder { color: #a8b4c4; }
+.sel-animal__filtro::-moz-placeholder          { color: #a8b4c4; }
+.sel-animal__filtro:-ms-input-placeholder      { color: #a8b4c4; }
+
+.sel-animal__solo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.sel-animal__solo input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #16a34a;
+}
+
+.sel-animal__recargar {
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.sel-animal__recargar:hover {
+    color: #0f766e;
+    background: #ecfdf5;
+}
+
+/* ---------------- Listado ---------------- */
+.sel-animal__lista {
+    display: flex;
+    flex-direction: column;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #ffffff;
+}
+
+/* Recogido: sólo queda la barra del buscador (ahorra espacio en el formulario;
+   el listado se despliega al hacer clic/foco en el buscador). */
+.sel-animal.is-cerrado .sel-animal__head,
+.sel-animal.is-cerrado .sel-animal__lista,
+.sel-animal.is-cerrado .sel-animal__pie {
+    display: none;
+}
+
+.sel-animal.is-cerrado .sel-animal__filtro { cursor: pointer; }
+
+/* Nota "y N más…" cuando hay más coincidencias que filas mostradas */
+.sel-animal__mas {
+    margin: 0;
+    padding: 6px 10px;
+    background: #f8fafc;
+    color: #94a3b8;
+    font-size: 11.5px;
+    text-align: center;
+}
+
+/* ---------------- Cabecera de columnas ---------------- */
+.sel-animal__head,
+.sel-animal__item {
+    display: grid;
+    grid-template-columns: 86px 100px minmax(110px, 0.8fr) minmax(100px, 1.2fr);
+    gap: 10px;
+}
+
+.sel-animal.is-con-detalle .sel-animal__head,
+.sel-animal.is-con-detalle .sel-animal__item {
+    grid-template-columns: 86px 100px minmax(110px, 0.9fr) minmax(110px, 1fr) minmax(110px, 1.2fr);
+}
+
+.sel-animal__head {
+    align-items: center;
+    padding: 5px 10px 4px;
+    background: #f5f8fb;
+    border-bottom: 1px solid #e6edf5;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #8b97a5;
+    white-space: nowrap;
+}
+
+.sel-animal__head:empty { display: none; }
+
+.sel-animal__head .sel-animal__h-estatus { text-align: left; }
+
+.sel-animal__item {
+    align-items: center;
+    width: 100%;
+    padding: 7px 10px;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.sel-animal__item:last-child { border-bottom: 0; }
+.sel-animal__item:hover { background: #f0fdfa; }
+.sel-animal__item:focus { outline: 2px solid #0f766e; outline-offset: -2px; }
+
+.sel-animal__item.is-elegido {
+    background: #dcfce7;
+    box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.sel-animal__item[data-ocupado="1"] { background: #fffdf4; }
+.sel-animal__item[data-ocupado="1"]:hover { background: #fef9e7; }
+
+/* Código BOVS: primera columna, discreta pero legible */
+.sel-animal__codigo {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #717f91;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* N° de arete: el dato principal para el productor */
+.sel-animal__arete {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    line-height: 1.1;
+}
+
+.sel-animal__arete strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: .01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sel-animal__nombre {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sel-animal__detalle {
+    font-size: 11px;
+    font-weight: 500;
+    color: #7b8794;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sel-animal__tag {
+    justify-self: start;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.sel-animal__tag.is-ok      { background: #dcfce7; color: #15803d; }
+.sel-animal__tag.is-ocupado { background: #fef3c7; color: #b45309; }
+.sel-animal__tag.is-post    { background: #fef3c7; color: #b45309; }
+.sel-animal__tag.is-apta    { background: #e0f2fe; color: #0369a1; }
+
+.sel-animal__vacio {
+    margin: 0;
+    padding: 14px 12px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+/* ---------------- Pie ---------------- */
+.sel-animal__pie {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 10px;
+    background: #f1f5f9;
+    font-size: 11.5px;
+    color: #64748b;
+}
+
+.sel-animal.is-bloqueado .sel-animal__bar { opacity: .55; }
+.sel-animal.is-cargando .sel-animal__lista { opacity: .6; }
+
+/* En pantallas medianas se oculta solo el detalle de parto; el código y el arete se mantienen */
+@media (max-width: 1100px) {
+    .sel-animal__head .sel-animal__h-parte,
+    .sel-animal__item .sel-animal__detalle { display: none; }
+
+    .sel-animal__head,
+    .sel-animal__item,
+    .sel-animal.is-con-detalle .sel-animal__head,
+    .sel-animal.is-con-detalle .sel-animal__item {
+        grid-template-columns: 86px 100px minmax(110px, 0.8fr) minmax(100px, 1.2fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .sel-animal__bar { flex-wrap: wrap; }
+
+    .sel-animal__head .sel-animal__h-codigo,
+    .sel-animal__item .sel-animal__codigo { display: none; }
+
+    .sel-animal__head,
+    .sel-animal__item,
+    .sel-animal.is-con-detalle .sel-animal__head,
+    .sel-animal.is-con-detalle .sel-animal__item {
+        grid-template-columns: 78px minmax(0, 1fr) auto;
+        gap: 8px;
+    }
+
+    .sel-animal__arete strong { font-size: 14px; }
+}
+
+/* ============================================================================
+   UTILIDADES PARA LOS FORMULARIOS QUE USAN EL LISTADO
+   ============================================================================ */
+
+/* Oculta el buscador manual heredado (Nro Arete / Código + Buscar). Se conserva
+   en el DOM porque el flujo interno del formulario lo sigue usando. */
+.sel-animal-oculto { display: none !important; }
+
+/* Nota entre paréntesis junto a la etiqueta del listado */
+.sel-animal-hint {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #94a3b8;
+}

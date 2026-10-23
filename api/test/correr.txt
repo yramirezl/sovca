@@ -1,0 +1,19 @@
+dispositivo_vinculado.sh
+
+Validación de la sincronización (ejecutar desde la raíz del proyecto):
+
+  php api/test/validar_sync_bidireccional.php   -> flujo completo ida y vuelta (21 comprobaciones)
+  php api/test/validar_sync_limites.php         -> casos límite del cursor (11 comprobaciones)
+  php api/test/validar_reglas_negocio.php       -> reglas de negocio en la API (10 comprobaciones)
+  php api/test/validar_anulacion.php            -> anulación de registros sincronizados (19 comprobaciones)
+  php api/test/validar_reversion.php            -> reversión de movimientos sincronizados (18 comprobaciones)
+  php api/test/validar_foto_animal.php          -> foto del animal desde el celular (21 comprobaciones)
+
+Antes de ejecutarlos por primera vez en una base:
+
+  psql -h 127.0.0.1 -U postgres -d sovca_qas -f scripts/migracion_sync_cursor_updated.sql
+
+Los scripts crean su propio token y sus propios registros de prueba, y los borran
+al terminar. Devuelven 0 cuando todas las comprobaciones pasan.
+
+Ver docs/sincronizacion_bidireccional.md para el detalle del flujo y los hallazgos.
