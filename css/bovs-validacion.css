@@ -1,0 +1,188 @@
+/* ============================================================================
+   bovs-validacion.css
+   ----------------------------------------------------------------------------
+   Resaltado de los datos que faltan en los formularios de registro/edición y
+   aspecto de los botones de los diálogos (verde = afirmar, rojo = denegar).
+   Se carga desde views/layouts/pie.php (cubre todas las vistas con formulario).
+   ========================================================================== */
+
+/* ---------- Campo con error ---------- */
+.bovs-campo-error,
+.bovs-campo-error:hover,
+.bovs-campo-error:focus,
+select.bovs-campo-error,
+textarea.bovs-campo-error {
+    border-color: #dc2626 !important;
+    background-color: #fff6f6 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+}
+
+/* Contenedor del campo (form-group de Bootstrap / tarjeta del formulario) */
+.bovs-grupo-error > label,
+.bovs-grupo-error > .control-label,
+.bovs-grupo-error > .crud-form__label {
+    color: #b91c1c !important;
+}
+
+.bovs-grupo-error > label::after,
+.bovs-grupo-error > .crud-form__label::after {
+    content: " (obligatorio)";
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #dc2626;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Etiqueta heredada de jQuery UI / selectores propios */
+.bovs-grupo-error .chosen-container > .chosen-single,
+.bovs-grupo-error .bootstrap-select > .dropdown-toggle {
+    border-color: #dc2626 !important;
+    background: #fff6f6 !important;
+}
+
+/* Pequeño aviso de atención (una sola vez por cambio de estado) */
+@keyframes bovsErrorPulso {
+    0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+    70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.bovs-campo-error--pulso {
+    animation: bovsErrorPulso 0.9s ease-out 1;
+}
+
+/* ---------- Resumen de datos que faltan ---------- */
+.bovs-resumen-errores {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    border-radius: 8px;
+    color: #991b1b;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.bovs-resumen-errores[hidden] { display: none !important; }
+.bovs-resumen-errores__icono {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+}
+.bovs-resumen-errores__texto { flex: 1 1 auto; }
+.bovs-resumen-errores__texto strong { color: #7f1d1d; }
+.bovs-resumen-errores__lista { margin: 2px 0 0; padding-left: 16px; }
+.bovs-resumen-errores__ir {
+    flex: 0 0 auto;
+    border: 1px solid #dc2626;
+    background: #fff;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.bovs-resumen-errores__ir:hover { background: #dc2626; color: #fff; }
+
+/* ---------- Diálogos: afirmar en VERDE, denegar en ROJO ---------- */
+.jconfirm .jconfirm-buttons .btn-success,
+.jconfirm .jconfirm-buttons .bovs-btn-afirmar {
+    background: #15803d !important;
+    border-color: #14532d !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+.jconfirm .jconfirm-buttons .btn-success:hover,
+.jconfirm .jconfirm-buttons .bovs-btn-afirmar:hover {
+    background: #166534 !important;
+}
+
+.jconfirm .jconfirm-buttons .btn-danger,
+.jconfirm .jconfirm-buttons .bovs-btn-denegar {
+    background: #b91c1c !important;
+    border-color: #7f1d1d !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+.jconfirm .jconfirm-buttons .btn-danger:hover,
+.jconfirm .jconfirm-buttons .bovs-btn-denegar:hover {
+    background: #991b1b !important;
+}
+
+/* ---------- Aviso "Faltan campos por llenar" (junto a los botones) --------- */
+.bovs-faltantes {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border: 1px solid #fca5a5;
+    border-left: 5px solid #dc2626;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #7f1d1d;
+    box-shadow: 0 4px 14px rgba(185, 28, 28, .10);
+}
+.bovs-faltantes[hidden] { display: none !important; }
+
+.bovs-faltantes__titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    color: #991b1b;
+}
+.bovs-faltantes__titulo i { font-size: 16px; }
+
+.bovs-faltantes__lista {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    columns: 2;
+    column-gap: 24px;
+    font-size: 13.5px;
+}
+.bovs-faltantes__lista li {
+    position: relative;
+    padding-left: 16px;
+    margin-bottom: 3px;
+    break-inside: avoid;
+}
+.bovs-faltantes__lista li::before {
+    content: "•";
+    position: absolute;
+    left: 2px;
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.bovs-faltantes__ir {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 7px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.bovs-faltantes__ir:hover { background: #b91c1c; }
+
+@media (max-width: 640px) {
+    .bovs-faltantes__lista { columns: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bovs-campo-error--pulso { animation: none; }
+}

@@ -9,6 +9,7 @@ date_default_timezone_set('America/Caracas');
 @$nombre_potrero      = strtoupper($_POST['nombre_potrero']);
 @$descripcion         = ($_POST['descripcion']);
 @$hectareas           = ($_POST['hectareas']);
+@$aforo               = ($_POST['aforo']);
 @$capacidad_maxima    = ($_POST['capacidad_maxima']);
 @$tipo_pasto          = ($_POST['tipo_pasto']);
 
@@ -23,6 +24,8 @@ switch ($action) {
             $respuesta = array('resultado' => 'error', 'mensaje' => 'Ingrese el nombre del potrero.');
         } elseif ($hectareas != '' && !is_numeric($hectareas)) {
             $respuesta = array('resultado' => 'error', 'mensaje' => 'Las hectáreas deben ser un valor numérico.');
+        } elseif ($aforo != '' && !is_numeric($aforo)) {
+            $respuesta = array('resultado' => 'error', 'mensaje' => 'El aforo debe ser un valor numérico (kg de forraje verde por hectárea).');
         } elseif ($capacidad_maxima != '' && !is_numeric($capacidad_maxima)) {
             $respuesta = array('resultado' => 'error', 'mensaje' => 'La capacidad máxima debe ser un número entero.');
         } else {
@@ -44,6 +47,7 @@ switch ($action) {
                 $potrero->nombre            = $nombre_potrero;
                 $potrero->descripcion       = $descripcion;
                 $potrero->hectareas         = $hectareas !== '' ? floatval($hectareas) : null;
+                $potrero->aforo             = $aforo !== '' ? floatval($aforo) : null;
                 $potrero->capacidad_maxima  = $capacidad_maxima !== '' ? intval($capacidad_maxima) : null;
                 $potrero->tipo_pasto        = $tipo_pasto;
                 $potrero->mfundos_id        = $mfundos_id;
@@ -87,6 +91,7 @@ switch ($action) {
                 $potrero->nombre            = $nombre_potrero;
                 $potrero->descripcion       = $descripcion;
                 $potrero->hectareas         = $hectareas !== '' ? floatval($hectareas) : null;
+                $potrero->aforo             = $aforo !== '' ? floatval($aforo) : null;
                 $potrero->capacidad_maxima  = $capacidad_maxima !== '' ? intval($capacidad_maxima) : null;
                 $potrero->tipo_pasto        = $tipo_pasto;
                 $potrero->user_modify       = $usuario_id;
@@ -162,6 +167,7 @@ switch ($action) {
                         'nombre'           => $rs->nombre,
                         'descripcion'      => $rs->descripcion,
                         'hectareas'        => $rs->hectareas,
+                        'aforo'            => $rs->aforo,
                         'capacidad_maxima' => $rs->capacidad_maxima,
                         'tipo_pasto'       => $rs->tipo_pasto
                     );
@@ -169,6 +175,56 @@ switch ($action) {
                 echo json_encode($resp);
             }
         }
+        break;
+
+    /* ============================================================
+       POTREROS CON DISPONIBILIDAD DE FORRAJE (aforo)
+       La usa el movimiento de rebaño para calcular cuántos días
+       puede pastorear un lote en el potrero destino.
+       ============================================================ */
+    case 'get_potreros_aforo':
+
+        header('Content-Type: application/json; charset=utf-8');
+        @session_start();
+        $mfundos_id = intval(isset($_SESSION['mfundos_id']) ? $_SESSION['mfundos_id'] : 0);
+
+        $data = Mpotrero::find_by_sql("
+            SELECT p.id,
+                   p.nombre,
+                   COALESCE(p.hectareas, 0)   AS hectareas,
+                   COALESCE(p.aforo, 0)       AS aforo,
+                   p.capacidad_maxima,
+                   COALESCE(p.tipo_pasto, '') AS tipo_pasto,
+                   (SELECT COUNT(*) FROM manimales a
+                     WHERE a.mpotreros_id = p.id
+                       AND a.status = 1
+                       AND a.mfundos_id = p.mfundos_id
+                       AND a.estatus_animal NOT IN (3, 5)) AS animales
+              FROM mpotreros p
+             WHERE p.status = 1 AND p.mfundos_id = {$mfundos_id}
+             ORDER BY p.nombre ASC
+        ");
+
+        $filas = array();
+        if (is_array($data)) {
+            foreach ($data as $rs) {
+                $ha    = floatval($rs->hectareas);
+                $aforo = floatval($rs->aforo);
+
+                $filas[] = array(
+                    'id'               => intval($rs->id),
+                    'nombre'           => $rs->nombre,
+                    'hectareas'        => $ha,
+                    'aforo'            => $aforo,
+                    'forraje_total'    => round($ha * $aforo, 2),
+                    'capacidad_maxima' => $rs->capacidad_maxima,
+                    'tipo_pasto'       => $rs->tipo_pasto,
+                    'animales'         => intval($rs->animales)
+                );
+            }
+        }
+
+        echo json_encode(array('ok' => true, 'potreros' => $filas));
         break;
 
     /* ============================================================

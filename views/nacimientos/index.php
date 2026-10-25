@@ -5,6 +5,24 @@ ValidaSession("../login");
 <?php include("../layouts/constantes.php"); ?>
 <?php include_once("../layouts/cabecera.php"); ?>
 
+<style>
+/* Diálogo de revisión de nacimientos duplicados */
+.nac-unificar-lista { text-align: left; }
+.nac-grupo { border: 1px solid #E3E7ED; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #FBFCFD; }
+.nac-grupo__cab { display: flex; flex-direction: column; gap: 4px; }
+.nac-grupo__resumen { color: #4A5563; font-size: 12.5px; line-height: 1.45; }
+.nac-unificar-item { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; color: #1F2937; cursor: pointer; }
+.nac-unificar-item input { margin: 0; }
+.nac-unificar-bloqueado { color: #92400e; background: #FFFBEB; border-left: 3px solid #F59E0B; padding: 6px 8px; border-radius: 6px; font-size: 12.5px; }
+.nac-unificar-aviso { display: block; color: #6B7480; font-size: 11.5px; margin-top: 4px; }
+.nac-anular-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E3E7ED; }
+.nac-anular-fila label { margin: 0; font-size: 12px; color: #6B7480; font-weight: 500; }
+.nac-anular-select { max-width: 100%; min-width: 240px; padding: 5px 8px; border: 1px solid #D8DEE6; border-radius: 6px; font-size: 12.5px; background: #fff; color: #2C3440; }
+.nac-anular-select:focus { outline: none; border-color: #22B34E; box-shadow: 0 0 0 2px rgba(34,179,78,.15); }
+.nac-anular-aviso { flex: 1 1 100%; color: #146B2E; font-size: 11.5px; }
+.nac-anular-aviso:empty { display: none; }
+</style>
+
 <?php
 $crud = [
     'title'    => 'Nacimientos',
@@ -27,7 +45,7 @@ $crud = [
     'extraButtonsHtml' =>
         '<button id="baja" type="button" class="crud-btn crud-btn--warning"><i class="fa fa-arrow-down"></i> <span>Dar de Baja</span></button>' .
         '<button id="mostrar" type="button" class="crud-btn crud-btn--primary"><i class="fa fa-list"></i> <span>Mostrar Bajas</span></button>' .
-        '<button id="unificar_nacimiento" type="button" class="crud-btn crud-btn--warning" style="display:none" disabled><i class="fa fa-compress"></i> <span>Unificar nacimiento</span></button>',
+        '<button id="unificar_nacimiento" type="button" class="crud-btn crud-btn--warning" style="display:none" enabled><i class="fa fa-clone"></i> <span>Revisar duplicados</span></button>',
 
     'columns' => [
         ['data' => 'codigo_ternero',                'title' => 'Código del Ternero'],

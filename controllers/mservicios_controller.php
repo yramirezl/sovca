@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/especie_helper.php';
 require_once '../models/Mregservicio.php';
 require_once '../models/Vdesincorporacione.php';
 require_once '../models/Manimale.php';
@@ -13,6 +14,50 @@ require_once '../lib/estatus_animal_helper.php';
 require_once '../lib/fecha_secado_helper.php';
 
 date_default_timezone_set('America/Caracas');
+
+/**
+ * Convierte a entero un valor recibido por POST para las columnas integer
+ * NOT NULL de `mregservicios` (parto, nro_terneros, dnp, medofisiologicos_id).
+ *
+ * Los <select> del control de servicio envían el comodín '*' cuando el usuario
+ * deja "Seleccione". Al asignarlo al modelo, php-activerecord hacía `'*' + 0`
+ * dentro de Column::castIntegerSafely() y lanzaba
+ * "TypeError: Unsupported operand types: string + int": el guardado moría con
+ * un 500 sin cuerpo, el Ajax no podía leer el JSON y el botón Guardar se
+ * quedaba bloqueado (el "botón colgado").
+ */
+function bovs_servicio_entero($valor)
+{
+    if ($valor === null) {
+        return 0;
+    }
+
+    $valor = trim((string)$valor);
+
+    if ($valor === '' || $valor === '*' || !is_numeric($valor)) {
+        return 0;
+    }
+
+    return (int)$valor;
+}
+
+/**
+ * Aviso HTML para las respuestas del control de servicio.
+ */
+function bovs_servicio_alerta($tipo, $texto)
+{
+    $icono = ($tipo === 'ok') ? 'fa-check' : 'fa-ban';
+
+    return '<div class="alert alert-' . ($tipo === 'ok' ? 'success' : 'danger')
+        . ' alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon ' . $icono . '"></i>
+        Alerta!
+        </h4>
+        ' . $texto . '
+        </div>';
+}
 
 @$action = ($_POST['action']);
 @$id = ($_POST['id_regservicio']);
@@ -870,8 +915,14 @@ switch ($action) {
                 $t_ganaderia = isset($_SESSION['tipo_ganaderia']) ? (int)$_SESSION['tipo_ganaderia'] : 0;
                 $hoy = date('d-m-Y');
 
-                if ($estado_fisiologico == 1) {
-                    if ($pario == 1) {
+                /* Valores enteros normalizados: '*' (Seleccione) y '' se convierten en 0 */
+                $bovs_pario        = bovs_servicio_entero($pario);
+                $bovs_nro_terneros = bovs_servicio_entero($nro_terneros);
+                $bovs_dnp          = bovs_servicio_entero($dnp);
+                $bovs_estado_fisio = bovs_servicio_entero($estado_fisiologico);
+
+                if ($bovs_estado_fisio == 1) {
+                    if ($bovs_pario == 1) {
 
 
                         foreach ($consulta as $rs_ciclo) {
@@ -904,7 +955,7 @@ switch ($action) {
                 // Si el usuario no fijó una fecha de secado, se calcula con la
                 // regla única. Si ya viene una fecha (registrada o editada a
                 // mano), se respeta: el dato no se recalcula.
-                if (trim((string)$fecha_secado) === '' && $estado_fisiologico == 1 && trim((string)$fecha_fup) !== '') {
+                if (trim((string)$fecha_secado) === '' && $bovs_estado_fisio == 1 && trim((string)$fecha_fup) !== '') {
                     $aptitud_hembra = (int)$reg_servicio->aptitud;
                     $calculo_secado = bovs_calcular_secado_servicio(
                         $reg_servicio->f_servicio,
@@ -916,23 +967,23 @@ switch ($action) {
                     $fecha_secado = $calculo_secado['fecha'] ? $calculo_secado['fecha']->format('d-m-Y') : '';
                 }
 
-                $reg_servicio->f_ultimo_parto = $fecha_fup;
+                $reg_servicio->f_ultimo_parto = trim((string)$fecha_fup) !== '' ? $fecha_fup : null;
                 $reg_servicio->f_secado = ($fecha_secado !== '') ? $fecha_secado : null;
-                $reg_servicio->f_palpacion = $fecha_fp;
-                $reg_servicio->medofisiologicos_id = $estado_fisiologico;
-                $reg_servicio->f_probable_parto = $fecha_fppt;
-                $reg_servicio->parto = $pario;
-                $reg_servicio->fecha_parto = $fecha_parto;
+                $reg_servicio->f_palpacion = trim((string)$fecha_fp) !== '' ? $fecha_fp : null;
+                $reg_servicio->medofisiologicos_id = $bovs_estado_fisio;
+                $reg_servicio->f_probable_parto = trim((string)$fecha_fppt) !== '' ? $fecha_fppt : null;
+                $reg_servicio->parto = $bovs_pario;
+                $reg_servicio->fecha_parto = trim((string)$fecha_parto) !== '' ? $fecha_parto : null;
 
-                $reg_servicio->nro_terneros = $nro_terneros;
-                $reg_servicio->dnp = $dnp;
+                $reg_servicio->nro_terneros = $bovs_nro_terneros;
+                $reg_servicio->dnp = $bovs_dnp;
                 $reg_servicio->observaciones = $observaciones;
                 $reg_servicio->user_modify = $usuario_id;
                 $reg_servicio->updated = $hoy;
 
                 ////////////////7 VALIDANDO LAS ACCIONES PARA CONTROLAR EL CICLO DEL SERVICIO /////////////////////////////
 
-                if ($estado_fisiologico == 4 || $estado_fisiologico == 5) {
+                if ($bovs_estado_fisio == 4 || $bovs_estado_fisio == 5) {
                     $reg_servicio->estado_servicio = 2;
                 }
                 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1143,7 +1194,7 @@ switch ($action) {
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                 La Edad de la VACA no puede ser Menor de 12 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
+                 La Edad de la ' . bovs_especie_hembra(false, 'upper') . ' no puede ser Menor de 12 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
                   </div>');
                         echo json_encode($resp);
 

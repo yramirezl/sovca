@@ -1,12 +1,12 @@
 <?php
 /**
  * =====================================================================
- * views/demo/index.php — ACCESO DEMOSTRATIVO DE BOVS
+ * views/demo/index.php — ACCESO DEMOSTRATIVO DE SOVCA
  * ---------------------------------------------------------------------
  * Pantalla pública (sin sesión) donde un visitante crea su propia
  * cuenta de prueba:
  *
- *   · la cuenta vive en la base de datos bovs_demo (solo catálogos),
+ *   · la cuenta vive en la base de datos sovca_demo (solo catálogos),
  *   · tiene una vigencia de 15 días,
  *   · al crearla entra directo al sistema con esa cuenta.
  *
@@ -25,7 +25,7 @@ require_once __DIR__ . '/../../lib/captcha_helper.php';
 
 $demoActivo  = bovs_demo_activo();
 $demoListo   = $demoActivo && bovs_demo_bd_disponible();
-$diasDemo    = (int) BOVS_DEMO_DIAS;
+$diasDemo    = (int) SOVCA_DEMO_DIAS;
 
 $cap       = bovs_captcha_generar();
 $cap_a     = $cap['a'];
@@ -38,7 +38,7 @@ $cap_token = $cap['token'];
 
 <head>
   <meta charset="UTF-8">
-  <title>Demostración · BOVS</title>
+  <title>Demostración · SOVCA</title>
   <meta content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" name="viewport">
   <meta name="robots" content="noindex, nofollow">
 
@@ -52,8 +52,9 @@ $cap_token = $cap['token'];
     *::after { box-sizing: border-box; }
 
     html, body.demo-page {
-      background-color: #ebf5ee !important;
-      background-image: radial-gradient(circle at 50% 50%, #f4fbf6 0%, #dbe9df 100%) !important;
+      /* Paleta SOVCA: crema + marrón + naranja oscuro (cría ovina y caprina) */
+      background-color: #F6F0E7 !important;
+      background-image: radial-gradient(circle at 50% 50%, #FDF8F1 0%, #E7DAC8 100%) !important;
       min-height: 100vh;
       margin: 0;
       padding: 0;
@@ -74,13 +75,13 @@ $cap_token = $cap['token'];
     body.demo-page::before {
       width: 520px; height: 520px;
       top: -180px; right: -160px;
-      background: radial-gradient(circle, rgba(35, 78, 53, .08) 0%, rgba(35, 78, 53, 0) 70%);
+      background: radial-gradient(circle, rgba(91, 58, 30, .10) 0%, rgba(91, 58, 30, 0) 70%);
     }
 
     body.demo-page::after {
       width: 620px; height: 620px;
       bottom: -260px; left: -220px;
-      background: radial-gradient(circle, rgba(40, 167, 69, .08) 0%, rgba(40, 167, 69, 0) 70%);
+      background: radial-gradient(circle, rgba(194, 65, 12, .10) 0%, rgba(194, 65, 12, 0) 70%);
     }
 
     .demo-container {
@@ -101,25 +102,34 @@ $cap_token = $cap['token'];
       width: 330px;
       max-width: 100%;
       padding: 26px 24px;
-      background: linear-gradient(160deg, #234e35 0%, #1b3a24 100%);
+      /* Marrón "maroon" suave: el logo verde de SOVCA resalta sobre él
+         mucho mejor que sobre el marrón casi negro anterior. */
+      background: linear-gradient(160deg, #a8551d 0%, #bd5219 100%);
       border-radius: 18px;
-      color: #e8f3ec;
-      box-shadow: 0 18px 44px rgba(20, 50, 32, .28);
+      color: #FDF6EE;
+      box-shadow: 0 18px 44px rgba(90, 58, 38, .26);
     }
 
     .demo-info__logo {
       display: block;
       margin: 0 auto 16px;
-      max-width: 190px;
+      max-width: 220px;
+      width: 100%;
       height: auto;
+      /* Placa blanca: aísla el verde del logo del fondo marrón y lo
+         hace protagonista. */
+      background: #ffffff;
+      padding: 10px 18px;
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(59, 36, 18, .22);
     }
 
     .demo-info__badge {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(255, 255, 255, .14);
-      border: 1px solid rgba(255, 255, 255, .22);
+      background: rgba(255, 255, 255, .20);
+      border: 1px solid rgba(255, 255, 255, .30);
       border-radius: 999px;
       padding: 5px 12px;
       font-size: 10.5px;
@@ -140,7 +150,7 @@ $cap_token = $cap['token'];
     .demo-info p {
       font-size: 12.5px;
       line-height: 1.6;
-      color: #c9dfd2;
+      color: #F6E7D8;
       margin: 0 0 16px;
     }
 
@@ -156,12 +166,12 @@ $cap_token = $cap['token'];
       gap: 9px;
       font-size: 12px;
       line-height: 1.5;
-      color: #d8ebdf;
+      color: #FBF1E7;
       margin-bottom: 10px;
     }
 
     .demo-info li i {
-      color: #7fd07a;
+      color: #FFD08A;
       font-size: 12px;
       margin-top: 3px;
       flex-shrink: 0;
@@ -170,8 +180,8 @@ $cap_token = $cap['token'];
     .demo-info__nota {
       font-size: 11px;
       line-height: 1.55;
-      color: #a9c9b5;
-      border-top: 1px solid rgba(255, 255, 255, .14);
+      color: #EEDCC9;
+      border-top: 1px solid rgba(255, 255, 255, .25);
       padding-top: 12px;
       margin: 0;
     }
@@ -207,12 +217,12 @@ $cap_token = $cap['token'];
       background:
         linear-gradient(#ffffff, #ffffff) padding-box,
         conic-gradient(from 0deg at 50% 50%,
-          #7fd07a 0deg, #2f8f4a 45deg, #1f6f43 90deg, #2f8f4a 135deg,
-          #7fd07a 180deg, #2f8f4a 225deg, #1f6f43 270deg, #2f8f4a 315deg, #7fd07a 360deg) border-box;
+          #1F5B33 0deg, #8A5A38 45deg, #C2610C 90deg, #8A5A38 135deg,
+          #1F5B33 180deg, #8A5A38 225deg, #C2610C 270deg, #8A5A38 315deg, #1F5B33 360deg) border-box;
       box-shadow:
         0 0 0 6px rgba(255, 255, 255, .8),
-        0 0 0 8px rgba(35, 78, 53, .12),
-        0 24px 60px rgba(20, 50, 32, .16);
+        0 0 0 8px rgba(31, 91, 51, .12),
+        0 24px 60px rgba(59, 36, 18, .16);
       padding: 28px 30px 24px;
       position: relative;
     }
@@ -223,12 +233,12 @@ $cap_token = $cap['token'];
       gap: 10px;
       font-size: 15px;
       font-weight: 800;
-      color: #1b3a24;
+      color: #1F5B33;
       letter-spacing: .3px;
       margin: 0 0 4px;
     }
 
-    .demo-card__title i { color: #2c8a56; }
+    .demo-card__title i { color: #C2610C; }
 
     .demo-card__sub {
       font-size: 11.5px;
@@ -245,7 +255,7 @@ $cap_token = $cap['token'];
       font-weight: 800;
       letter-spacing: .7px;
       text-transform: uppercase;
-      color: #234e35;
+      color: #5B3A1E;
       margin-bottom: 5px;
     }
 
@@ -262,19 +272,19 @@ $cap_token = $cap['token'];
     .input-wrap .form-control {
       height: 42px;
       border-radius: 9px;
-      border: 1px solid #d8e3db;
-      background: #f8fbf9;
+      border: 1px solid #E2D3C0;
+      background: #FCF8F2;
       font-family: inherit;
       font-size: 12.5px;
       font-weight: 600;
-      color: #1f2d26;
+      color: #2C1D10;
       box-shadow: none;
       transition: border-color .2s, box-shadow .2s, background .2s;
     }
 
     .input-wrap .form-control:focus {
-      border-color: #234e35;
-      box-shadow: 0 0 0 3px rgba(35, 78, 53, .14);
+      border-color: #8A4B12;
+      box-shadow: 0 0 0 3px rgba(138, 75, 18, .16);
       background: #ffffff;
     }
 
@@ -322,10 +332,10 @@ $cap_token = $cap['token'];
       justify-content: center;
       gap: 8px;
       padding: 0 14px;
-      background: linear-gradient(135deg, #eef7f1 0%, #d9ecdf 100%);
-      border: 1px solid #b8d8c4;
+      background: linear-gradient(135deg, #FBF3E7 0%, #F0E1CB 100%);
+      border: 1px solid #DFC8A6;
       border-radius: 9px;
-      color: #1b3a24;
+      color: #3B2412;
       font-size: 16px;
       font-weight: 800;
       min-width: 118px;
@@ -366,7 +376,7 @@ $cap_token = $cap['token'];
       transition: background .2s, color .2s;
     }
 
-    .cap-refresh:hover { background: #eef4ef; color: #234e35; }
+    .cap-refresh:hover { background: #EDF3EA; color: #2F6B3F; }
     .cap-refresh.girando i { display: inline-block; animation: girar .6s linear infinite; }
     @keyframes girar { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
@@ -377,7 +387,7 @@ $cap_token = $cap['token'];
       gap: 9px;
       font-size: 11px;
       line-height: 1.5;
-      color: #4b5b52;
+      color: #5A4632;
       font-weight: 600;
       margin: 4px 0 16px;
       cursor: pointer;
@@ -390,7 +400,8 @@ $cap_token = $cap['token'];
       width: 100%;
       height: 48px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #2c5a3f 0%, #1b3a24 100%);
+      /* Verde de la marca → marrón cuero */
+      background: linear-gradient(135deg, #2F7A46 0%, #8A5A38 100%);
       border: none;
       color: #fff;
       font-family: inherit;
@@ -399,15 +410,15 @@ $cap_token = $cap['token'];
       letter-spacing: 1.2px;
       text-transform: uppercase;
       cursor: pointer;
-      transition: transform .15s, box-shadow .25s;
-      box-shadow: 0 6px 18px rgba(35, 78, 53, .35);
+      transition: transform .15s, box-shadow .25s, background .25s;
+      box-shadow: 0 6px 18px rgba(47, 107, 63, .32);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
     }
 
-    .btn-demo:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(35, 78, 53, .48); }
+    .btn-demo:hover { transform: translateY(-2px); background: linear-gradient(135deg, #3A8C52 0%, #A4632A 100%); box-shadow: 0 10px 26px rgba(47, 107, 63, .45); }
     .btn-demo:active { transform: translateY(0); }
     .btn-demo:disabled { opacity: .7; cursor: wait; transform: none; }
 
@@ -426,7 +437,7 @@ $cap_token = $cap['token'];
 
     .demo-msg.visible { display: flex; }
     .demo-msg--error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .demo-msg--ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .demo-msg--ok { background: #FDF2E2; color: #8A4B12; border: 1px solid #E9C89B; }
     .demo-msg--info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .demo-msg i { margin-top: 2px; }
 
@@ -447,7 +458,7 @@ $cap_token = $cap['token'];
     .demo-footer {
       margin-top: 16px;
       padding-top: 13px;
-      border-top: 1px solid #eef2ee;
+      border-top: 1px solid #E7DBCD;
       text-align: center;
       font-size: 10px;
       font-weight: 600;
@@ -455,7 +466,7 @@ $cap_token = $cap['token'];
       letter-spacing: .4px;
     }
 
-    .demo-footer .version { color: #234e35; font-weight: 800; }
+    .demo-footer .version { color: #C2610C; font-weight: 800; }
 
     /* ============================================================
        PASO 2 · CÓDIGO DE VERIFICACIÓN
@@ -470,9 +481,9 @@ $cap_token = $cap['token'];
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #eef7f1 0%, #d9ecdf 100%);
-      border: 1px solid #b8d8c4;
-      color: #2c6e46;
+      background: linear-gradient(135deg, #EDF4EC 0%, #D8EAD6 100%);
+      border: 1px solid #A9CDA9;
+      color: #2F6B3F;
       font-size: 22px;
     }
 
@@ -492,9 +503,9 @@ $cap_token = $cap['token'];
       font-family: 'Poppins', sans-serif;
       font-size: 20px;
       font-weight: 800;
-      color: #1b3a24;
-      background: #f8fbf9;
-      border: 1px solid #d8e3db;
+      color: #3B2412;
+      background: #FCF8F2;
+      border: 1px solid #E2D3C0;
       border-radius: 10px;
       box-shadow: none;
       transition: border-color .2s, box-shadow .2s, background .2s;
@@ -502,14 +513,14 @@ $cap_token = $cap['token'];
 
     .codigo-digit:focus {
       outline: none;
-      border-color: #234e35;
+      border-color: #2F6B3F;
       background: #ffffff;
-      box-shadow: 0 0 0 3px rgba(35, 78, 53, .14);
+      box-shadow: 0 0 0 3px rgba(47, 107, 63, .16);
     }
 
     .codigo-digit.lleno {
-      border-color: #2c8a56;
-      background: #f1f9f3;
+      border-color: #C2610C;
+      background: #FDF6EC;
     }
 
     .codigo-digit.is-invalid {
@@ -547,12 +558,12 @@ $cap_token = $cap['token'];
       font-weight: 800;
       letter-spacing: .4px;
       text-transform: uppercase;
-      color: #2c6e46;
+      color: #9A5216;
       cursor: pointer;
       transition: background .2s, color .2s;
     }
 
-    .btn-reenviar:hover:not(:disabled) { background: #eef6f0; color: #1b5e20; }
+    .btn-reenviar:hover:not(:disabled) { background: #F6EEE4; color: #7C3A0F; }
     .btn-reenviar:disabled { color: #b6c2bb; cursor: not-allowed; }
 
     .demo-link {
@@ -570,7 +581,7 @@ $cap_token = $cap['token'];
       transition: color .2s;
     }
 
-    .demo-link:hover { color: #234e35; text-decoration: underline; }
+    .demo-link:hover { color: #C2610C; text-decoration: underline; }
 
     @media (max-width: 480px) {
       .codigo-digit { height: 50px; max-width: 44px; font-size: 18px; }
@@ -606,7 +617,7 @@ $cap_token = $cap['token'];
         Entorno de prueba
       </span>
 
-      <h1>Crea tu cuenta y prueba BOVS</h1>
+      <h1>Crea tu cuenta y prueba SOVCA</h1>
 
       <p>
         Un espacio de trabajo real, con la misma estructura del sistema, pero
@@ -826,7 +837,7 @@ $cap_token = $cap['token'];
       </div>
 
       <div class="demo-footer">
-        <span class="version">BOVS</span> · © <?= date('Y') ?> Global-BOVS · demostración
+        <span class="version">SOVCA</span> · © <?= date('Y') ?> Global-SOVCA · demostración
       </div>
     </section>
   </div>
@@ -1102,7 +1113,7 @@ $cap_token = $cap['token'];
         PANEL.hidden = false;
 
         iniciarTimer(d.minutos || 15);
-        bloquearReenvio(<?= (int) BOVS_DEMO_REENVIO_SEG ?>);
+        bloquearReenvio(<?= (int) SOVCA_DEMO_REENVIO_SEG ?>);
         mensajeCod('info', d.msg || 'Revisa tu correo y escribe el código.');
 
         if (DIGITOS[0]) { DIGITOS[0].focus(); }
@@ -1217,7 +1228,7 @@ $cap_token = $cap['token'];
             limpiarMensajeCod();
             mensajeCod('ok', d.msg || 'Enviamos un código nuevo.');
             iniciarTimer(d.minutos || 15);
-            bloquearReenvio(<?= (int) BOVS_DEMO_REENVIO_SEG ?>);
+            bloquearReenvio(<?= (int) SOVCA_DEMO_REENVIO_SEG ?>);
             if (DIGITOS[0]) { DIGITOS[0].focus(); }
             return;
           }

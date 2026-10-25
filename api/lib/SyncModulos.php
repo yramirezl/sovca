@@ -58,7 +58,17 @@ class SyncModulos
             ],
             // Campos que sí debe mandar el cliente porque no tienen
             // ningún valor razonable por defecto.
-            'campos_requeridos' => ['nombre', 'aptitud', 'mrazas_id', 'nro_arete'],
+            'campos_requeridos' => ['nombre', 'nro_arete'],
+
+            // Columnas integer NOT NULL SIN default en `manimales`. Si el
+            // equipo no las manda (o manda null, que es lo que produce
+            // Number('') en JavaScript) se guarda 0 y el animal sube igual;
+            // la aptitud y la raza se completan después en la ficha web.
+            'enteros_con_defecto' => [
+                'aptitud'   => 0,
+                'mrazas_id' => 0,
+                'servicio'  => 0,
+            ],
 
             // Campos que ningún formulario pide, pero necesitan un
             // valor de negocio razonable al crear (no simplemente '').
@@ -136,6 +146,11 @@ class SyncModulos
                 'codigo_rgb_id_animal_hembra',
                 'f_parto',
                 'sexo',
+            ],
+            // `aptitud` es integer NOT NULL SIN default en `mregnacimientos`;
+            // si no viene se guarda 0 (ver crear_registro_nacimiento).
+            'enteros_con_defecto' => [
+                'aptitud' => 0,
             ],
             // f_servicio (fecha de celo) y mtipoganaderias_id no los
             // manda el cliente — los calcula/completa el servidor (ver
@@ -308,8 +323,14 @@ class SyncModulos
                 'codigo_rgb_id_animal_hembra',
                 'f_servicio',
                 'mservicios_id',
-                'aptitud',
-                'mrazas_id',
+            ],
+            // Columnas integer NOT NULL SIN default en `mregservicios`. Igual
+            // que en animales: si el equipo no las manda (o manda null) se
+            // guarda 0 y se completan luego en la web, en vez de romper la
+            // sincronización con "null value in column".
+            'enteros_con_defecto' => [
+                'aptitud'   => 0,
+                'mrazas_id' => 0,
             ],
             'usa_ciclo_reproductivo' => true,
             'correlativo' => [

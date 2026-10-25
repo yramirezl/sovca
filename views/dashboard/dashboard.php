@@ -1,6 +1,7 @@
 <?php
 include("../../lib/validar_session.php");
 ValidaSession("../login");
+require_once __DIR__ . '/../../lib/especie_helper.php';
 $mostrar_resumen_suscripciones = in_array((int)$_SESSION['rolx'], array(1, 4), true);
 ?>
 <?php include("../layouts/constantes.php") ?>
@@ -256,7 +257,7 @@ $(function() {
     <div class="col-md-6" id="box_top_vacas">
         <div class="box box-success">
             <div class="box-header with-border">
-                <h3 class="box-title"><i class="fa fa-trophy" style="color:#FFD24A;"></i> Top 10 Vacas Más Productoras</h3>
+                <h3 class="box-title"><i class="fa fa-trophy" style="color:#FFD24A;"></i> Top 10 <?php echo bovs_especie_hembra(true, 'title'); ?> Más Productoras</h3>
                 <div class="box-tools pull-right"><button class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button></div>
             </div>
             <div class="box-body">
@@ -264,6 +265,8 @@ $(function() {
                     <div id="chartdivtop" style="width:100%;height:400px;"></div>
                     <div id="chartdivtop_msg" class="chart-empty" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;">Sin datos para el período seleccionado</div>
                 </div>
+                <!-- Explica al productor QUÉ suma el top y sobre qué fechas -->
+                <div id="nota_top" style="display:none;margin-top:8px;font-size:12.5px;line-height:1.45;color:#4A5563;"></div>
             </div>
         </div>
     </div>
@@ -716,6 +719,28 @@ $(function() {
                 _graficasListas[chartId] = true;
             }
         });
+
+        /* Nota de medición del Top 10: solo tiene sentido si hay datos y el
+           bloque está visible. */
+        if (bundle && bundle.meta) {
+            var filasTop = (bundle.top_vacas || []);
+            var hayDatosTop = filasTop.length > 0 && !(filasTop.length === 1 && filasTop[0].nombre === 'Sin datos');
+            if (hayDatosTop && $('#box_top_vacas').is(':visible')) {
+                $('#nota_top').html('<strong>Acumulado ' + _textoPeriodoMeta(bundle.meta) + ':</strong> '
+                    + 'suma de los litros de la mañana y de la tarde de cada ' + 'hembra.').show();
+            } else {
+                $('#nota_top').hide().empty();
+            }
+        }
+    }
+
+    /* "del 01-10-2026 al 24-10-2026 (24 días)" */
+    function _textoPeriodoMeta(meta) {
+        if (!meta) return '';
+        var txt = 'del ' + (meta.desde_txt || meta.desde) + ' al ' + (meta.hasta_txt || meta.hasta);
+        var dias = parseInt(meta.dias, 10);
+        if (dias > 0) txt += ' (' + dias + ' día' + (dias === 1 ? '' : 's') + ')';
+        return txt;
     }
 
     function _cargarBundle(desde, hasta) {

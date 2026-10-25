@@ -1,6 +1,37 @@
 <?php
+/* ---------------------------------------------------------------------
+   Respuesta de error legible (nunca un 500 con el cuerpo vacío): si el
+   despliegue quedó incompleto o una consulta falla, se dice qué pasó y
+   el detalle técnico queda en el log.
+   --------------------------------------------------------------------- */
+set_exception_handler(function ($e) {
+    error_log('[rficha] ' . get_class($e) . ': ' . $e->getMessage()
+        . ' en ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+    echo '<div style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#842029;background:#f8d7da;border:1px solid #f5c2c7;border-radius:8px">'
+       . '<strong>No se pudo generar la ficha.</strong> '
+       . 'Vuelva a intentarlo; si el problema continúa, contacte al administrador.</div>';
+    exit;
+});
+
 include '../lib/validar_session.php';
 ValidaSession("../login");
+
+/* Dependencias críticas: si el despliegue quedó incompleto, se dice cuál
+   falta en lugar de morir con un fatal sin contenido. */
+$bovs_faltantes = array();
+foreach (array('../lib/fpdf/fpdf.php', '../models/Vanimale.php', '../models/Manimale.php') as $bovs_requerido) {
+    if (!is_file(__DIR__ . '/' . $bovs_requerido)) {
+        $bovs_faltantes[] = $bovs_requerido;
+    }
+}
+if (count($bovs_faltantes) > 0) {
+    error_log('[rficha] faltan dependencias: ' . implode(', ', $bovs_faltantes));
+    die('No se pudo generar la ficha: falta en el servidor ' . htmlspecialchars(implode(', ', $bovs_faltantes), ENT_QUOTES, 'UTF-8') . '. Contacte al administrador.');
+}
 
 require_once '../models/Vanimale.php';
 require_once '../models/Manimale.php';

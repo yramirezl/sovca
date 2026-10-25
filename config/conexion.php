@@ -44,7 +44,7 @@ ActiveRecord\Config::initialize(function($cfg)
        Si el modo demo está apagado en config/demo.php, una sesión que
        hubiera quedado marcada vuelve a la base real.
        ================================================================ */
-    $cadena_conexion = 'pgsql://postgres:postgres@127.0.0.1/sovca_qas';
+    $cadena_conexion = 'pgsql://postgres:postgres@127.0.0.1/sovca';
 
     $es_sesion_demo = ((int)$session_demo === 1) && defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO;
     if ($es_sesion_demo) {

@@ -64,6 +64,18 @@ $id_potrero = intval($parametros);
                         </div>
                     </div>
 
+                    <div class="crud-form__row">
+                        <div class="crud-form__field">
+                            <label for="aforo">Aforo (kg de forraje verde por hectárea)</label>
+                            <input class="form-control" id="aforo" type="number" step="0.01" min="0" tabindex="5">
+                        </div>
+                        <div class="crud-form__field">
+                            <label>Forraje total estimado</label>
+                            <input class="form-control" id="forraje_total" type="text" readonly
+                                   placeholder="kg disponibles">
+                        </div>
+                    </div>
+
                     <div class="crud-form__field">
                         <label for="descripcion">Descripción / Observaciones</label>
                         <textarea class="form-control" id="descripcion" rows="3" maxlength="500" tabindex="5"></textarea>
@@ -103,8 +115,14 @@ $(document).ready(function() {
         $('#nombre_potrero').val(r.nombre);
         $('#tipo_pasto').val(r.tipo_pasto);
         $('#hectareas').val(r.hectareas);
+        $('#aforo').val(r.aforo);
         $('#capacidad_maxima').val(r.capacidad_maxima);
         $('#descripcion').val(r.descripcion);
+
+        /* Forraje total estimado = aforo (kg/ha) × hectáreas */
+        var ha = parseFloat(r.hectareas) || 0;
+        var af = parseFloat(r.aforo) || 0;
+        $('#forraje_total').val((ha > 0 && af > 0) ? Math.round(ha * af) + ' kg' : '');
     });
 
     $('#exit').click(function() {
@@ -142,6 +160,7 @@ $(document).ready(function() {
             nombre_potrero:     nombre,
             descripcion:        $('#descripcion').val(),
             hectareas:          $('#hectareas').val(),
+            aforo:              $('#aforo').val(),
             capacidad_maxima:   $('#capacidad_maxima').val(),
             tipo_pasto:         $('#tipo_pasto').val()
         }, function(data) {

@@ -22,6 +22,8 @@ $crud = [
     'columns' => [
         ['data' => 'nombre',             'title' => 'Nombre'],
         ['data' => 'hectareas',          'title' => 'Hectáreas'],
+        ['data' => 'aforo',              'title' => 'Aforo (kg/ha)'],
+        ['data' => 'forraje_total',      'title' => 'Forraje total (kg)'],
         ['data' => 'capacidad_maxima',   'title' => 'Capacidad'],
         ['data' => 'tipo_pasto',         'title' => 'Tipo de Pasto'],
         ['data' => 'cantidad_animales',  'title' => 'Animales'],
@@ -36,13 +38,14 @@ $crud = [
     'rowCallbackJs' => "
         \$('td:eq(0)', nRow).css('font-weight', 'bold');
         \$('td:eq(1)', nRow).css('text-align', 'center');
-        \$('td:eq(2)', nRow).css('text-align', 'center');
-        \$('td:eq(4)', nRow).css('text-align', 'center').css('font-weight', 'bold');
+        \$('td:eq(2)', nRow).css('text-align', 'right');
+        \$('td:eq(3)', nRow).css('text-align', 'right');
+        \$('td:eq(6)', nRow).css('text-align', 'center').css('font-weight', 'bold');
 
         var cap  = parseInt(mData.capacidad_maxima)  || 0;
         var cant = parseInt(mData.cantidad_animales) || 0;
         if (cap > 0 && cant > cap) {
-            \$('td:eq(4)', nRow).css('color', '#C0392B');
+            \$('td:eq(6)', nRow).css('color', '#C0392B');
         }
     ",
 ];

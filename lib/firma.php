@@ -6,10 +6,41 @@
  */
 
 // ============================================================
-// URL PÚBLICA DE PRODUCCIÓN
+// URL PÚBLICA — se detecta sola
+// ------------------------------------------------------------
+// Antes estaba escrita a mano ('https://global.ruted.net/bovs'), lo que
+// rompía la verificación en cualquier otra instalación: el QR de SOVCA
+// abría la ficha en BOVS (o al revés) y el navegador mostraba "el animal
+// ya no está activo en la plataforma".
+//
+// Ahora se calcula con la carpeta REAL del proyecto:
+//   · en web:  esquema + host + carpeta respecto de DOCUMENT_ROOT
+//   · en CLI:  https://global.ruted.net/<carpeta del proyecto>
+// Si se necesita forzar otra (dominio distinto), definir la constante
+// BOVS_URL_PUBLICA ANTES de incluir este archivo.
 // ============================================================
 if (!defined('BOVS_URL_PUBLICA')) {
-    define('BOVS_URL_PUBLICA', 'https://global.ruted.net/bovs');
+    $bovs_raiz_proyecto = dirname(__DIR__);
+    $bovs_carpeta       = basename($bovs_raiz_proyecto);
+    $bovs_url_publica   = 'https://global.ruted.net/' . $bovs_carpeta;
+
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $bovs_docroot = isset($_SERVER['DOCUMENT_ROOT'])
+            ? rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/')
+            : '';
+        $bovs_raiz_web = rtrim(str_replace('\\', '/', $bovs_raiz_proyecto), '/');
+
+        $bovs_ruta_web = '';
+        if ($bovs_docroot !== '' && strpos($bovs_raiz_web, $bovs_docroot) === 0) {
+            $bovs_ruta_web = substr($bovs_raiz_web, strlen($bovs_docroot));
+        }
+        $bovs_ruta_web = '/' . trim($bovs_ruta_web, '/');
+
+        $bovs_esquema = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $bovs_url_publica = $bovs_esquema . '://' . $_SERVER['HTTP_HOST'] . $bovs_ruta_web;
+    }
+
+    define('BOVS_URL_PUBLICA', rtrim($bovs_url_publica, '/'));
 }
 
 // ============================================================

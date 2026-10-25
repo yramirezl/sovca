@@ -59,6 +59,7 @@ require_once('../../lib/general/cabecera.php');
 require_once('../../lib/general/Herramientas.class.php');
 include_once('../../lib/utiles.php');
 include_once('../../lib/funciones.php');
+require_once('../../lib/animal_codigo_helper.php');
 
 #[\AllowDynamicProperties]
 class pdfreporte extends fpdf
@@ -151,7 +152,14 @@ class pdfreporte extends fpdf
         if ($this->cod_bovs != '') {
 
             if ($this->buscar_x_cod_arete == 1) {
-                $cadena = "and codigo_rgb_id_animal=" . $this->comillar($this->cod_bovs) . " ";
+                /* Código SOVCA: se prueban las variantes con distinto relleno
+                   de ceros (SOVCA-005-199 vs SOVCA-05-0199). */
+                $candidatos = bovs_codigos_candidatos($this->cod_bovs, $this->mfundos_id);
+                $lista_codigos = array();
+                foreach ($candidatos as $c) {
+                    $lista_codigos[] = $this->comillar($c);
+                }
+                $cadena = 'and codigo_rgb_id_animal in (' . implode(',', $lista_codigos) . ') ';
             } else if ($this->buscar_x_cod_arete == 2) {
                 $cadena = "and nro_arete=" . $this->comillar($this->cod_bovs) . " ";
             } else {

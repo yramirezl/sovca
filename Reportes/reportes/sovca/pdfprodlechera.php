@@ -51,6 +51,7 @@ require_once('../../lib/general/cabecera.php');
 require_once('../../lib/general/Herramientas.class.php');
 include_once('../../lib/utiles.php');
 include_once('../../lib/funciones.php');
+require_once('../../lib/animal_codigo_helper.php');
 
 #[\AllowDynamicProperties]
 class pdfreporte extends fpdf
@@ -518,14 +519,43 @@ class pdfreporte extends fpdf
         $codigo = trim((string)$codigo);
         if ($codigo === '') return 0;
 
-        $codigo = str_replace("'", "''", $codigo);
-        $sql    = "SELECT id FROM manimales
-                    WHERE mfundos_id = " . $this->mfundos_id . "
-                      AND codigo_rgb_id_animal = '" . $codigo . "'
-                    LIMIT 1;";
-        $rs = $this->bd->select($sql);
+        /* Código SOVCA escrito a mano: se prueban las variantes con distinto
+           relleno de ceros (SOVCA-005-199 vs SOVCA-05-0199) para no devolver
+           "sin datos" cuando el animal sí existe. */
+        $candidatos = bovs_codigos_candidatos($codigo, $this->mfundos_id);
+        $lista      = array();
+        foreach ($candidatos as $c) {
+            $lista[] = "'" . str_replace("'", "''", $c) . "'";
+        }
 
-        return (is_array($rs) && isset($rs[0]['id'])) ? intval($rs[0]['id']) : 0;
+        if (count($lista) > 0) {
+            $sql = "SELECT id FROM manimales
+                     WHERE mfundos_id = " . $this->mfundos_id . "
+                       AND codigo_rgb_id_animal IN (" . implode(',', $lista) . ")
+                     ORDER BY id
+                     LIMIT 1;";
+            $rs = $this->bd->select($sql);
+            if (is_array($rs) && isset($rs[0]['id'])) {
+                return intval($rs[0]['id']);
+            }
+        }
+
+        /* Último recurso: comparar el número final del código. */
+        $nro = bovs_numero_de_codigo($codigo);
+        if ($nro > 0) {
+            $sql = "SELECT id FROM manimales
+                     WHERE mfundos_id = " . $this->mfundos_id . "
+                       AND COALESCE(substring(codigo_rgb_id_animal from '([0-9]+)$'), '') <> ''
+                       AND substring(codigo_rgb_id_animal from '([0-9]+)$')::bigint = " . intval($nro) . "
+                     ORDER BY id
+                     LIMIT 1;";
+            $rs = $this->bd->select($sql);
+            if (is_array($rs) && isset($rs[0]['id'])) {
+                return intval($rs[0]['id']);
+            }
+        }
+
+        return 0;
     }
 
     /**

@@ -21,6 +21,7 @@ ini_set('log_errors', 1);
 @$potrero_origen      = isset($_POST['potrero_origen']) ? intval($_POST['potrero_origen']) : 0;
 @$lote_destino        = isset($_POST['lote_destino']) ? intval($_POST['lote_destino']) : 0;
 @$potrero_destino     = isset($_POST['potrero_destino']) ? intval($_POST['potrero_destino']) : 0;
+@$lote_filtro         = isset($_POST['lote_filtro']) ? intval($_POST['lote_filtro']) : 0;
 @$motivo              = isset($_POST['motivo']) ? $_POST['motivo'] : '';
 @$observaciones       = isset($_POST['observaciones']) ? $_POST['observaciones'] : '';
 @$animales_ids        = isset($_POST['animales_ids']) ? $_POST['animales_ids'] : '';
@@ -158,11 +159,16 @@ switch ($action) {
                 break;
             }
         } elseif ($tipo_movimiento === 'POTRERO') {
-            if ($potrero_origen <= 0 || $potrero_destino <= 0) {
-                echo json_encode(array('ok' => false, 'error' => 'Debe indicar potrero origen y destino.'));
+            if ($potrero_destino <= 0) {
+                echo json_encode(array('ok' => false, 'error' => 'Debe indicar el potrero destino.'));
                 break;
             }
-            if ($potrero_origen === $potrero_destino) {
+            /* El origen puede ser el potrero o el lote que entra al potrero */
+            if ($potrero_origen <= 0 && $lote_destino <= 0) {
+                echo json_encode(array('ok' => false, 'error' => 'Debe indicar el potrero de origen o el lote que entra al potrero.'));
+                break;
+            }
+            if ($potrero_origen > 0 && $potrero_origen === $potrero_destino) {
                 echo json_encode(array('ok' => false, 'error' => 'El potrero origen y destino no pueden ser iguales.'));
                 break;
             }
@@ -483,7 +489,14 @@ switch ($action) {
 
         $where = "WHERE a.status = 1 AND a.mfundos_id = {$mfundos_id} AND a.estatus_animal NOT IN (3, 5)";
 
-        if ($tipo_movimiento === 'LOTE' && $lote_origen > 0) {
+        /* Lote que entra al potrero: en modo POTRERO el usuario puede elegir
+           un lote que todavía no está en ese potrero, para asignarlo. En ese
+           caso se listan los animales del lote seleccionado. */
+        if ($lote_filtro > 0) {
+
+            $where .= " AND a.mlotes_id = {$lote_filtro}";
+
+        } elseif ($tipo_movimiento === 'LOTE' && $lote_origen > 0) {
             $where .= " AND a.mlotes_id = {$lote_origen}";
         } elseif ($tipo_movimiento === 'POTRERO' && $potrero_origen > 0) {
             $where .= " AND a.mpotreros_id = {$potrero_origen}";
@@ -499,10 +512,20 @@ switch ($action) {
             SELECT a.id, a.codigo_rgb_id_animal, a.nombre, a.sexo, a.nro_arete,
                    a.f_nacimiento, a.categoria_ingreso_id,
                    c.nombre AS categoria_nombre,
-                   l.nombre AS lote_nombre
+                   l.nombre AS lote_nombre,
+                   pe.peso  AS peso_actual
             FROM manimales a
             LEFT JOIN mcategorias c ON c.id = a.categoria_ingreso_id
             LEFT JOIN mlotes l ON l.id = a.mlotes_id
+            LEFT JOIN LATERAL (
+                SELECT cp.peso
+                  FROM mconsecutivopesos cp
+                 WHERE cp.codigo_rgb_id_animal = a.codigo_rgb_id_animal
+                   AND cp.status = 1
+                   AND cp.peso IS NOT NULL
+                 ORDER BY cp.fecha_pesaje DESC, cp.id DESC
+                 LIMIT 1
+            ) pe ON TRUE
             {$where}
             ORDER BY a.nombre ASC
         ");
@@ -525,7 +548,8 @@ switch ($action) {
                     'sexo'      => intval($rs->sexo) === 1 ? 'HEMBRA' : (intval($rs->sexo) === 2 ? 'MACHO' : '-'),
                     'categoria' => $rs->categoria_nombre ? $rs->categoria_nombre : 'Sin categoria',
                     'lote'      => $rs->lote_nombre ? $rs->lote_nombre : '-',
-                    'edad'      => $edad_txt
+                    'edad'      => $edad_txt,
+                    'peso'      => ($rs->peso_actual === null) ? null : floatval($rs->peso_actual)
                 );
             }
         }

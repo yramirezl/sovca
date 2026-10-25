@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/catalogo_fundo_helper.php';
 require_once '../models/Mcategoria.php';
 date_default_timezone_set( 'America/Caracas' );
 
@@ -597,6 +598,12 @@ switch ( $action ) {
     @$t_ganaderia = $_SESSION[ 'tipo_ganaderia' ];
 
     $mfundos_id = intval( $mfundos_id );
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
 
     $sexo_categoria = ( $_POST[ 'filtrar_x_sexo' ] );
     if ( $sexo_categoria != '' ) {
@@ -657,6 +664,12 @@ switch ( $action ) {
     @$rol = $_SESSION[ 'rolx' ];
 
     $mfundos_id = intval( $mfundos_id );
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
 
     $sexo_categoria = ( $_POST[ 'filtrar_x_sexo' ] );
     $categoria_ingreso = ( $_POST[ 'categoria_ingreso' ] );
@@ -750,6 +763,12 @@ switch ( $action ) {
         @$rol = $_SESSION[ 'rolx' ];
     
         $mfundos_id = intval( $mfundos_id );
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
     
         $sexo_categoria = ( $_POST[ 'filtrar_x_sexo' ] );
         $categoria_ingreso = ( $_POST[ 'filtrar_cat_actual' ] );

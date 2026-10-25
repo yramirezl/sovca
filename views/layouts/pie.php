@@ -171,5 +171,14 @@ if ($__tipo_g === 1) {
     <!-- Quita los <p></p> de relleno de los contenedores de mensajes (barras rojas
          vacías). La franja que cierra cada bloque la dibuja css/crud-form.css -->
     <script type="text/javascript" src="../../js/crud-mensajes.js?v=3"></script>
+    <!-- Diálogos: afirmar en verde y denegar en rojo (jquery-confirm) -->
+    <script type="text/javascript" src="../../js/bovs-confirm.js?v=1"></script>
+    <!-- Resalta los datos obligatorios que faltan al guardar (campos ms_*) -->
+    <script type="text/javascript" src="../../js/bovs-validacion.js?v=3"></script>
+    <!-- Ficha del animal: madre/padre externos y lista de campos pendientes -->
+    <script type="text/javascript" src="../../js/bovs-ficha-faltantes.js?v=3"></script>
+    <!-- Ajusta el alto del carrusel al hueco real de la ventana, para que el
+         pie de página se vea desde la primera carga sin desplazar. -->
+    <script type="text/javascript" src="../../js/ajuste-pantalla.js?v=1"></script>
   </body>
 </html>

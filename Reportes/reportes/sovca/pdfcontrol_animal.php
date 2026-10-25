@@ -53,6 +53,7 @@ require_once('../../lib/general/cabecera.php');
 require_once('../../lib/general/Herramientas.class.php');
 include_once('../../lib/utiles.php');
 include_once('../../lib/funciones.php');
+require_once('../../lib/animal_codigo_helper.php');
 
 #[\AllowDynamicProperties]
 class pdfreporte extends fpdf
@@ -235,22 +236,62 @@ class pdfreporte extends fpdf
     {
         if ($this->cod_bovs === '' || $this->mfundos_id <= 0) return null;
 
-        $valor = $this->sql_texto($this->cod_bovs);
-        if ($this->buscar_cod === 1) {
-            $condicion = "codigo_rgb_id_animal = '" . $valor . "'";
-        } else {
-            $condicion = "nro_arete = '" . $valor . "'";
-        }
+        $rs = null;
 
-        $sql = "SELECT id, codigo_rgb_id_animal,
-                       COALESCE(nro_arete, '') AS nro_arete,
-                       COALESCE(nombre, '') AS nombre
-                  FROM manimales
-                 WHERE mfundos_id = " . intval($this->mfundos_id) . "
-                   AND " . $condicion . "
-                 ORDER BY id
-                 LIMIT 1";
-        $rs = $this->bd->select($sql);
+        if ($this->buscar_cod === 1) {
+
+            /* Código SOVCA: el usuario puede escribirlo con ceros de más o de
+               menos (SOVCA-005-199 vs SOVCA-05-0199). Se prueban las variantes
+               EN ORDEN —la tal cual se escribió primero— y se corta al primer
+               acierto, para no confundir dos animales distintos. */
+            $candidatos = bovs_codigos_candidatos($this->cod_bovs, $this->mfundos_id);
+
+            foreach ($candidatos as $c) {
+                $sql = "SELECT id, codigo_rgb_id_animal,
+                               COALESCE(nro_arete, '') AS nro_arete,
+                               COALESCE(nombre, '') AS nombre
+                          FROM manimales
+                         WHERE mfundos_id = " . intval($this->mfundos_id) . "
+                           AND codigo_rgb_id_animal = '" . $this->sql_texto($c) . "'
+                         ORDER BY id
+                         LIMIT 1";
+                $rs = $this->bd->select($sql);
+                if ($rs && count($rs) > 0) {
+                    break;
+                }
+            }
+
+            /* Último recurso: comparar el número final del código.
+               Cubre cualquier relleno intermedio poco habitual. */
+            if (!$rs || count($rs) === 0) {
+                $nro = bovs_numero_de_codigo($this->cod_bovs);
+                if ($nro > 0) {
+                    $sql = "SELECT id, codigo_rgb_id_animal,
+                                   COALESCE(nro_arete, '') AS nro_arete,
+                                   COALESCE(nombre, '') AS nombre
+                              FROM manimales
+                             WHERE mfundos_id = " . intval($this->mfundos_id) . "
+                               AND COALESCE(substring(codigo_rgb_id_animal from '([0-9]+)$'), '') <> ''
+                               AND substring(codigo_rgb_id_animal from '([0-9]+)$')::bigint = " . intval($nro) . "
+                             ORDER BY id
+                             LIMIT 1";
+                    $rs = $this->bd->select($sql);
+                }
+            }
+
+        } else {
+
+            $valor = $this->sql_texto($this->cod_bovs);
+            $sql = "SELECT id, codigo_rgb_id_animal,
+                           COALESCE(nro_arete, '') AS nro_arete,
+                           COALESCE(nombre, '') AS nombre
+                      FROM manimales
+                     WHERE mfundos_id = " . intval($this->mfundos_id) . "
+                       AND nro_arete = '" . $valor . "'
+                     ORDER BY id
+                     LIMIT 1";
+            $rs = $this->bd->select($sql);
+        }
 
         if ($rs && count($rs) > 0) {
             return array(

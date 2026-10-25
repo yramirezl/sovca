@@ -1,5 +1,6 @@
 <?php
 require_once '../models/Mraza.php';
+require_once __DIR__ . '/../lib/catalogo_fundo_helper.php';
 date_default_timezone_set( 'America/Caracas' );
 
 @$action = ( $_POST[ 'action' ] );
@@ -398,24 +399,60 @@ switch ( $action ) {
 
     $mfundos_id = intval( $mfundos_id );
 
-    if ( !empty( $id_sesion ) && (( $rol == 1 )||( $rol == 4 ) ) ) {
-        //privilegios del programador y Supervisor
-
-        $data = Mraza::find_by_sql( 'select id,nombre from mrazas where status>0 order by id desc;' );
-
-    } else if ( !empty( $id_sesion ) && ( ( $rol == 2 ) || ( $rol == 3 ) ) ) {
-        $data = Mraza::find_by_sql( ' select id,UPPER(nombre) as nombre from mrazas where mtipoganaderias_id='.$t_ganaderia.' 
-                        and (mfundos_id='.$mfundos_id.' or mfundos_id=0) and status>0
-                        and UPPER(nombre) not in (select UPPER(nombre) from mrazas where mtipoganaderias_id='.$t_ganaderia.' and mfundos_id=0)
-                        order by nombre ASC;' );
-
+    /* Razas del FUNDO ACTIVO (o solo las globales si no hay fundo).
+       No se ramifica por rol: con un fundo en la sesión —incluido el MODO
+       SOPORTE— se ven las razas de ESE fundo + las globales; si no hay fundo
+       activo, solo las globales. Antes el rol 1/4 recibía las razas de TODOS
+       los fundos (listas enormes con nombres repetidos). */
+    if ( !empty( $id_sesion ) ) {
+        $data = Mraza::find_by_sql(
+            'select id, UPPER(nombre) as nombre, mfundos_id from mrazas
+              where status > 0'
+            . bovs_catalogo_sql_tipo() . bovs_catalogo_sql_fundo() .
+            ' order by nombre ASC;'
+        );
     }
 
     if ( $data != null ) {
         $resp = '<option value="">Indique la Raza</option>';
-        foreach ( $data as $rs ) {
-            $resp .= '<option value="'.$rs->id.'">'.$rs->nombre.'</option>';
-            $resp .= '<hidden>';
+
+        if ( $mfundos_id > 0 ) {
+            /* Se agrupan para no confundir las razas PROPIAS del fundo con
+               las GLOBALES cuando coinciden en nombre. NO se deduplica por
+               nombre: en un mismo fundo hay animales con raza del fundo y
+               animales con raza global, y el select tiene que poder mostrar
+               el id de cada uno. */
+            $propias  = array();
+            $globales = array();
+
+            foreach ( $data as $rs ) {
+                if ( intval( $rs->mfundos_id ) > 0 ) {
+                    $propias[] = $rs;
+                } else {
+                    $globales[] = $rs;
+                }
+            }
+
+            if ( count( $propias ) > 0 ) {
+                $resp .= '<optgroup label="Razas del fundo">';
+                foreach ( $propias as $rs ) {
+                    $resp .= '<option value="'.$rs->id.'">'.$rs->nombre.'</option>';
+                }
+                $resp .= '</optgroup>';
+            }
+
+            if ( count( $globales ) > 0 ) {
+                $resp .= '<optgroup label="Razas globales">';
+                foreach ( $globales as $rs ) {
+                    $resp .= '<option value="'.$rs->id.'">'.$rs->nombre.'</option>';
+                }
+                $resp .= '</optgroup>';
+            }
+
+        } else {
+            foreach ( $data as $rs ) {
+                $resp .= '<option value="'.$rs->id.'">'.$rs->nombre.'</option>';
+            }
         }
 
     } else {

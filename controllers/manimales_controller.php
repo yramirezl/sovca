@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/especie_helper.php';
 require_once '../models/Manimale.php';
 require_once '../models/Manimalxfundo.php';
 require_once '../models/Mcategoria.php';
@@ -292,7 +293,7 @@ switch ($action) {
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                 La Edad de la VACA no puede ser Menor de 24 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
+                 La Edad de la ' . bovs_especie_hembra(false, 'upper') . ' no puede ser Menor de 24 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
                   </div>');
                     } else {
 

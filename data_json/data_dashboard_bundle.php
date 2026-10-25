@@ -31,7 +31,22 @@ $mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) :
 $desde = (!empty($_GET['desde'])) ? $_GET['desde'] : date('Y-m-01');
 $hasta = (!empty($_GET['hasta'])) ? $_GET['hasta'] : date('Y-m-d');
 
+/* Días del período (inclusivo), para que las gráficas puedan avisar si el
+   valor es ACUMULADO y sobre qué ventana de fechas se midió. */
+$bovs_ts_desde = strtotime($desde);
+$bovs_ts_hasta = strtotime($hasta);
+$bovs_dias_per = ($bovs_ts_desde && $bovs_ts_hasta && $bovs_ts_hasta >= $bovs_ts_desde)
+    ? (int)round(($bovs_ts_hasta - $bovs_ts_desde) / 86400) + 1
+    : 1;
+
 $out = array(
+    'meta' => array(
+        'desde'     => $desde,
+        'hasta'     => $hasta,
+        'desde_txt' => $bovs_ts_desde ? date('d-m-Y', $bovs_ts_desde) : $desde,
+        'hasta_txt' => $bovs_ts_hasta ? date('d-m-Y', $bovs_ts_hasta) : $hasta,
+        'dias'      => ($bovs_dias_per > 0) ? $bovs_dias_per : 1
+    ),
     'prod_leche'  => array(),
     'nacimientos' => array(),
     'top_vacas'   => array(),
@@ -95,14 +110,17 @@ if ($data != null && count($data) > 0) {
 }
 
 /* ============================================================
-   3. TOP 10 VACAS PRODUCTORAS
+   3. TOP 10 HEMBRAS PRODUCTORAS (ovejas, cabras o ambas según el fundo)
    ============================================================ */
 $data = Mprolechera::find_by_sql("
     SELECT
         NULLIF(TRIM(m.nombre), '')    AS nombre,
         NULLIF(TRIM(m.nro_arete), '') AS arete,
         m.codigo_rgb_id_animal        AS codigo,
-        SUM(p.cantidad_leche_m + p.cantidad_leche_t) AS total
+        SUM(p.cantidad_leche_m + p.cantidad_leche_t) AS total,
+        COUNT(DISTINCT p.fecha_produccion::date)     AS dias,
+        COUNT(*)                                     AS registros,
+        SUM(SUM(p.cantidad_leche_m + p.cantidad_leche_t)) OVER () AS total_hato
     FROM mprolecheras p
     INNER JOIN manimales m
         ON m.codigo_rgb_id_animal = p.codigo_rgb_id_animal_hembra
@@ -123,15 +141,31 @@ if ($data != null && count($data) > 0) {
             $identificador = $arete !== '' ? 'arete ' . $arete : $rs->codigo;
             $nombre_final = 'Sin nombre (' . $identificador . ')';
         }
+
+        /* Medición que se le explica al productor en el tooltip:
+           total ACUMULADO del período, días con ordeño, nº de ordeños,
+           promedio por día y participación sobre la leche del hato. */
+        $bovs_total_vaca = floatval($rs->total);
+        $bovs_dias_vaca  = intval($rs->dias);
+        $bovs_total_hato = floatval($rs->total_hato);
+
         $out['top_vacas'][] = array(
-            "nombre" => $nombre_final,
-            "arete"  => $arete,
-            "codigo" => $rs->codigo,
-            "total"  => floatval($rs->total)
+            "nombre"     => $nombre_final,
+            "arete"      => $arete,
+            "codigo"     => $rs->codigo,
+            "total"      => round($bovs_total_vaca, 2),
+            "dias"       => $bovs_dias_vaca,
+            "registros"  => intval($rs->registros),
+            "promedio"   => ($bovs_dias_vaca > 0) ? round($bovs_total_vaca / $bovs_dias_vaca, 2) : 0,
+            "total_hato" => round($bovs_total_hato, 2),
+            "porcentaje" => ($bovs_total_hato > 0) ? round($bovs_total_vaca * 100 / $bovs_total_hato, 1) : 0
         );
     }
 } else {
-    $out['top_vacas'][] = array("nombre" => "Sin datos", "arete" => "", "codigo" => "", "total" => 0);
+    $out['top_vacas'][] = array(
+        "nombre" => "Sin datos", "arete" => "", "codigo" => "", "total" => 0,
+        "dias" => 0, "registros" => 0, "promedio" => 0, "total_hato" => 0, "porcentaje" => 0
+    );
 }
 
 /* ============================================================

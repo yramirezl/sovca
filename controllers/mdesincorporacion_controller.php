@@ -155,7 +155,18 @@ switch ($action) {
                 $conexion->transaction();
 
                 try {
-                    $reg_desincorporacion = new Mdesincorporacionanimale();
+                    if ($baja_previa) {
+                        /* Se reutiliza el registro anulado: no se tocan
+                           created ni user_create (histórico original). */
+                        $reg_desincorporacion = Mdesincorporacionanimale::find($baja_previa->id);
+                        $reg_desincorporacion->status = 1;
+                        $reg_desincorporacion->user_modify = $usuario_id;
+                        $reg_desincorporacion->updated = $hoy;
+                    } else {
+                        $reg_desincorporacion = new Mdesincorporacionanimale();
+                        $reg_desincorporacion->user_create = $usuario_id;
+                        $reg_desincorporacion->created = $hoy;
+                    }
 
                     $reg_desincorporacion->codigo_rgb_id_animal = $cod_animal;
                     $reg_desincorporacion->tipo_desincorporacion = $tipo_des;
@@ -165,8 +176,6 @@ switch ($action) {
                     $reg_desincorporacion->causa_descarte = $causa_descarte_animal;
                     $reg_desincorporacion->causa_mortalidad = $causa_mortalidad_animal;
                     $reg_desincorporacion->observaciones = $observaciones;
-                    $reg_desincorporacion->user_create = $usuario_id;
-                    $reg_desincorporacion->created = $hoy;
 
                     // Estado que tenía el animal antes de la baja: se usa para
                     // devolverlo exactamente a ese estado cuando se anule.
@@ -190,7 +199,20 @@ switch ($action) {
                     $respuesta = respuesta_alerta('Los datos han sido registrados exitosamente.', 'success');
                 } catch (Throwable $e) {
                     $conexion->rollback();
-                    $respuesta = respuesta_alerta('Error al registrar los datos: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'), 'danger');
+
+                    /* El detalle técnico va al log; al usuario se le muestra
+                       un mensaje entendible (antes se volcaba el SQL completo). */
+                    error_log('[desincorporacion] add ' . $cod_animal . ': ' . $e->getMessage());
+
+                    $detalle = $e->getMessage();
+                    if (stripos($detalle, 'duplicate key') !== false || strpos($detalle, '23505') !== false) {
+                        $texto_error = 'El animal <strong>' . htmlspecialchars($cod_animal, ENT_QUOTES, 'UTF-8') . '</strong> ya tiene un registro de desincorporación en el sistema.'
+                            . ' Anule ese registro en el listado y vuelva a intentarlo.';
+                    } else {
+                        $texto_error = 'No se pudo registrar la desincorporación. Inténtelo de nuevo; si el problema continúa, contacte al administrador.';
+                    }
+
+                    $respuesta = respuesta_alerta($texto_error, 'danger');
                 }
 
             }

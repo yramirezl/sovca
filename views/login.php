@@ -57,8 +57,9 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     html,
     body.login-page {
-      background-color: #ebf5ee !important;
-      background-image: radial-gradient(circle at 50% 50%, #f4fbf6 0%, #dbe9df 100%) !important;
+      /* Paleta SOVCA: crema + marrón + naranja oscuro (cría ovina y caprina) */
+      background-color: #F6F0E7 !important;
+      background-image: radial-gradient(circle at 50% 50%, #FDF8F1 0%, #E7DAC8 100%) !important;
       min-height: 100vh !important;
       margin: 0 !important;
       padding: 0 !important;
@@ -83,7 +84,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       height: 520px;
       top: -180px;
       right: -160px;
-      background: radial-gradient(circle, rgba(35, 78, 53, 0.08) 0%, rgba(35, 78, 53, 0) 70%);
+      background: radial-gradient(circle, rgba(139, 90, 56, 0.12) 0%, rgba(139, 90, 56, 0) 70%);
     }
 
     body.login-page::after {
@@ -91,7 +92,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       height: 620px;
       bottom: -260px;
       left: -220px;
-      background: radial-gradient(circle, rgba(40, 167, 69, 0.08) 0%, rgba(40, 167, 69, 0) 70%);
+      background: radial-gradient(circle, rgba(31, 91, 51, 0.10) 0%, rgba(31, 91, 51, 0) 70%);
     }
 
     /* ============================================================
@@ -123,40 +124,39 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        CARD DE LOGIN
        ============================================================ */
     .login-card {
-      /* Marco degradado en los 4 lados: verde claro al centro de cada
-         lado y verde oscuro hacia los extremos/esquinas (de los bordes
-         hacia el centro). Se logra con un borde transparente + doble
-         fondo (blanco en padding-box y el degradado cónico en
-         border-box), así el marco respeta el border-radius sin cortes
-         en las esquinas. */
+      /* Marco degradado en los 4 lados: alterna el verde de la marca
+         con el marrón y el naranja oscuro de la cría ovina y caprina.
+         Se logra con un borde transparente + doble fondo (blanco en
+         padding-box y el degradado cónico en border-box), así el marco
+         respeta el border-radius sin cortes en las esquinas. */
       border: 4px solid transparent !important;
       border-radius: 20px !important;
       background:
         linear-gradient(#ffffff, #ffffff) padding-box,
         conic-gradient(from 0deg at 50% 50%,
-          #7fd07a 0deg,
-          #2f8f4a 22.5deg,
-          #1f6f43 45deg,
-          #2f8f4a 67.5deg,
-          #7fd07a 90deg,
-          #2f8f4a 112.5deg,
-          #1f6f43 135deg,
-          #2f8f4a 157.5deg,
-          #7fd07a 180deg,
-          #2f8f4a 202.5deg,
-          #1f6f43 225deg,
-          #2f8f4a 247.5deg,
-          #7fd07a 270deg,
-          #2f8f4a 292.5deg,
-          #1f6f43 315deg,
-          #2f8f4a 337.5deg,
-          #7fd07a 360deg) border-box !important;
+          #1F5B33 0deg,
+          #8A5A38 22.5deg,
+          #C2610C 45deg,
+          #8A5A38 67.5deg,
+          #1F5B33 90deg,
+          #8A5A38 112.5deg,
+          #C2610C 135deg,
+          #8A5A38 157.5deg,
+          #1F5B33 180deg,
+          #8A5A38 202.5deg,
+          #C2610C 225deg,
+          #8A5A38 247.5deg,
+          #1F5B33 270deg,
+          #8A5A38 292.5deg,
+          #C2610C 315deg,
+          #8A5A38 337.5deg,
+          #1F5B33 360deg) border-box !important;
       /* Halo suave exterior + sombra de elevación */
       box-shadow:
         0 0 0 5px rgba(255, 255, 255, 0.85),
-        0 0 0 7px rgba(35, 78, 53, 0.10),
-        0 18px 44px rgba(20, 50, 32, 0.14),
-        0 6px 16px rgba(20, 50, 32, 0.07) !important;
+        0 0 0 7px rgba(31, 91, 51, 0.12),
+        0 18px 44px rgba(59, 36, 18, 0.16),
+        0 6px 16px rgba(59, 36, 18, 0.08) !important;
       padding: 30px 32px 22px !important;
       position: relative !important;
       overflow: hidden !important;
@@ -183,7 +183,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 160px;
       height: 160px;
       border-radius: 50%;
-      background: rgba(35, 78, 53, 0.05);
+      background: rgba(91, 58, 30, 0.06);
       pointer-events: none;
     }
 
@@ -195,7 +195,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 180px;
       height: 180px;
       border-radius: 50%;
-      background: rgba(35, 78, 53, 0.05);
+      background: rgba(91, 58, 30, 0.06);
       pointer-events: none;
     }
 
@@ -220,7 +220,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     .login-title {
       margin: 0 !important;
       font-weight: 800 !important;
-      color: #1b3a24 !important;
+      /* Verde de la marca: enlaza con el logo y con el marco */
+      color: #1F5B33 !important;
       font-size: 26px !important;
       letter-spacing: 3px !important;
       text-align: center !important;
@@ -232,15 +233,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       display: inline-block !important;
       margin-top: 4px !important;
       padding: 5px 16px !important;
-      background: #e8f5e9 !important;
-      color: #1b5e20 !important;
+      background: #EAF2E9 !important;
+      color: #2F6B3F !important;
       font-size: 11px !important;
       font-weight: 800 !important;
       border-radius: 20px !important;
       letter-spacing: 1px !important;
       text-transform: uppercase !important;
-      border: 1px solid #c8e6c9 !important;
-      box-shadow: 0 2px 8px rgba(35, 78, 53, 0.08) !important;
+      border: 1px solid #C3D9C6 !important;
+      box-shadow: 0 2px 8px rgba(31, 91, 51, 0.10) !important;
     }
 
     .login-title-wrap {
@@ -259,12 +260,12 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: fit-content;
       gap: 7px;
       padding: 4px 12px 4px 10px;
-      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-      border: 1px solid #6ee7b7;
+      background: linear-gradient(135deg, #EDF4EC 0%, #D8EAD6 100%);
+      border: 1px solid #A9CDA9;
       border-radius: 20px;
       font-size: 10.5px;
       font-weight: 800;
-      color: #065f46;
+      color: #1F5B33;
       letter-spacing: .6px;
       text-transform: uppercase;
       position: relative;
@@ -274,22 +275,22 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     .login-chip .live-dot {
       width: 8px;
       height: 8px;
-      background: #10b981;
+      background: #3E8E52;
       border-radius: 50%;
       animation: livePulse 1.6s infinite;
     }
 
     @keyframes livePulse {
       0% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75);
+        box-shadow: 0 0 0 0 rgba(62, 142, 82, 0.75);
       }
 
       70% {
-        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+        box-shadow: 0 0 0 10px rgba(62, 142, 82, 0);
       }
 
       100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        box-shadow: 0 0 0 0 rgba(62, 142, 82, 0);
       }
     }
 
@@ -327,7 +328,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       gap: 7px;
       font-size: 11.5px !important;
       font-weight: 800 !important;
-      color: #14432a !important;
+      color: #1F5B33 !important;
       letter-spacing: 1.15px !important;
       margin-bottom: 8px !important;
       padding-bottom: 5px;
@@ -339,8 +340,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #2f8f4a 0%, #7fd07a 100%);
-      box-shadow: 0 0 0 3px rgba(47, 143, 74, 0.14);
+      background: linear-gradient(135deg, #C2610C 0%, #E7A23C 100%);
+      box-shadow: 0 0 0 3px rgba(194, 97, 12, 0.16);
       flex-shrink: 0;
     }
 
@@ -352,7 +353,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 100%;
       height: 2px;
       border-radius: 2px;
-      background: linear-gradient(90deg, rgba(47, 143, 74, 0.55) 0%, rgba(127, 208, 122, 0) 100%);
+      background: linear-gradient(90deg, rgba(31, 91, 51, 0.55) 0%, rgba(31, 91, 51, 0) 100%);
     }
 
     .input-wrap {
@@ -363,9 +364,9 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 100%;
       height: 44px;
       border-radius: 10px;
-      border: 1px solid #cbdcd2;
-      background: #f8fbf9;
-      box-shadow: inset 0 1px 2px rgba(20, 50, 32, 0.04);
+      border: 1px solid #E2D3C0;
+      background: #FCF8F2;
+      box-shadow: inset 0 1px 2px rgba(59, 36, 18, 0.05);
       font-family: inherit;
       font-size: 14px;
       color: #0f172a;
@@ -376,8 +377,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     }
 
     .input-wrap .form-control:focus {
-      border-color: #234e35;
-      box-shadow: 0 0 0 3px rgba(35, 78, 53, 0.14);
+      border-color: #2F6B3F;
+      box-shadow: 0 0 0 3px rgba(47, 107, 63, 0.16);
       background: #ffffff;
     }
 
@@ -403,7 +404,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     }
 
     .input-wrap .form-control:focus~.input-icon {
-      color: #234e35;
+      color: #2F6B3F;
     }
 
     .btn-eye {
@@ -424,8 +425,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .btn-eye:hover,
     .btn-eye:focus {
-      background: #eef4ef;
-      color: #234e35;
+      background: #EDF3EA;
+      color: #2F6B3F;
       outline: none;
     }
 
@@ -469,10 +470,10 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       justify-content: center;
       gap: 8px;
       padding: 0 16px;
-      background: linear-gradient(135deg, #eef7f1 0%, #d9ecdf 100%);
-      border: 1px solid #b8d8c4;
+      background: linear-gradient(135deg, #FBF3E7 0%, #F0E1CB 100%);
+      border: 1px solid #DFC8A6;
       border-radius: 10px;
-      color: #1b3a24;
+      color: #3B2412;
       font-size: 17px;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
@@ -490,7 +491,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       position: absolute;
       inset: 0;
       background-image:
-        radial-gradient(circle at 20% 30%, rgba(35, 78, 53, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 20% 30%, rgba(91, 58, 30, 0.10) 0%, transparent 40%),
         radial-gradient(circle at 80% 70%, rgba(217, 63, 63, 0.06) 0%, transparent 40%);
       pointer-events: none;
     }
@@ -533,7 +534,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      color: #2c6e46;
+      /* Acento naranja: el enlace secundario del formulario */
+      color: #C2610C;
       font-size: 11.5px;
       font-weight: 700;
       letter-spacing: .2px;
@@ -549,8 +551,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .olvide-link:hover,
     .olvide-link:focus {
-      background: #eef6f0;
-      color: #1b5e20;
+      background: #FDF1E1;
+      color: #8A4B12;
       text-decoration: none;
     }
 
@@ -579,19 +581,19 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     }
 
     .cap-refresh:hover {
-      background: #eef4ef;
-      color: #234e35;
+      background: #EDF3EA;
+      color: #2F6B3F;
     }
 
     .cap-refresh:focus-visible {
-      background: #eef4ef;
-      color: #234e35;
+      background: #EDF3EA;
+      color: #2F6B3F;
       outline: none;
-      box-shadow: 0 0 0 2px rgba(44, 138, 86, .35);
+      box-shadow: 0 0 0 2px rgba(47, 107, 63, .35);
     }
 
     .cap-refresh.girando {
-      color: #234e35;
+      color: #2F6B3F;
     }
 
     .cap-refresh.girando i {
@@ -619,7 +621,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       width: 100%;
       height: 48px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #2c5a3f 0%, #1b3a24 100%);
+      /* Verde de la marca → marrón cuero: ovino y caprino en un solo gesto */
+      background: linear-gradient(135deg, #2F7A46 0%, #8A5A38 100%);
       border: none;
       color: #fff;
       font-family: inherit;
@@ -628,8 +631,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       letter-spacing: 1.5px;
       text-transform: uppercase;
       cursor: pointer;
-      transition: transform .15s, box-shadow .25s;
-      box-shadow: 0 6px 18px rgba(35, 78, 53, 0.35);
+      transition: transform .15s, box-shadow .25s, background .25s;
+      box-shadow: 0 6px 18px rgba(47, 107, 63, 0.32);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -656,7 +659,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .btn-login:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 26px rgba(35, 78, 53, 0.48);
+      background: linear-gradient(135deg, #3A8C52 0%, #A4632A 100%);
+      box-shadow: 0 10px 26px rgba(47, 107, 63, 0.45);
       color: #fff;
     }
 
@@ -697,7 +701,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       border: none;
       border-radius: 8px;
       background: transparent;
-      color: #442710;
+      color: #B45309;
       font-family: inherit;
       font-size: 12px;
       font-weight: 800;
@@ -716,7 +720,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .btn-demo-login:hover,
     .btn-demo-login:focus {
-      color: #4a2d13;
+      color: #8A4B12;
       background: rgba(201, 151, 31, .12);
       text-decoration: none;
     }
@@ -732,7 +736,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       text-align: center;
       font-size: 10px;
       font-weight: 600;
-      color: #a08b6f;
+      color: #C2610C;
       letter-spacing: .3px;
       margin-top: 5px;
     }
@@ -796,7 +800,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        ============================================================ */
     .offline-status {
       font-size: 11px;
-      color: #052913;
+      color: #B45309;
       margin-top: 12px;
       text-align: center;
       position: relative;
@@ -811,7 +815,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     }
 
     .offline-trigger button {
-      color: #c0560f;
+      color: #C2610C;
       font-size: 13px;
       background: none;
       border: none;
@@ -835,7 +839,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     .login-footer {
       margin-top: 16px;
       padding-top: 12px;
-      border-top: 1px solid #eef2ee;
+      border-top: 1px solid #E7DBCD;
       text-align: center;
       font-size: 10.5px;
       font-weight: 600;
@@ -847,7 +851,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     }
 
     .login-footer .version {
-      color: #234e35;
+      /* Naranja oscuro: remate de la tarjeta */
+      color: #C2610C;
       font-weight: 800;
     }
 
@@ -1195,7 +1200,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         </div>
 
         <div class="login-title-wrap">
-          <span class="sub-title-badge">Gestión Ganadera</span>
+          <span class="sub-title-badge">Gestión Ovina y Caprina</span>
         </div>
 
         <div class="login-chip">
@@ -1379,7 +1384,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     style="display:none; position:fixed; left:0; right:0; top:0; bottom:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:1000; padding:16px; overflow-y:auto;">
     <div
       style="background:#fff; width:100%; max-width:420px; margin:auto; padding:18px; border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.2); max-height:calc(100vh - 32px); overflow-y:auto;">
-      <h4 style="margin-top:0; color:#234e35;">USAR ESTE DISPOSITIVO PARA MANEJAR EN MODO OFFLINE</h4>
+      <h4 style="margin-top:0; color:#5B3A1E;">USAR ESTE DISPOSITIVO PARA MANEJAR EN MODO OFFLINE</h4>
       <p style="color:#5a5a5a;">Se instalará la versión offline y se descargarán los datos asociados a tu usuario. Debes
         ingresar tus credenciales para autorizar la precarga.</p>
       <form id="offline-install-form">
@@ -1419,9 +1424,9 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         <div id="offline-progress" style="display:none; margin-top:8px;">
           <div style="background:#e9ecef;border-radius:6px;overflow:hidden;height:12px;">
             <div id="offline-progress-bar"
-              style="width:0%; height:12px; background:linear-gradient(90deg,#2f8f4a,#7fd07a);"></div>
+              style="width:0%; height:12px; background:linear-gradient(90deg,#B45309,#E7A23C);"></div>
           </div>
-          <p id="offline-progress-text" style="font-size:13px;color:#234e35;margin-top:6px;">Preparando...</p>
+          <p id="offline-progress-text" style="font-size:13px;color:#5B3A1E;margin-top:6px;">Preparando...</p>
         </div>
         <div style="text-align:right; margin-top:8px;">
           <button type="button" id="offline-cancel" class="btn btn-default">Cancelar</button>
@@ -1620,10 +1625,10 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         var elAutofocus = document.getElementById(autofocusTarget.replace(/'/g, ''));
         if (elAutofocus) setTimeout(function () { elAutofocus.focus(); }, 400);
 
-        // Auto-redirect cada 1 hora
+        // Auto-redirect cada 12 horas
         setTimeout(function () {
           window.location.href = 'https://global.ruted.net/';
-        }, 3600000);
+        }, 43200000);
 
         // ---------- OFFLINE ----------
         actualizarModoOffline();

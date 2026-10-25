@@ -271,10 +271,10 @@ $segundosRestantes = $resetExpira > 0 ? max(0, $resetExpira - time()) : 0;
 
       <div class="cred-logo">
         <a href="../login" style="text-decoration:none;">
-          <img src="../../dist/img/logo_sirelog_bovs.png" alt="BOVS">
+          <img src="../../dist/img/sovca.png" alt="SOVCA">
         </a>
       </div>
-      <span class="cred-badge">Gestión Ganadera</span>
+      <span class="cred-badge">Gestión Ovina y Caprina</span>
 
       <h1 class="cred-title">Nueva contraseña</h1>
       <p class="cred-sub">
@@ -382,7 +382,7 @@ $segundosRestantes = $resetExpira > 0 ? max(0, $resetExpira - time()) : 0;
         </a>
       </div>
 
-      <div class="cred-version">BOVS · © <?= date('Y') ?> Global-BOVS</div>
+      <div class="cred-version">SOVCA · © <?= date('Y') ?> Global-SOVCA</div>
     </div>
   </div>
 

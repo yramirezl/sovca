@@ -13,6 +13,7 @@ $data = Mpotrero::find_by_sql("
         p.nombre,
         p.descripcion,
         p.hectareas,
+        p.aforo,
         p.capacidad_maxima,
         p.tipo_pasto,
         (SELECT COUNT(*) FROM manimales a
@@ -30,6 +31,8 @@ if (is_array($data)) {
             'nombre'            => $rs->nombre,
             'descripcion'       => $rs->descripcion,
             'hectareas'         => $rs->hectareas,
+            'aforo'             => $rs->aforo,
+            'forraje_total'     => round(floatval($rs->aforo) * floatval($rs->hectareas), 2),
             'capacidad_maxima'  => $rs->capacidad_maxima,
             'tipo_pasto'        => $rs->tipo_pasto,
             'cantidad_animales' => intval($rs->cantidad_animales)

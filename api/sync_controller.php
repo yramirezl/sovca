@@ -452,10 +452,24 @@ function procesar_cambio(array $cambio, array $config, string $modeloClase, arra
 
     } catch (\Throwable $e) {
         error_log('[SYNC PUSH] ' . $e->getMessage());
+
+        /* El SQL nunca se le muestra al usuario: se traduce a algo que se
+           pueda accionar en el equipo. */
+        $mensaje = $e->getMessage();
+        $amigable = '';
+
+        if (preg_match('/null value in column "([a-z_]+)"/i', $mensaje, $m)) {
+            $amigable = 'Falta un dato obligatorio («' . $m[1] . '»). Complete la ficha en el sistema y vuelva a sincronizar.';
+        } elseif (preg_match('/duplicate key/i', $mensaje) || strpos($mensaje, '23505') !== false) {
+            $amigable = 'Este registro ya existe en el sistema. Revise si quedó duplicado en el equipo.';
+        } elseif (stripos($mensaje, 'SQLSTATE') !== false) {
+            $amigable = 'El servidor no pudo guardar este registro. Revise los datos en el equipo y vuelva a sincronizar; si persiste, contacte al administrador.';
+        }
+
         return [
             'uuid_local' => $uuid,
             'resultado' => 'error',
-            'mensaje' => 'No se pudo procesar el cambio: ' . $e->getMessage(),
+            'mensaje' => $amigable !== '' ? $amigable : 'No se pudo procesar el cambio: ' . $mensaje,
         ];
     }
 }
@@ -846,6 +860,7 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
 
     completar_textos_obligatorios($datos, $config['campos_texto_obligatorios_bd']);
     completar_valores_por_defecto($datos, $config['valores_por_defecto'] ?? []);
+    completar_enteros_con_defecto($datos, $config['enteros_con_defecto'] ?? []);
 
     $nacimientoFicha = null;
     if (($config['tabla'] ?? '') === 'manimales' && !empty($datos['codigo_ternero'])) {
@@ -1019,6 +1034,7 @@ function crear_registro_servicio(string $uuid, array $cambio, array $config, str
     }
 
     completar_textos_obligatorios($datos, $config['campos_texto_obligatorios_bd']);
+    completar_enteros_con_defecto($datos, $config['enteros_con_defecto'] ?? []);
 
     $conexion = Musuario::connection();
 
@@ -1355,6 +1371,7 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
 
     completar_textos_obligatorios($datos, $config['campos_texto_obligatorios_bd']);
     completar_valores_por_defecto($datos, $config['valores_por_defecto'] ?? []);
+    completar_enteros_con_defecto($datos, $config['enteros_con_defecto'] ?? []);
 
     $conexion = Musuario::connection();
 
@@ -2865,6 +2882,48 @@ function completar_valores_por_defecto(array &$datos, array $defaults): void
     }
 }
 
+/**
+ * Rellena con 0 los enteros que la tabla declara NOT NULL y que no tienen
+ * default, cuando el cliente no los manda o los manda en null.
+ *
+ * Es el caso de `aptitud`, `mrazas_id` y `servicio`: en JavaScript
+ * Number('') / Number(undefined) dan NaN, que JSON.stringify convierte en
+ * null, y Postgres rechazaba el INSERT con
+ * "null value in column ... violates not-null constraint".
+ *
+ * Se usa SOLO al crear: al editar hay que respetar lo que ya está guardado
+ * (ver limpiar_enteros_nulos()).
+ */
+function completar_enteros_con_defecto(array &$datos, array $defaults): void
+{
+    foreach ($defaults as $campo => $valorDefault) {
+        if (!array_key_exists($campo, $datos) || $datos[$campo] === null || $datos[$campo] === '') {
+            $datos[$campo] = $valorDefault;
+        } else {
+            $datos[$campo] = (int) $datos[$campo];
+        }
+    }
+}
+
+/**
+ * Igual que completar_enteros_con_defecto() pero para las EDICIONES: un
+ * campo que llega en null o vacío simplemente se OMITE, no se pisa con 0
+ * el valor que ya está guardado en la base.
+ */
+function limpiar_enteros_nulos(array &$datos, array $campos): void
+{
+    foreach ($campos as $campo => $_) {
+        if (!array_key_exists($campo, $datos)) {
+            continue;
+        }
+        if ($datos[$campo] === null || $datos[$campo] === '') {
+            unset($datos[$campo]);
+        } else {
+            $datos[$campo] = (int) $datos[$campo];
+        }
+    }
+}
+
 function actualizar_registro($existente, array $cambio, array $config, array $usuario): array
 {
     $uuid = $existente->uuid_local;
@@ -2895,6 +2954,7 @@ function actualizar_registro($existente, array $cambio, array $config, array $us
     }
 
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
+    limpiar_enteros_nulos($datos, $config['enteros_con_defecto'] ?? []);
 
     // Al editar también se controla el duplicado por animal + fecha
     // (por ejemplo, mover un pesaje a un día que ya tiene otro).

@@ -828,3 +828,100 @@
   left: 17px;
   width: 10px;
 }
+
+/* ============================================================
+   LAYOUT A PANTALLA COMPLETA — el pie se ve en la primera carga
+   ------------------------------------------------------------
+   AdminLTE deja el pie FUERA del área visible: .content-wrapper
+   tiene min-height:100%, de modo que la página siempre mide algo
+   más que la ventana y hay que desplazarse para ver el pie.
+
+   Aquí .wrapper pasa a ser una COLUMNA FLEX de la altura de la
+   ventana:  cabecera (alto fijo) + contenido (flexible) + pie
+   (alto fijo). El contenido se estira para ocupar el hueco libre,
+   así el pie queda pegado al borde inferior y se ve al entrar.
+   Si el contenido es más alto que la ventana, el pie se mantiene
+   a la vista (sticky) mientras se desplaza el resto.
+   ============================================================ */
+html,
+body {
+  height: 100%;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* AdminLTE trae overflow:hidden!important; eso rompe position:sticky
+     en los descendientes y recorta el contenido. body ya tiene
+     overflow-x:hidden, así que aquí no hace falta. */
+  overflow: visible !important;
+}
+
+/* AdminLTE los usa para limpiar floats; con flex ya no hacen falta
+   y crearían dos items vacíos dentro de la columna. */
+.wrapper::before,
+.wrapper::after {
+  display: none;
+}
+
+/* La cabecera conserva su alto natural */
+.main-header {
+  flex: 0 0 auto;
+}
+
+/* El contenido ocupa todo el hueco libre. min-height:0 permite que
+   el item encoja dentro de la ventana en lugar de desbordarla. */
+.content-wrapper,
+.right-side {
+  flex: 1 1 auto;
+  min-height: 0 !important;
+}
+
+/* El área de contenido también se estira (sigue siendo un bloque
+   normal, así las .row y los floats internos no cambian). */
+.content-wrapper > .content,
+.right-side > .content {
+  flex: 1 1 auto;
+}
+
+/* El pie nunca se pierde de vista y sigue al menú lateral.
+   El margin-left lo aporta el propio .pie-footer (--bovs-sidebar-w). */
+.pie-footer {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1020;
+}
+
+/* El menú lateral debe cubrir toda la altura de la ventana aunque
+   el contenido sea corto (con flex el wrapper ya no crece solo).
+   Se le pone un tope de altura con scroll interno: al quitar el
+   overflow:hidden del .wrapper, un menú (o el banner publicitario
+   del menú) más alto que la ventana alargaba la página y volvía a
+   esconder el pie. */
+@media (min-width: 768px) {
+  .skin-green-light .main-sidebar,
+  .skin-green-light .left-side {
+    min-height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+/* En móvil el menú está fuera de pantalla, pero su altura seguía
+   alargando el documento y obligaba a desplazarse. Se le pone el
+   mismo tope; al abrirlo, el menú scrollea por dentro. */
+@media (max-width: 767px) {
+  .skin-green-light .main-sidebar,
+  .skin-green-light .left-side {
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+/* Con el pie fijo, un pequeño respiro al final del contenido para
+   que la última fila de una tabla no quede oculta tras él. */
+.pie-footer ~ * {
+  scroll-margin-bottom: 70px;
+}

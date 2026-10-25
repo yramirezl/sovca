@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/especie_helper.php';
 // error_reporting(E_ALL);
 // ini_set('display_errors', '1');
 require_once '../models/Mregnacimiento.php';
@@ -61,6 +62,9 @@ function construirGruposUnificacionNacimiento($mfundos_id)
             n.nro_parto, n.mregservicios_id, n.fichado,
             n.estatus_nacido, n.mestatus_id, n.status,
             n.sexo, n.peso_nacimiento, n.aptitud,
+            /* created/user_create los usa la unificación al reconstruir el
+               detalle de crías de un registro que no lo tenía. */
+            n.created, n.user_create,
             COALESCE(crias.cantidad, 0) AS cantidad_terneros,
             COALESCE(crias.ids_terneros, '[]') AS ids_terneros
        FROM public.mregnacimientos n
@@ -80,6 +84,20 @@ function construirGruposUnificacionNacimiento($mfundos_id)
         AND n.mestatus_id = 1
         AND n.f_parto IS NOT NULL
         AND BTRIM(n.codigo_rgb_id_animal_hembra) <> ''
+        /* Mismas condiciones que la vista Vmregnacimientos que alimenta el
+           listado: si la hembra no está vigente o el tipo de servicio no
+           existe, el registro NO se ve en pantalla, así que tampoco debe
+           ofrecerse para unificar (caso MA-063-0105: mtiposervicios_id = 0). */
+        AND EXISTS (
+              SELECT 1 FROM public.manimales h
+               WHERE h.codigo_rgb_id_animal = n.codigo_rgb_id_animal_hembra
+                 AND h.mfundos_id = n.mfundos_id
+                 AND h.mestatus_id = 1
+        )
+        AND EXISTS (
+              SELECT 1 FROM public.mtiposervicios s
+               WHERE s.id = n.mtiposervicios_id
+        )
       ORDER BY n.codigo_rgb_id_animal_hembra, n.f_parto::date, n.id",
     array((int)$mfundos_id)
   );
@@ -111,7 +129,12 @@ function construirGruposUnificacionNacimiento($mfundos_id)
         : substr((string)$fila->f_parto, 0, 10);
       $fechas[] = $fecha;
       $codigos_evento[] = (string)$fila->codigo_ternero;
-      $numeros_parto[(string)$fila->nro_parto] = true;
+      /* Solo cuentan los números de parto informados: un registro sin
+         número no invalida el grupo. */
+      $nro_parto_fila = (int)$fila->nro_parto;
+      if ($nro_parto_fila > 0) {
+        $numeros_parto[$nro_parto_fila] = true;
+      }
       if ($fila->mregservicios_id !== null && $fila->mregservicios_id !== '') {
         $servicios[(string)$fila->mregservicios_id] = true;
       }
@@ -141,8 +164,12 @@ function construirGruposUnificacionNacimiento($mfundos_id)
     if (count($estados_ficha) > 1) {
       $bloqueos[] = 'Los registros tienen estados de ficha distintos.';
     }
+
+    /* Números de parto distintos = DOS PARTOS DIFERENTES de la misma hembra,
+       no un duplicado. No se ofrecen para unificar (antes solo se avisaba
+       "se conservará el menor", lo que borraba un parto real). */
     if (count($numeros_parto) > 1) {
-      $avisos[] = 'Los números de parto difieren; se conservará el menor.';
+      return;
     }
 
     $ids = array_values(array_unique($ids));
@@ -157,7 +184,36 @@ function construirGruposUnificacionNacimiento($mfundos_id)
       'mergeable' => count($bloqueos) === 0,
       'bloqueos' => array_values(array_unique($bloqueos)),
       'avisos' => array_values(array_unique($avisos)),
-      'registros' => $filas
+      'registros' => $filas,
+      /* Detalle por registro: lo usa el diálogo para ofrecer "anular este
+         duplicado" mostrando la fecha, el código de la cría y si tiene ficha. */
+      'registros_detalle' => array_values(array_map(function ($fila) {
+        $fecha = $fila->f_parto instanceof DateTimeInterface
+          ? $fila->f_parto->format('Y-m-d')
+          : substr((string)$fila->f_parto, 0, 10);
+        $ids_registro = json_decode((string)$fila->ids_terneros, true);
+        if (!is_array($ids_registro) || count($ids_registro) === 0) {
+          $ids_registro = array($fila->id_ternero);
+        }
+        $crias = array();
+        foreach ($ids_registro as $id_cria) {
+          $id_cria = trim((string)$id_cria);
+          if ($id_cria !== '') {
+            $crias[] = $id_cria;
+          }
+        }
+        return array(
+          'id' => (int)$fila->id,
+          'fecha' => $fecha,
+          'codigo_ternero' => trim((string)$fila->codigo_ternero),
+          'nro_parto' => (int)$fila->nro_parto,
+          'fichado' => in_array($fila->fichado, array(true, 1, '1', 't', 'true'), true),
+          'cantidad_terneros' => max(1, (int)$fila->cantidad_terneros),
+          'crias' => $crias,
+          'servicio' => ($fila->mregservicios_id === null || $fila->mregservicios_id === '')
+            ? '' : (string)$fila->mregservicios_id
+        );
+      }, $filas))
     );
   };
 
@@ -224,7 +280,8 @@ switch ($action) {
         'cantidad_terneros' => $grupo['cantidad_terneros'],
         'mergeable' => $grupo['mergeable'],
         'bloqueos' => $grupo['bloqueos'],
-        'avisos' => $grupo['avisos']
+        'avisos' => $grupo['avisos'],
+        'registros' => isset($grupo['registros_detalle']) ? $grupo['registros_detalle'] : array()
       );
     }
     echo json_encode(array('resultado' => 'ok', 'grupos' => $respuesta_grupos));
@@ -372,10 +429,13 @@ switch ($action) {
           array($id_principal)
         );
         foreach ($detalles_consolidados as $indice => $detalle) {
-          $detalle->nro_ternero = $indice + 1;
-          if (!$detalle->save()) {
-            throw new RuntimeException('No se pudo reordenar la lista consolidada de crías.');
-          }
+          /* ⚠️ find_by_sql() devuelve modelos en SOLO LECTURA (AR le pasa
+             readonly=true), así que $detalle->save() lanzaría
+             ReadOnlyException y rompería toda la unificación. */
+          $conexion->query(
+            "UPDATE public.mternerosxnacimientos SET nro_ternero = ? WHERE id = ?",
+            array($indice + 1, (int)$detalle->id)
+          );
         }
 
         $principal_actual = Mregnacimiento::find($id_principal);
@@ -391,8 +451,15 @@ switch ($action) {
           $principal_actual->aptitud = $primera_cria->aptitud;
         }
         $principal_actual->f_parto = $grupo_actual['fechas'][0];
-        $numeros_parto = array_map(function ($registro) { return (int)$registro->nro_parto; }, $registros);
-        $principal_actual->nro_parto = min($numeros_parto);
+        /* Solo números válidos: un registro sin número de parto no debe
+           arrastrar el valor a 0. */
+        $numeros_parto = array_values(array_filter(
+          array_map(function ($registro) { return (int)$registro->nro_parto; }, $registros),
+          function ($n) { return $n > 0; }
+        ));
+        if (count($numeros_parto) > 0) {
+          $principal_actual->nro_parto = min($numeros_parto);
+        }
         foreach ($registros as $registro) {
           if ($registro->mregservicios_id !== null && $registro->mregservicios_id !== '') {
             $principal_actual->mregservicios_id = $registro->mregservicios_id;
@@ -503,6 +570,291 @@ switch ($action) {
     }
     break;
 
+  case 'anular_nacimientos_duplicados':
+    session_start();
+    $mfundos_id = (int)$_SESSION['mfundos_id'];
+    $usuario_id = (int)$_SESSION['idusuariox'];
+    $rol = (int)$_SESSION['rolx'];
+    $solicitadas = json_decode((string)(isset($_POST['anulaciones']) ? $_POST['anulaciones'] : ''), true);
+
+    if (!in_array($rol, array(1, 2), true)) {
+      echo json_encode(array('resultado' => 'error', 'mensaje' => 'No tienes permiso para anular nacimientos duplicados.'));
+      break;
+    }
+    if (!is_array($solicitadas) || count($solicitadas) === 0) {
+      echo json_encode(array('resultado' => 'error', 'mensaje' => 'No se recibió ningún registro para anular.'));
+      break;
+    }
+
+    $pares = array();
+    $ids_usados = array();
+    foreach ($solicitadas as $item) {
+      if (!is_array($item)) {
+        echo json_encode(array('resultado' => 'error', 'mensaje' => 'La selección de nacimientos no es válida.'));
+        break 2;
+      }
+      $id_anular    = isset($item['id_anular']) ? (int)$item['id_anular'] : 0;
+      $id_conservar = isset($item['id_conservar']) ? (int)$item['id_conservar'] : 0;
+      $motivo       = trim((string)(isset($item['motivo']) ? $item['motivo'] : ''));
+      if (function_exists('mb_substr')) {
+        $motivo = mb_substr($motivo, 0, 200, 'UTF-8');
+      } else {
+        $motivo = substr($motivo, 0, 200);
+      }
+
+      if ($id_anular <= 0 || $id_conservar <= 0 || $id_anular === $id_conservar) {
+        echo json_encode(array('resultado' => 'error', 'mensaje' => 'Cada anulación debe indicar dos nacimientos distintos.'));
+        break 2;
+      }
+      if (isset($ids_usados[$id_anular]) || isset($ids_usados[$id_conservar])) {
+        echo json_encode(array('resultado' => 'error', 'mensaje' => 'Un nacimiento no puede aparecer en dos anulaciones a la vez.'));
+        break 2;
+      }
+      $ids_usados[$id_anular] = true;
+      $ids_usados[$id_conservar] = true;
+      $pares[] = array('anular' => $id_anular, 'conservar' => $id_conservar, 'motivo' => $motivo);
+    }
+
+    $conexion = Mregnacimiento::connection();
+    $conexion->transaction();
+    try {
+      /* Solo se anulan registros que el análisis sigue considerando parte del
+         MISMO grupo (misma madre y parto dentro de las 24 h). */
+      $grupo_de = array();
+      foreach (construirGruposUnificacionNacimiento($mfundos_id) as $grupo) {
+        foreach ($grupo['ids'] as $id_grupo) {
+          $grupo_de[(int)$id_grupo] = (string)$grupo['id'];
+        }
+      }
+      foreach ($pares as $par) {
+        if (!isset($grupo_de[$par['anular']]) || !isset($grupo_de[$par['conservar']])
+            || $grupo_de[$par['anular']] !== $grupo_de[$par['conservar']]) {
+          throw new RuntimeException('Los nacimientos seleccionados ya no coinciden entre sí. Vuelve a analizarlos.');
+        }
+      }
+
+      $anulados = 0;
+      foreach ($pares as $par) {
+        $id_anular    = (int)$par['anular'];
+        $id_conservar = (int)$par['conservar'];
+        $motivo       = (string)$par['motivo'];
+
+        $bloqueados = $conexion->query(
+          "SELECT id FROM public.mregnacimientos
+            WHERE mfundos_id = ? AND id IN (?, ?) AND status = 1
+            ORDER BY id FOR UPDATE",
+          array($mfundos_id, $id_anular, $id_conservar)
+        )->fetchAll();
+        if (count($bloqueados) !== 2) {
+          throw new RuntimeException('Uno de los nacimientos ya no está activo.');
+        }
+
+        $reg_anular    = Mregnacimiento::find($id_anular);
+        $reg_conservar = Mregnacimiento::find($id_conservar);
+        if (!$reg_anular || !$reg_conservar) {
+          throw new RuntimeException('No se encontró uno de los nacimientos seleccionados.');
+        }
+        if (trim((string)$reg_anular->codigo_rgb_id_animal_hembra) !== trim((string)$reg_conservar->codigo_rgb_id_animal_hembra)) {
+          throw new RuntimeException('Los nacimientos pertenecen a madres distintas; no se pueden anular como duplicados.');
+        }
+
+        /* Servicios: si cada registro apunta a un servicio diferente no hay
+           forma de saber cuál parto es el bueno → se pide unificar. */
+        $serv_anular    = trim((string)$reg_anular->mregservicios_id);
+        $serv_conservar = trim((string)$reg_conservar->mregservicios_id);
+        if ($serv_anular !== '' && $serv_conservar !== '' && $serv_anular !== $serv_conservar) {
+          throw new RuntimeException('Los dos registros apuntan a servicios distintos. Usa "Unificar" en lugar de "Anular".');
+        }
+
+        /* Crías: el registro que se anula no puede aportar crías que el que se
+           conserva no tenga (si no, se perdería información real). */
+        $crias_anular = Mterneroxnacimiento::find_by_sql(
+          "SELECT * FROM public.mternerosxnacimientos
+            WHERE mregnacimientos_id = ? AND status = 1
+            ORDER BY nro_ternero, id",
+          array($id_anular)
+        );
+        $crias_conservar = Mterneroxnacimiento::find_by_sql(
+          "SELECT * FROM public.mternerosxnacimientos
+            WHERE mregnacimientos_id = ? AND status = 1
+            ORDER BY nro_ternero, id",
+          array($id_conservar)
+        );
+        $ids_conservar = array();
+        foreach ($crias_conservar as $cria) {
+          $codigo_cria = strtoupper(trim((string)$cria->id_ternero));
+          if ($codigo_cria !== '') {
+            $ids_conservar[$codigo_cria] = true;
+          }
+        }
+        /* Si el registro no tiene detalle, la cría vive en el campo plano
+           (mismo criterio que el análisis de grupos). */
+        $cria_plana_conservar = strtoupper(trim((string)$reg_conservar->id_ternero));
+        if ($cria_plana_conservar !== '') {
+          $ids_conservar[$cria_plana_conservar] = true;
+        }
+
+        $crias_sobrantes = array();
+        foreach ($crias_anular as $cria) {
+          $codigo_cria = strtoupper(trim((string)$cria->id_ternero));
+          if ($codigo_cria !== '' && !isset($ids_conservar[$codigo_cria])) {
+            $crias_sobrantes[$codigo_cria] = true;
+          }
+        }
+        $cria_plana_anular = strtoupper(trim((string)$reg_anular->id_ternero));
+        if ($cria_plana_anular !== '' && !isset($ids_conservar[$cria_plana_anular])) {
+          $crias_sobrantes[$cria_plana_anular] = true;
+        }
+
+        /* Códigos de cría REALES (no vacíos) que aporta el registro anulado. */
+        $codigos_anular = array();
+        foreach ($crias_anular as $cria) {
+          $codigo_cria = strtoupper(trim((string)$cria->id_ternero));
+          if ($codigo_cria !== '') {
+            $codigos_anular[$codigo_cria] = true;
+          }
+        }
+        if ($cria_plana_anular !== '') {
+          $codigos_anular[$cria_plana_anular] = true;
+        }
+
+        /* Excepción: si el registro que queda NO tiene ninguna cría
+           identificada, la del anulado se copia (no se pierde), siempre que
+           sea una sola. */
+        if (count($ids_conservar) === 0 && count($codigos_anular) <= 1) {
+          $crias_sobrantes = array();
+        }
+
+        if (count($crias_sobrantes) > 0) {
+          throw new RuntimeException(
+            'El registro a anular tiene crías que no están en el que se conserva ('
+            . implode(', ', array_keys($crias_sobrantes))
+            . '). Usa "Unificar" en lugar de "Anular".'
+          );
+        }
+
+        /* Se completa el registro que queda con lo que el anulado aporte y
+           falte (código de cría, peso, sexo, aptitud, nro de parto, servicio,
+           ficha y secado). Así anular no pierde ningún dato útil. */
+        $codigo_anular    = trim((string)$reg_anular->codigo_ternero);
+        $codigo_conservar = trim((string)$reg_conservar->codigo_ternero);
+        if ($codigo_conservar === '' && $codigo_anular !== '') {
+          $reg_conservar->codigo_ternero = $codigo_anular;
+          $codigo_conservar = $codigo_anular;
+        }
+        if (trim((string)$reg_conservar->id_ternero) === '' && trim((string)$reg_anular->id_ternero) !== '') {
+          $reg_conservar->id_ternero = $reg_anular->id_ternero;
+        }
+        if ((float)$reg_conservar->peso_nacimiento <= 0 && (float)$reg_anular->peso_nacimiento > 0) {
+          $reg_conservar->peso_nacimiento = $reg_anular->peso_nacimiento;
+        }
+        if ((int)$reg_conservar->sexo <= 0 && (int)$reg_anular->sexo > 0) {
+          $reg_conservar->sexo = $reg_anular->sexo;
+        }
+        if ((int)$reg_conservar->estatus_nacido <= 0 && (int)$reg_anular->estatus_nacido > 0) {
+          $reg_conservar->estatus_nacido = $reg_anular->estatus_nacido;
+        }
+        if ((int)$reg_conservar->aptitud <= 0 && (int)$reg_anular->aptitud > 0) {
+          $reg_conservar->aptitud = $reg_anular->aptitud;
+        }
+        if ((int)$reg_conservar->nro_parto <= 0 && (int)$reg_anular->nro_parto > 0) {
+          $reg_conservar->nro_parto = $reg_anular->nro_parto;
+        }
+        if ($serv_conservar === '' && $serv_anular !== '') {
+          $reg_conservar->mregservicios_id = $reg_anular->mregservicios_id;
+        }
+        if (empty($reg_conservar->f_secado) && !empty($reg_anular->f_secado)) {
+          $reg_conservar->f_secado = $reg_anular->f_secado;
+        }
+        /* Si el anulado tenía la ficha hecha, el parto que queda debe quedar
+           marcado como fichado (la cría existe en el hato). */
+        if (in_array($reg_anular->fichado, array(true, 1, '1', 't', 'true'), true)) {
+          $reg_conservar->fichado = 1;
+        }
+        $reg_conservar->updated = date('Y-m-d H:i:s');
+        $reg_conservar->user_modify = $usuario_id;
+        if (!$reg_conservar->save()) {
+          throw new RuntimeException('No se pudo actualizar el nacimiento que se conserva.');
+        }
+
+        /* Si el registro que queda no tenía el código de la cría en su
+           detalle, se lo pasamos para que "Crías del Parto" lo muestre. */
+        if (count($ids_conservar) === 0 && count($codigos_anular) === 1) {
+          $codigos_lista = array_keys($codigos_anular);
+          $conexion->query(
+            "UPDATE public.mternerosxnacimientos
+                SET id_ternero = ?, user_modify = ?, updated = NOW()
+              WHERE mregnacimientos_id = ? AND status = 1
+                AND BTRIM(COALESCE(id_ternero, '')) = ''",
+            array($codigos_lista[0], $usuario_id, $id_conservar)
+          );
+        }
+
+        /* Fichas del animal y bajas de cría que apuntaban al código del
+           registro anulado pasan al código que se conserva. */
+        if ($codigo_anular !== '' && $codigo_conservar !== '' && $codigo_anular !== $codigo_conservar) {
+          $conexion->query(
+            "UPDATE public.manimales SET codigo_ternero = ?, user_modify = ?, updated = NOW()
+              WHERE mfundos_id = ? AND codigo_ternero = ?",
+            array($codigo_conservar, $usuario_id, $mfundos_id, $codigo_anular)
+          );
+          $conexion->query(
+            "UPDATE public.mdsinfichas SET codigo_ternero = ?, user_modify = ?, updated = NOW()
+              WHERE mfundos_id = ? AND codigo_ternero = ?",
+            array($codigo_conservar, $usuario_id, $mfundos_id, $codigo_anular)
+          );
+        }
+
+        /* Baja lógica de las crías del registro anulado y del propio registro. */
+        $conexion->query(
+          "UPDATE public.mternerosxnacimientos
+              SET status = 0, user_modify = ?, updated = NOW()
+            WHERE mregnacimientos_id = ? AND status = 1",
+          array($usuario_id, $id_anular)
+        );
+        $conexion->query(
+          "UPDATE public.mnacimientoxfundos
+              SET status = 0, user_modify = ?, updated = NOW()
+            WHERE mfundos_id = ? AND mregnacimientos_id = ? AND status = 1",
+          array($usuario_id, $mfundos_id, $id_anular)
+        );
+
+        $nota = ' Registro duplicado anulado; se conserva el nacimiento ' . $id_conservar . '.';
+        if ($motivo !== '') {
+          $nota .= ' Motivo: ' . $motivo . '.';
+        }
+        $reg_anular->observaciones = trim((string)$reg_anular->observaciones . $nota);
+        $reg_anular->status = 0;
+        $reg_anular->updated = date('Y-m-d H:i:s');
+        $reg_anular->user_modify = $usuario_id;
+        if (!$reg_anular->save()) {
+          throw new RuntimeException('No se pudo anular el registro duplicado.');
+        }
+
+        $anulados++;
+      }
+
+      $conexion->commit();
+      echo json_encode(array(
+        'resultado' => 'ok',
+        'anulados' => $anulados,
+        'mensaje' => '<div class="alert alert-success">Se anularon ' . $anulados
+          . ' nacimiento(s) duplicado(s). Las crías, fichas y vínculos se conservaron en el registro que queda.</div>'
+      ));
+    } catch (Throwable $e) {
+      $conexion->rollback();
+      error_log('Error al anular nacimientos duplicados: ' . $e->getMessage());
+      /* Solo las validaciones propias (RuntimeException) son aptas para
+         mostrarse; un fallo técnico se informa en genérico. */
+      $detalle = ($e instanceof RuntimeException)
+        ? htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')
+        : 'Ocurrió un error inesperado al anular el registro.';
+      echo json_encode(array(
+        'resultado' => 'error',
+        'mensaje' => '<div class="alert alert-danger">' . $detalle . ' No se aplicó ningún cambio.</div>'
+      ));
+    }
+    break;
   case 'buscar_servicios_gestantes':
     session_start();
     $mfundos_id = (int)$_SESSION['mfundos_id'];
@@ -840,7 +1192,7 @@ switch ($action) {
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                  La Vaca No Cuenta con el Periodo de Gestación Recomendado. Consulte al ADMINISTRADOR DEL SISTEMA.
+                  La ' . bovs_especie_hembra(false, 'title') . ' No Cuenta con el Periodo de Gestación Recomendado. Consulte al ADMINISTRADOR DEL SISTEMA.
                   </div>');
         } else 
     if ($data != null) {
@@ -861,7 +1213,7 @@ switch ($action) {
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                 La Edad de la VACA no puede ser Menor de 24 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
+                 La Edad de la ' . bovs_especie_hembra(false, 'upper') . ' no puede ser Menor de 24 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
                   </div>');
             } else {
 

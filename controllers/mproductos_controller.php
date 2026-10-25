@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/catalogo_fundo_helper.php';
 require_once '../models/Mproducto.php';
 require_once '../models/Mfundo.php';
 require_once '../models/Mcategoriaproducto.php';
@@ -315,6 +316,12 @@ case 'get_categoria':
   @$rol = $_SESSION[ 'rolx' ];
 
   $mfundos_id = intval( $mfundos_id );
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
 
       if ( !empty( $id_sesion ) && ( ( $rol == 1 ) || ( $rol == 4 ) ) ) {
           //privilegios del programador y Supervisor
@@ -323,7 +330,7 @@ case 'get_categoria':
 
       } else if ( !empty( $id_sesion ) && ( ( $rol == 2 ) || ( $rol == 3 ) ) ) {
 
-          $data = Mcategoriaproducto::find( 'all', array( 'conditions' => array( 'status=? and mfundos_id=? or mfundos_id=?', 1, $mfundos_id, 0 ), 'order' => 'nombre  asc  ' ) );
+          $data = Mcategoriaproducto::find( 'all', array( 'conditions' => array( 'status=1 and (mfundos_id=? or mfundos_id=0)', $mfundos_id ), 'order' => 'nombre  asc  ' ) );
 
       }
 
@@ -397,6 +404,12 @@ case 'get_categoria':
     @$rol = $_SESSION[ 'rolx' ];
   
     $mfundos_id = intval( $mfundos_id );
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
   
         if ( !empty( $id_sesion ) && ( ( $rol == 1 ) || ( $rol == 4 ) ) ) {
             //privilegios del programador y Supervisor
@@ -405,7 +418,7 @@ case 'get_categoria':
   
         } else if ( !empty( $id_sesion ) && ( ( $rol == 2 ) || ( $rol == 3 ) ) ) {
   
-            $data = Mpresentacione::find( 'all', array( 'conditions' => array( 'status=? and mfundos_id=? or mfundos_id=?', 1, $mfundos_id, 0 ), 'order' => 'nombre  asc ' ) );
+            $data = Mpresentacione::find( 'all', array( 'conditions' => array( 'status=1 and (mfundos_id=? or mfundos_id=0)', $mfundos_id ), 'order' => 'nombre  asc ' ) );
   
         }
   

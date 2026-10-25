@@ -2,10 +2,12 @@
 <div class="slider ">
 
 
-            <input type="radio" name="slider" id="slider1" checked=""/>
-            <input type="radio" name="slider" id="slider2" checked=""/>
-            <input type="radio" name="slider" id="slider3" checked=""/>
-            <input type="radio" name="slider" id="slider4" checked=""/>
+            <!-- Solo la primera lleva checked: si varias lo llevan, el navegador
+                 se queda con la ULTIMA y el carrusel arranca en la 4a imagen. -->
+            <input type="radio" name="slider" id="slider1" checked="checked"/>
+            <input type="radio" name="slider" id="slider2"/>
+            <input type="radio" name="slider" id="slider3"/>
+            <input type="radio" name="slider" id="slider4"/>
             
             <div class="thumbs">
                 <div class="thumb thumb10">
@@ -73,29 +75,62 @@
         
          
         <script>
-            $(document).ready(function(){
-                
-                function cambioslider() {
+            /* Carrusel de inicio (OVINA) — SOVCA
+               · Arranca siempre en la diapositiva 1 (solo #slider1 lleva checked).
+               · Avanza 1 → 2 → 3 → 4 → 1 cada INTERVALO ms.
+               · Se detiene con la pestaña oculta y se reanuda al volver.
+               · Al pulsar un punto de control se reinicia el ciclo, para que
+                 no salte a la diapositiva siguiente justo después del clic. */
+            (function () {
+                var INTERVALO = 8000;
+                var indice    = 0;
+                var timer     = null;
 
+                function slides() {
+                    return $('.slider > input[type="radio"][name="slider"]');
+                }
 
+                function mostrar(i) {
+                    var $r = slides();
+                    if (!$r.length) { return; }
+                    indice = (i + $r.length) % $r.length;
+                    $r.eq(indice).prop('checked', true);
+                }
 
-                        if($("#slider2").is(":checked")){
-                            $("#slider3").prop("checked", true);
-                        }else if($("#slider3").is(":checked")){
-                            $("#slider4").prop("checked", true);
-                        }else if($("#slider4").is(":checked")){
-                            $("#slider1").prop("checked", true);
-                        }else{
-                            $("#slider2").prop("checked", true);
-                        }
-                    }
-                    setInterval(cambioslider, 8000);
-                
+                function siguiente() { mostrar(indice + 1); }
 
+                function detener() {
+                    if (timer) { clearInterval(timer); timer = null; }
+                }
 
-                        $('.slider').addClass("nav-round");
-                        $('.slider').addClass("slow");
-                      //  $('.slider').addClass("sliderFall");
-                
-            });
+                function arrancar() {
+                    detener();
+                    timer = setInterval(siguiente, INTERVALO);
+                }
+
+                $(document).ready(function () {
+                    var $r = slides();
+                    if (!$r.length) { return; }
+
+                    /* Estado inicial coherente: la diapositiva marcada o la 1a */
+                    indice = $r.index($r.filter(':checked'));
+                    if (indice < 0) { indice = 0; }
+                    mostrar(indice);
+
+                    $('.slider').addClass('nav-round').addClass('slow');
+                    arrancar();
+
+                    /* Clic en un punto: salta y reinicia el temporizador */
+                    $('.slider .control label').on('click', function () {
+                        var n = parseInt(String($(this).attr('for') || '').replace('slider', ''), 10);
+                        if (!isNaN(n)) { mostrar(n - 1); }
+                        arrancar();
+                    });
+
+                    /* Pausa cuando la pestaña no está visible */
+                    $(document).on('visibilitychange', function () {
+                        if (document.hidden) { detener(); } else { arrancar(); }
+                    });
+                });
+            })();
         </script>

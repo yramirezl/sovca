@@ -30,8 +30,8 @@ const Servicios = {
       f_probable_palpacion: datosFormulario.f_probable_palpacion || null,
       nro_servicio: Number(datosFormulario.nro_servicio || 1),
       mservicios_id: Number(datosFormulario.mservicios_id),
-      aptitud: Number(datosFormulario.aptitud),
-      mrazas_id: Number(datosFormulario.mrazas_id),
+      aptitud: Number(datosFormulario.aptitud) || 0,
+      mrazas_id: Number(datosFormulario.mrazas_id) || 0,
       observaciones: datosFormulario.observaciones || '',
       medofisiologicos_id: Number(datosFormulario.medofisiologicos_id || 3),
       parto: Number(datosFormulario.parto || 0),
@@ -83,8 +83,8 @@ const Servicios = {
     registroLocal.f_probable_palpacion = datosFormulario.f_probable_palpacion || null;
     registroLocal.nro_servicio = Number(datosFormulario.nro_servicio || registroLocal.nro_servicio || 1);
     registroLocal.mservicios_id = Number(datosFormulario.mservicios_id || registroLocal.mservicios_id);
-    registroLocal.aptitud = Number(datosFormulario.aptitud || registroLocal.aptitud);
-    registroLocal.mrazas_id = Number(datosFormulario.mrazas_id || registroLocal.mrazas_id);
+    registroLocal.aptitud = Number(datosFormulario.aptitud || registroLocal.aptitud) || 0;
+    registroLocal.mrazas_id = Number(datosFormulario.mrazas_id || registroLocal.mrazas_id) || 0;
     registroLocal.observaciones = datosFormulario.observaciones || '';
 
     const datosAEnviar = {

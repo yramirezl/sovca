@@ -50,7 +50,7 @@ if(@$_POST["__input_file_wrapper__"] == "upload"){
     <html>
 
     <head>
-        <title>Sistema BOVS-Web</title>
+        <title>Sistema SOVCA-Web</title>
         <link rel="stylesheet" href="../../css/metro-bootstrap.css">
         <link rel="stylesheet" href="../../css/extra.css">
         <script src="../../js/jquery.min.js"></script>

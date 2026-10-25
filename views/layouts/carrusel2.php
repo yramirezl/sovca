@@ -1,11 +1,11 @@
-<div class="box box-primary bg-rotativo bg-wide" id="backg">
+<div class="box box-primary" style="width:100%;height:50%;position:absolute; background-size:cover;background-position: top center;" id="backg">
 <!--img id="imguni" height="75" src="../inicio/img/unidos.png" width="90" style="position:absolute;top:290px; left:10px;visibility:visible; z-index:1;"-->
 </div>
 
 <script>
             $(document).ready(function(){
 
-               var fondos = ["../../dist/file/img/fondo6.jpeg","../../dist/file/img/fondo7.jpeg","../../dist/file/img/fondo8.jpeg","../../dist/file/img/fondo9.jpeg"];
+               var fondos = ["../inicio/img/fondo6.jpg","../inicio/img/fondo7.jpg","../inicio/img/fondo8.jpg","../inicio/img/fondo9.jpg"];
 
                // function fondoBody() {
 

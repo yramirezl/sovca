@@ -44,7 +44,7 @@
 //    <!-- Theme style -->
 //------------------------------------------------------------------------------------------------------------
   $constante["css_tema"]='<link href="../../dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />';
-  $constante["css_carrusel"]='<link href="../../css/carrusel.css" rel="stylesheet" type="text/css" />';
+  $constante["css_carrusel"]='<link href="../../css/carrusel.css?v=3" rel="stylesheet" type="text/css" />';
  // $constante["css_reportes"]='<link href="../../css/reportes.css" rel="stylesheet" type="text/css" />';
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
@@ -55,11 +55,15 @@
 //------------------------------------------------------------------------------------------------------------
   $constante["css_skyn"]='<link href="../../dist/css/skins/skin-green-light.css" rel="stylesheet" type="text/css" />';
 //------------------------------------------------------------------------------------------------------------
- $constante["css_tema_bovs"]='<link href="../../css/tema-bovs.css?v=8" rel="stylesheet" type="text/css" />';
+ $constante["css_tema_bovs"]='<link href="../../css/tema-bovs.css?v=11" rel="stylesheet" type="text/css" />';
 //----------------------------------------------------------------------------
 //-- Tooltips globales (todos los módulos usan data-toggle="tooltip") --------
 //----------------------------------------------------------------------------
  $constante["css_tooltips"]='<link href="../../css/bovs-tooltip.css?v=2" rel="stylesheet" type="text/css" />';
+//------------------------------------------------------------------------------------------------------------
+//-- Resaltado de datos obligatorios + botones verde/rojo de los diálogos -----
+//------------------------------------------------------------------------------------------------------------
+ $constante["css_validacion"]='<link href="../../css/bovs-validacion.css?v=2" rel="stylesheet" type="text/css" />';
 //------------------------------------------------------------------------------------------------------------
 //-- Java Script Cabecera
 //------------------------------------------------------------------------------------------------------------

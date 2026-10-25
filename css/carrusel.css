@@ -529,3 +529,36 @@
 .bg-rotativo.bg-wide{
     padding-bottom: 53.5%;           /* imágenes horizontales 1405 x 752 (banner ancho) */
 }
+
+/* =========================================================
+   SOVCA — EL CARRUSEL NUNCA EXCEDE EL ALTO DE LA VENTANA
+   ---------------------------------------------------------
+   Antes el alto era SIEMPRE el 40% del ancho. En monitores
+   panorámicos eso daba 600-900 px y obligaba a desplazar la
+   página para ver el pie. Ahora el alto es el MENOR entre:
+     · el 40% del ancho (proporción original), y
+     · el espacio real que queda bajo la cabecera y el pie.
+   Se usa min() sobre padding-bottom, que es la propiedad que
+   sostiene la relación de aspecto del mosaico (.thumb .img usa
+   height:100%). Si el navegador no soporta min(), ignora la
+   regla y conserva el 40% definido más arriba.
+   --sovca-alto-util lo recalcula js/ajuste-pantalla.js.
+   ========================================================= */
+.slider{
+    padding-bottom: min(40%, var(--sovca-alto-util, calc(100vh - 170px)));
+}
+
+/* En móvil el carrusel es más alto respecto al ancho, pero también topa */
+@media (max-width: 767px){
+    .slider{
+        padding-bottom: min(62%, var(--sovca-alto-util, calc(100vh - 210px)));
+    }
+
+    /* El banner publicitario vive dentro del menú lateral, que en móvil
+       está fuera de pantalla. Al ocultarlo se evita que su altura
+       (143% del ancho del menú) alargue la página y obligue a
+       desplazarse para ver el pie. */
+    .bg-rotativo{
+        display: none;
+    }
+}

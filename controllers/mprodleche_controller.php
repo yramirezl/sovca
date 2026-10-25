@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/especie_helper.php';
 
 require_once '../models/Manimale.php';
 require_once '../models/Mprolechera.php';
@@ -154,7 +155,7 @@ switch ( $action ) {
               <i class="icon fa fa-warning"></i>
               Alerta!
               </h4>
-              El Vaca con Codigo ['.$cod_animal_h.'] ya se encuentra registrada para la Fecha ['.$fecha_prodleche.'].
+              La ' . bovs_especie_hembra(false, 'title') . ' con Codigo ['.$cod_animal_h.'] ya se encuentra registrada para la Fecha ['.$fecha_prodleche.'].
               </div>' );
 
             // echo json_encode( $respuesta );

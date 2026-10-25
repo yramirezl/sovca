@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/catalogo_fundo_helper.php';
 require_once '../models/Manimale.php';
 require_once '../models/Mmovanimxlotestemp.php';
 require_once '../models/Mdetamovanimxlote.php';
@@ -336,6 +337,12 @@ switch ($action) {
         @$rol = $_SESSION['rolx'];
 
         $mfundos_id = intval($mfundos_id);
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
         $borrar_productos_temp = true;
         if (!empty($id_sesion) && ($rol == 1)) {
             //privilegios del programador y Supervisor
@@ -383,6 +390,12 @@ switch ($action) {
 
 
         $mfundos_id = intval($mfundos_id);
+    /* Catálogos del FUNDO ACTIVO (MODO SOPORTE incluido): si hay un fundo
+       en la sesión se usa la misma rama que el productor de ese fundo, en
+       vez de devolver los registros de TODOS los fundos (rol 1/4). */
+    if ( bovs_catalogo_fundo_id() > 0 && ( $rol == 1 || $rol == 4 ) ) {
+        $rol = 2;
+    }
 
         if (!empty($id_sesion) && ($rol == 1)) {
             //privilegios del programador y Supervisor

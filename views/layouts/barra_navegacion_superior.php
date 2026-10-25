@@ -506,7 +506,7 @@ if ($demoSesion) {
     </a>
 
     <div class="pull-left navbar-brand-mini">
-        <img src="../../dist/img/BOVS-LOGO.png" alt="BOVS">
+        <img src="../../dist/img/sovca.png" alt="SOVCA">
     </div>
 
     <?php if ($fundoActivoId > 0) { ?>

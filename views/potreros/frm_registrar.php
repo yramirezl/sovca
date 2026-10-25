@@ -62,6 +62,19 @@ ValidaSession("../login");
                         </div>
                     </div>
 
+                    <div class="crud-form__row">
+                        <div class="crud-form__field">
+                            <label for="aforo">Aforo (kg de forraje verde por hectárea)</label>
+                            <input class="form-control" id="aforo" type="number" step="0.01" min="0"
+                                   placeholder="Ej: 2500" tabindex="5">
+                        </div>
+                        <div class="crud-form__field">
+                            <label>Forraje total estimado</label>
+                            <input class="form-control" id="forraje_total" type="text" readonly
+                                   placeholder="kg disponibles">
+                        </div>
+                    </div>
+
                     <div class="crud-form__field">
                         <label for="descripcion">Descripción / Observaciones</label>
                         <textarea class="form-control" id="descripcion" rows="3" maxlength="500"
@@ -90,6 +103,14 @@ ValidaSession("../login");
 
 <script type="text/javascript">
 $(document).ready(function() {
+
+    /* Forraje total estimado = aforo (kg/ha) × hectáreas. Sirve para saber
+       cuántos días puede pastorear un lote en el potrero. */
+    $('#aforo, #hectareas').on('input change', function() {
+        var ha = parseFloat($('#hectareas').val()) || 0;
+        var af = parseFloat($('#aforo').val()) || 0;
+        $('#forraje_total').val((ha > 0 && af > 0) ? Math.round(ha * af) + ' kg' : '');
+    });
 
     $('#exit').click(function() {
         $.confirm({
@@ -125,6 +146,7 @@ $(document).ready(function() {
             nombre_potrero:     nombre,
             descripcion:        $('#descripcion').val(),
             hectareas:          $('#hectareas').val(),
+            aforo:              $('#aforo').val(),
             capacidad_maxima:   $('#capacidad_maxima').val(),
             tipo_pasto:         $('#tipo_pasto').val()
         }, function(data) {

@@ -111,6 +111,52 @@ ValidaSession("../login");
     width: 18px; height: 18px; accent-color: #16a34a;
     cursor: pointer; margin: 0;
 }
+
+/* ---- Panel de aforo / días de ocupación ---- */
+.crud-aforo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: 10px;
+}
+.crud-aforo__item {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.crud-aforo__item span {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+    font-weight: 700;
+}
+.crud-aforo__item strong {
+    display: block;
+    font-size: 16px;
+    color: #0f172a;
+    margin-top: 3px;
+}
+.crud-aforo__dias {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #6ee7b7;
+}
+.crud-aforo__dias strong {
+    font-size: 22px;
+    color: #15803d;
+}
+.crud-aforo__nota {
+    grid-column: 1 / -1;
+    font-size: 12.5px;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+.crud-sin-peso { color: #b45309; font-size: 12px; }
 </style>
 
 <div class="crud-form">
@@ -220,6 +266,21 @@ ValidaSession("../login");
                     <div class="crud-form__field">
                         <label>Observaciones</label>
                         <input type="text" id="observaciones" class="form-control" maxlength="500">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== DISPONIBILIDAD DE FORRAJE ===================== -->
+        <div class="crud-form__card crud-form__card--full crud-step" id="card_aforo" style="display:none;">
+            <div class="crud-form__card-head">
+                <span class="crud-step-num"><i class="fa fa-leaf"></i></span>
+                <h3>Disponibilidad de forraje y días de ocupación</h3>
+            </div>
+            <div class="crud-form__card-body">
+                <div id="aforo_body">
+                    <div style="color:#6b7280; font-style:italic; font-size:13px;">
+                        Seleccione el potrero destino para ver su aforo.
                     </div>
                 </div>
             </div>
@@ -383,6 +444,112 @@ $(document).ready(function() {
         limpiarAnimales();
     });
 
+    /* ============================================================
+       AFORO DEL POTRERO Y DÍAS DE OCUPACIÓN
+       - forraje disponible = aforo (kg/ha) × hectáreas
+       - consumo diario     = peso total del lote × 10 %
+       - días de ocupación  = forraje disponible / consumo diario
+       ============================================================ */
+    var potreros_aforo = {};        // id -> {nombre, hectareas, aforo, forraje_total, animales}
+    var PESO_DEFECTO   = 400;       // kg cuando el animal no tiene pesaje registrado
+
+    function cargarAforoPotreros() {
+        $.post("../../controllers/mpotreros_controller", { action: "get_potreros_aforo" }, function(data) {
+            var r;
+            try { r = (typeof data === 'string') ? JSON.parse(data) : data; }
+            catch (e) { r = null; }
+            if (!r || !r.ok) return;
+
+            $.each(r.potreros || [], function(i, p) {
+                potreros_aforo[String(p.id)] = p;
+            });
+            renderAforo();
+        });
+    }
+
+    function numero(v, dec) {
+        var n = parseFloat(v);
+        if (isNaN(n)) n = 0;
+        return n.toLocaleString('es-VE', {
+            minimumFractionDigits: dec || 0,
+            maximumFractionDigits: dec || 0
+        });
+    }
+
+    function datoAforo(etiqueta, valor) {
+        return '<div class="crud-aforo__item"><span>' + etiqueta + '</span><strong>' + valor + '</strong></div>';
+    }
+
+    function renderAforo() {
+
+        var tipo = $('input[name=tipo_mov]:checked').val();
+
+        /* El aforo solo aplica cuando hay potrero destino */
+        if (tipo === 'LOTE') {
+            $('#card_aforo').hide();
+            return;
+        }
+        $('#card_aforo').show();
+
+        var $box = $('#aforo_body');
+        var pid  = $('#potrero_destino').val();
+        var p    = pid ? potreros_aforo[String(pid)] : null;
+
+        if (!p) {
+            $box.html('<div style="color:#6b7280; font-style:italic; font-size:13px;">Seleccione el potrero destino para ver su aforo.</div>');
+            return;
+        }
+
+        var ha      = parseFloat(p.hectareas) || 0;
+        var aforo   = parseFloat(p.aforo) || 0;
+        var forraje = ha * aforo;
+
+        var n = 0, pesoTotal = 0, sinPeso = 0;
+        $('.chk_animal:checked').each(function() {
+            n++;
+            var w = parseFloat($(this).attr('data-peso'));
+            if (isNaN(w) || w <= 0) { w = PESO_DEFECTO; sinPeso++; }
+            pesoTotal += w;
+        });
+
+        var consumo = pesoTotal * 0.10;
+        var dias    = (consumo > 0 && forraje > 0) ? Math.floor(forraje / consumo) : 0;
+
+        var html = '<div class="crud-aforo">';
+        html += datoAforo('Potrero destino', p.nombre || '-');
+        html += datoAforo('Superficie', numero(ha, 2) + ' ha');
+        html += datoAforo('Aforo', numero(aforo, 0) + ' kg/ha');
+        html += datoAforo('Forraje disponible', numero(forraje, 0) + ' kg');
+        html += datoAforo('Animales ya en el potrero', numero(p.animales, 0));
+        html += datoAforo('Animales seleccionados', numero(n, 0));
+        html += datoAforo('Peso total del lote', numero(pesoTotal, 0) + ' kg');
+        html += datoAforo('Consumo diario (10 %)', numero(consumo, 0) + ' kg/día');
+
+        if (n > 0 && forraje > 0) {
+            html += '<div class="crud-aforo__item crud-aforo__dias"><span>Días de ocupación estimados</span><strong>'
+                 + numero(dias, 0) + ' día(s)</strong></div>';
+        }
+
+        if (aforo <= 0) {
+            html += '<div class="crud-aforo__nota"><strong>Este potrero no tiene aforo registrado.</strong> '
+                 + 'Puede agregarlo en <em>Potreros → Editar → Aforo (kg de forraje verde por hectárea)</em> '
+                 + 'para conocer cuántos días puede pastorear el lote.</div>';
+        } else if (forraje <= 0) {
+            html += '<div class="crud-aforo__nota"><strong>Faltan las hectáreas del potrero</strong> '
+                 + 'para calcular el forraje total disponible.</div>';
+        }
+
+        if (sinPeso > 0) {
+            html += '<div class="crud-aforo__nota">' + sinPeso + ' animal(es) sin pesaje registrado: '
+                 + 'se estimaron ' + PESO_DEFECTO + ' kg por animal.</div>';
+        }
+
+        html += '</div>';
+        $box.html(html);
+    }
+
+    cargarAforoPotreros();
+
     $('#lote_destino').change(function() {
         refrescarLotes();
         actualizarResumen();
@@ -397,6 +564,7 @@ $(document).ready(function() {
     $('#potrero_destino').change(function() {
         refrescarPotreros();
         actualizarResumen();
+        renderAforo();
     });
 
     $('#motivo').change(actualizarResumen);
@@ -411,13 +579,21 @@ $(document).ready(function() {
         var tipo = $('input[name=tipo_mov]:checked').val();
         var lo = $('#lote_origen').val();
         var po = $('#potrero_origen').val();
+        /* En "Solo el Potrero" el lote destino es el que entrará al potrero:
+           si se eligió, se listan los animales de ese lote. */
+        var loteFiltro = (tipo === 'POTRERO') ? ($('#lote_destino').val() || 0) : 0;
 
         if ((tipo === 'LOTE' || tipo === 'AMBOS') && !lo) {
             $.alert({ title: 'Falta lote origen', content: 'Seleccione un lote de origen.', confirmButton: 'OK', confirmButtonClass: 'btn-warning' });
             return;
         }
-        if ((tipo === 'POTRERO' || tipo === 'AMBOS') && !po) {
-            $.alert({ title: 'Falta potrero origen', content: 'Seleccione un potrero de origen.', confirmButton: 'OK', confirmButtonClass: 'btn-warning' });
+        if ((tipo === 'POTRERO' || tipo === 'AMBOS') && !po && !loteFiltro) {
+            $.alert({
+                title: 'Falta el origen',
+                content: 'Seleccione el potrero de origen o el lote que entra al potrero destino.',
+                confirmButton: 'OK',
+                confirmButtonClass: 'btn-warning'
+            });
             return;
         }
 
@@ -425,7 +601,8 @@ $(document).ready(function() {
             action:          'get_animales_por_origen',
             tipo_movimiento: tipo,
             lote_origen:     lo,
-            potrero_origen:  po
+            potrero_origen:  po,
+            lote_filtro:     loteFiltro
         }, function(data) {
 
             var r;
@@ -449,7 +626,7 @@ $(document).ready(function() {
 
             $.each(r.animales, function(i, a) {
                 html += '<tr>'
-                     + '<td><input type="checkbox" class="chk_animal" value="' + a.id + '"></td>'
+                     + '<td><input type="checkbox" class="chk_animal" value="' + a.id + '" data-peso="' + (a.peso || '') + '"></td>'
                      + '<td style="font-family:monospace;">' + a.codigo + '</td>'
                      + '<td><strong>' + a.nombre + '</strong></td>'
                      + '<td>' + a.nro_arete + '</td>'
@@ -471,11 +648,13 @@ $(document).ready(function() {
         $('.chk_animal').prop('checked', $(this).prop('checked'));
         actualizarContador();
         actualizarResumen();
+        renderAforo();
     });
 
     $(document).on('change', '.chk_animal', function() {
         actualizarContador();
         actualizarResumen();
+        renderAforo();
     });
 
     function actualizarContador() {

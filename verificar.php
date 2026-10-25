@@ -28,7 +28,99 @@ header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
+/* Marca de versión: permite comprobar desde fuera si el servidor tiene
+   ESTE archivo (curl -I .../verificar.php | grep X-Verificar-Version). */
+header('X-Verificar-Version: 2026-10-25.2');
+
 require_once __DIR__ . '/lib/firma.php';
+
+/* ---------------------------------------------------------------------
+   Si algo falla, que NUNCA se devuelva un 500 con el cuerpo vacío: se
+   muestra un aviso y el detalle técnico queda en el log.
+   --------------------------------------------------------------------- */
+set_exception_handler(function ($e) {
+    error_log('[verificar] ' . get_class($e) . ': ' . $e->getMessage()
+        . ' en ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+    echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+       . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+       . '<title>Verificación no disponible</title></head>'
+       . '<body style="font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;padding:32px">'
+       . '<div style="max-width:520px;margin:0 auto;background:#fff;border-top:4px solid #dc3545;border-radius:12px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.08)">'
+       . '<h3 style="color:#b02a37;margin:0 0 8px;font-size:18px">No se pudo verificar el certificado</h3>'
+       . '<p style="color:#555;font-size:14px;line-height:1.5;margin:0">Inténtalo de nuevo en unos minutos. '
+       . 'Si el problema continúa, contacta al administrador del sistema.</p>'
+       . '</div></body></html>';
+    exit;
+});
+
+/* ---------------------------------------------------------------------
+   Los modelos hacen `require_once '../config/conexion.php'` con ruta
+   RELATIVA, que se resuelve contra el DIRECTORIO DE TRABAJO. verificar.php
+   vive en la raíz del proyecto, así que '../config' apuntaba a
+   /var/www/config (no existe) y el require moría con un fatal → HTTP 500
+   sin contenido.
+   Se trabaja desde /controllers, el mismo punto de partida que usan los
+   controladores, donde todas esas rutas relativas resuelven bien.
+   --------------------------------------------------------------------- */
+$bovs_cwd_anterior = getcwd();
+$bovs_cwd_ok = false;
+foreach (array(__DIR__ . '/controllers', __DIR__) as $bovs_cwd_cand) {
+    if (is_dir($bovs_cwd_cand) && is_file($bovs_cwd_cand . '/../config/conexion.php')) {
+        chdir($bovs_cwd_cand);
+        $bovs_cwd_ok = true;
+        break;
+    }
+}
+if (!$bovs_cwd_ok) {
+    error_log('[verificar] no se encontró un directorio de trabajo válido para los includes relativos');
+}
+
+/* ---------------------------------------------------------------------
+   Red de seguridad para FATALES, que set_exception_handler NO captura:
+   un `require` que no encuentra el archivo, memoria agotada o un error de
+   compilación dentro de un include. Sin esto el navegador recibe un 500
+   con el cuerpo vacío y no hay forma de saber qué pasó.
+   El motivo técnico se registra en el log; se muestra en pantalla solo si
+   se pide con ?diag=soporte (útil para diagnosticar en producción).
+   --------------------------------------------------------------------- */
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if (!$error) {
+        return;
+    }
+    $fatales = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
+    if (!in_array($error['type'], $fatales, true)) {
+        return;
+    }
+
+    error_log('[verificar] FATAL: ' . $error['message'] . ' en ' . $error['file'] . ':' . $error['line']);
+
+    if (ob_get_length() === false || ob_get_length() === 0) {
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+        $mostrar = (isset($_GET['diag']) && $_GET['diag'] === 'soporte');
+        echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+           . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+           . '<title>Verificación no disponible</title></head>'
+           . '<body style="font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;padding:32px">'
+           . '<div style="max-width:560px;margin:0 auto;background:#fff;border-top:4px solid #dc3545;border-radius:12px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.08)">'
+           . '<h3 style="color:#b02a37;margin:0 0 8px;font-size:18px">No se pudo verificar el certificado</h3>'
+           . '<p style="color:#555;font-size:14px;line-height:1.5;margin:0">Inténtalo de nuevo en unos minutos. '
+           . 'Si el problema continúa, contacta al administrador del sistema.</p>';
+        if ($mostrar) {
+            echo '<pre style="margin-top:14px;background:#f8f9fa;border:1px solid #e3e7ed;border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap">'
+               . htmlspecialchars($error['message'] . "\n" . $error['file'] . ':' . $error['line'], ENT_QUOTES, 'UTF-8')
+               . '</pre>';
+        }
+        echo '</div></body></html>';
+    }
+});
 
 $token     = isset($_GET['t']) ? $_GET['t'] : '';
 $id_animal = firma_verificar($token);
@@ -106,9 +198,11 @@ if ($valido) {
             $valido    = false;
             $error_msg = 'El animal ya no está activo en la plataforma.';
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        /* Error de consulta (tabla/columna ausente, etc.): se informa igual. */
+        error_log('[verificar] consulta: ' . $e->getMessage());
         $valido    = false;
-        $error_msg = 'Error al consultar los datos.';
+        $error_msg = 'Error al consultar los datos. Inténtalo de nuevo en unos minutos.';
     }
 } else {
     $error_msg = 'El código de verificación no es válido o fue alterado.';
@@ -119,7 +213,7 @@ if ($valido) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?php echo $valido ? 'Ficha verificada' : 'Verificación fallida'; ?> · BOVS</title>
+<title><?php echo $valido ? 'Ficha verificada' : 'Verificación fallida'; ?> · SOVCA</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -203,7 +297,7 @@ if ($valido) {
         <div class="card-header ok">
             <div class="icon">✓</div>
             <h1>CERTIFICADO DE AUTENTICIDAD</h1>
-            <p>Ficha verificada por la plataforma BOVS</p>
+            <p>Ficha verificada por la plataforma SOVCA</p>
         </div>
 
         <div class="card-body">
@@ -231,7 +325,7 @@ if ($valido) {
 
             <div class="sello">
                 <strong>✓ Autenticidad verificada</strong><br>
-                Esta ficha fue emitida por la plataforma BOVS y su integridad
+                Esta ficha fue emitida por la plataforma SOVCA y su integridad
                 está garantizada mediante firma digital HMAC-SHA256.<br>
                 <small>Verificado el <?php echo $fecha_verif; ?></small>
             </div>
@@ -255,7 +349,7 @@ if ($valido) {
     <?php endif; ?>
 
     <div class="footer">
-        © <?php echo date('Y'); ?> Ruted · Sistema de Gestión Ganadera BOVS
+        © <?php echo date('Y'); ?> Ruted · Sistema de Gestión Ovina y Caprina SOVCA
     </div>
 
 </div>

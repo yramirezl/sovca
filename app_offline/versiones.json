@@ -1,6 +1,11 @@
 {
-  "actual": "4.40",
+  "actual": "4.41",
   "versiones": [
+    {
+      "version": "4.41",
+      "fecha": "2026-10-25",
+      "notas": "Al crear un animal, un servicio o un nacimiento sin conexion, si la aptitud o la raza quedaban vacias el equipo enviaba un valor nulo y la sincronizacion fallaba con un error de base de datos. Ahora esos campos viajan con 0 y el registro sube igual; se completan despues en la ficha."
+    },
     {
       "version": "4.40",
       "fecha": "2026-10-18",

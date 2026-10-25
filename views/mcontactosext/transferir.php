@@ -12,7 +12,7 @@ ValidaSession('login.php');
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <html>
 <head>
-    <title>Sistema BOVS</title>
+    <title>Sistema SOVCA</title>
     <link rel="stylesheet" href="../../css/metro-bootstrap.css">
      <link rel="stylesheet" href="../../css/extra.css">
     <script src="../../js/jquery.min.js"></script>
