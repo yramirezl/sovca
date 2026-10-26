@@ -27,7 +27,7 @@
  	     echo $constante["css_tema"];
 		  echo $constante["css_skyn"];
 		  echo $constante["css_carrusel"];
-		  echo $constante["css_tema_bovs"];   // 👈 NUEVA — Capa override BOVS (siempre al final)
+		  echo $constante["css_tema_bovs"];   // 👈 NUEVA — Capa override SOVCA (siempre al final)
 		  echo $constante["css_tooltips"];    // Tooltips globales (después del tema)
 		  echo $constante["css_validacion"];  // Resaltado de campos obligatorios y botones de diálogo
 	//----------------------------------------------------------------

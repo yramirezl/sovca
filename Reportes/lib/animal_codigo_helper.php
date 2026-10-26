@@ -16,9 +16,6 @@
  * Estas funciones permiten localizar el animal sin depender del relleno.
  * Se incluyen desde Reportes/reportes/sovca/*.php como
  * `require_once('../../lib/animal_codigo_helper.php');`
- *
- * Se acepta también el prefijo histórico `BOVS-` (códigos migrados desde la
- * versión anterior del sistema).
  * ---------------------------------------------------------------------------
  */
 
@@ -45,16 +42,8 @@ if (!function_exists('bovs_codigos_candidatos')) {
         $fundo = intval($mfundos_id);
 
         if ($nro > 0 && $fundo > 0) {
-            /* Se respeta el prefijo que escribió el usuario; si no trae
-               ninguno, se prueban SOVCA (actual) y BOVS (migrados). */
-            $prefijos = array();
-            if (strpos($codigo, 'BOVS') === 0) {
-                $prefijos[] = 'BOVS';
-            } elseif (strpos($codigo, 'SOVCA') === 0) {
-                $prefijos[] = 'SOVCA';
-            } else {
-                $prefijos = array('SOVCA', 'BOVS');
-            }
+            /* Todos los códigos de animal usan el prefijo SOVCA. */
+            $prefijos = array('SOVCA');
 
             foreach ($prefijos as $prefijo) {
                 $lista[] = $prefijo . '-0' . $fundo . '-0' . $nro;
@@ -80,7 +69,7 @@ if (!function_exists('bovs_numero_de_codigo')) {
             return 0;
         }
 
-        if (preg_match('/^(?:SOVCA|BOVS)[-\s]*\d*[-\s]*0*(\d+)$/', $codigo, $m)) {
+        if (preg_match('/^SOVCA[-\s]*\d*[-\s]*0*(\d+)$/', $codigo, $m)) {
             return intval($m[1]);
         }
         if (ctype_digit($codigo)) {

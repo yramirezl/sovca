@@ -7,6 +7,11 @@ if (session_status() === PHP_SESSION_NONE) {
 include("./layouts/constantes.php");
 require_once __DIR__ . '/../lib/captcha_helper.php';
 require_once __DIR__ . '/../config/demo.php';
+require_once __DIR__ . '/../lib/mantenimiento_helper.php';
+
+/* MODO MANTENIMIENTO: solo los administradores del sistema pueden entrar. */
+$mttoActivo  = bovs_mantenimiento_activo();
+$mttoMensaje = $mttoActivo ? bovs_mantenimiento_mensaje() : '';
 
 /* ============================================================
    CAPTCHA — suma/resta con token anti-manipulación
@@ -1265,6 +1270,19 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               Ya puedes iniciar sesión con tu nueva contraseña.
             </div>
           </div>
+        <?php elseif (@$_GET['stat'] == 'mantenimiento'): ?>
+          <div class="alert alert-warning alert-custom">
+            <i class="fa fa-wrench"></i>
+            <div>
+              <?php if ($mttoActivo): ?>
+                <strong>Sistema en mantenimiento.</strong><br>
+                <?= htmlspecialchars($mttoMensaje, ENT_QUOTES, 'UTF-8') ?>
+              <?php else: ?>
+                <strong>El acceso estuvo restringido por mantenimiento.</strong><br>
+                La ventana de mantenimiento ya terminó. Intenta iniciar sesión nuevamente.
+              <?php endif; ?>
+            </div>
+          </div>
         <?php elseif (@$_GET['stat'] == 'demo_vencida'): ?>
           <div class="alert alert-warning alert-custom">
             <i class="fa fa-hourglass-end"></i>
@@ -1771,7 +1789,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               var preloadHash = '';
               try {
                 var encoder = new TextEncoder();
-                var data = encoder.encode(password + 'BOVS_OFFLINE_SALT');
+                var data = encoder.encode(password + 'SOVCA_OFFLINE_SALT');
                 var digest = await crypto.subtle.digest('SHA-256', data);
                 preloadHash = Array.from(new Uint8Array(digest))
                   .map(function (b) { return b.toString(16).padStart(2, '0'); })

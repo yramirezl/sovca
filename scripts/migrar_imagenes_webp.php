@@ -65,8 +65,8 @@ if (isset($opts['help'])) {
 $dryRun  = isset($opts['dry-run']);
 $force   = isset($opts['force']);
 $keepOld = isset($opts['keep-old']);
-$maxDim  = isset($opts['max']) ? (int) $opts['max'] : BOVS_IMAGEN_MAX_DIM;
-$calidad = isset($opts['q'])   ? (int) $opts['q']   : BOVS_IMAGEN_CALIDAD;
+$maxDim  = isset($opts['max']) ? (int) $opts['max'] : SOVCA_IMAGEN_MAX_DIM;
+$calidad = isset($opts['q'])   ? (int) $opts['q']   : SOVCA_IMAGEN_CALIDAD;
 $limit   = isset($opts['limit']) ? (int) $opts['limit'] : 0;
 
 $filtroTipos = array();

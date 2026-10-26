@@ -1,11 +1,11 @@
 <?php
 /* ============================================================
-   BOVS | Reporte de Control Sanitario (individual + lotes)
+   SOVCA | Reporte de Control Sanitario (individual + lotes)
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
 
    Modos:
-   - Por código BOVS / N° arete : historial del animal (controles
+   - Por código SOVCA / N° arete : historial del animal (controles
      individuales y recibidos en lote). Si se indica rango de fechas,
      se limita a ese período; sin fechas, muestra el historial completo.
      La columna "Origen" y el lote / código RCS identifican cada control.
@@ -89,7 +89,7 @@ class pdfreporte extends fpdf
         $this->modo_param  = trim($par['modo']);
 
         if ($this->buscar_cod !== 1 && $this->buscar_cod !== 2) {
-            $this->buscar_cod = (stripos($this->cod_bovs, 'SOVCA-') === 0 || stripos($this->cod_bovs, 'BOVS-') === 0) ? 1 : 2;
+            $this->buscar_cod = (stripos($this->cod_bovs, 'SOVCA-') === 0) ? 1 : 2;
         }
 
         $this->mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
@@ -125,7 +125,7 @@ class pdfreporte extends fpdf
         }
 
         /*
-         * Resolución del animal por código BOVS o N° de arete.
+         * Resolución del animal por código SOVCA o N° de arete.
          * El reporte por código incluye los controles individuales y los
          * recibidos en lote. Si se indican fechas se respeta ese período;
          * si no, se muestra el historial completo.
@@ -726,13 +726,17 @@ class pdfreporte extends fpdf
         $this->SetFont('ARIAL', 'B', 9);
         $this->RowM(array(__pdf_txt($this->titulo_reporte)));
 
-        if ($this->subtitulo_reporte !== '') {
+        if ($this->subtitulo_reporte !== '' || !empty($this->contexto_detalle)) {
+            $subtitulo = !empty($this->contexto_detalle)
+                ? $this->contexto_detalle
+                : $this->subtitulo_reporte;
+
             $this->SetXY($x + 5, $this->GetY());
             $this->SetJump(4);
             $this->SetWidths(array(190));
             $this->SetAligns(array('C'));
             $this->SetFont('ARIAL', '', 7.5);
-            $this->RowM(array(__pdf_txt($this->subtitulo_reporte)));
+            $this->RowM(array(__pdf_txt($subtitulo)));
         }
     }
 

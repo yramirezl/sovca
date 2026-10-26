@@ -1,11 +1,17 @@
 <?php
 	require_once("pdfrlisanimales_prodleche_act.php");
+	require_once('../../lib/reporte_contexto_helper.php');
 	$obj= new pdfreporte();
 	$reporte='';
     $mfundos_id=0;
     session_start();
     $mfundos_id = $_SESSION['mfundos_id'];
-    $name='Productoras de Leche.pdf';
+
+    /* Nomenclatura de salida: reporte + contexto + fecha de generado */
+    $ctx = bovs_reporte_contexto($mfundos_id);
+    $obj->contexto_detalle = $ctx['detalle'];
+    $obj->SetTitle(bovs_reporte_titulo('REPORTE DE PRODUCTORAS DE LECHE', $ctx));
+    $name = bovs_reporte_nombre_archivo('Productoras_de_Leche', $ctx);
 
     if($mfundos_id>0){
 

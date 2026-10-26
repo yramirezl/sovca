@@ -19,8 +19,8 @@
 // falla, el registro sigue su curso y la foto se reintenta después.
 
 const Fotos = {
-  // La app vive en /bovs/app_offline/, la carpeta de fotos en
-  // /bovs/dist/img/fotos_animales/ — por eso el "../".
+  // La app vive en /sovca/app_offline/, la carpeta de fotos en
+  // /sovca/dist/img/fotos_animales/ — por eso el "../..".
   RUTA_SERVIDOR: '../dist/img/fotos_animales/',
 
   MAX_LADO: 1000, // px del lado mayor antes de subir

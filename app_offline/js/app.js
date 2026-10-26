@@ -491,7 +491,7 @@ async function descargarRespaldoLocal() {
   const sesion = await Db.obtenerSesion().catch(() => null);
   const etiquetaFundo = el('fundo-activo');
   const respaldo = {
-    app: 'BOVS Offline',
+    app: 'SOVCA Offline',
     formato: 1,
     generado: new Date().toISOString(),
     fundo_id: Number(fundoId),
@@ -529,12 +529,12 @@ async function restaurarRespaldoLocal(archivo) {
   try {
     contenido = JSON.parse(await archivo.text());
   } catch (e) {
-    alert('Ese archivo no es un respaldo válido de BOVS.');
+    alert('Ese archivo no es un respaldo válido de SOVCA.');
     return;
   }
 
-  if (!contenido || contenido.app !== 'BOVS Offline' || !contenido.almacenes) {
-    alert('Ese archivo no es un respaldo válido de BOVS.');
+  if (!contenido || contenido.app !== 'SOVCA Offline' || !contenido.almacenes) {
+    alert('Ese archivo no es un respaldo válido de SOVCA.');
     return;
   }
 
@@ -732,6 +732,7 @@ async function iniciar() {
   window.addEventListener('bovs:sesion_invalida', (e) => manejarSesionInvalida(e.detail && e.detail.mensaje));
   window.addEventListener('bovs:dispositivo_desvinculado', (e) => manejarDispositivoDesvinculado(e.detail && e.detail.mensaje));
   window.addEventListener('bovs:sin_acceso_offline', (e) => manejarSinAccesoOffline(e.detail && e.detail.mensaje));
+  window.addEventListener('bovs:mantenimiento', (e) => manejarMantenimiento(e.detail && e.detail.mensaje));
   window.addEventListener('bovs:catalogos', async () => {
     await poblarSelectsCatalogos();
     await poblarSelectProductosControlSanitario();
@@ -806,7 +807,7 @@ function configurarInstalacionComoApp() {
   window.addEventListener('beforeinstallprompt', (evento) => {
     evento.preventDefault();
     deferredInstallPrompt = evento;
-    mostrarCajaInstalacion('Instala BOVS Offline como app en este dispositivo para mejor experiencia sin conexión.', true);
+    mostrarCajaInstalacion('Instala SOVCA Offline como app en este dispositivo para mejor experiencia sin conexión.', true);
   });
 
   window.addEventListener('appinstalled', () => {
@@ -1406,7 +1407,6 @@ let manejandoSinAccesoOffline = false;
 async function manejarSinAccesoOffline(mensajeServidor) {
   if (manejandoSinAccesoOffline) return;
   manejandoSinAccesoOffline = true;
-
   const texto = mensajeServidor || 'Tu cuenta no tiene acceso al modo sin conexión.';
 
   try {
@@ -1430,6 +1430,34 @@ async function manejarSinAccesoOffline(mensajeServidor) {
   } finally {
     manejandoSinAccesoOffline = false;
   }
+}
+
+/* ---------------------------------------------------------------------
+   MANTENIMIENTO DEL SERVIDOR
+   ---------------------------------------------------------------------
+   Los perfiles 1 y 4 siguen operando; los productores y ayudantes
+   quedan en pausa. NO se cierra la sesión local: los registros
+   pendientes se conservan y se suben cuando el mantenimiento termine.
+   Se muestra el aviso como máximo una vez cada 5 minutos para no
+   interrumpir en cada reintento de sincronización.
+   --------------------------------------------------------------------- */
+let avisoMantenimientoMostrado = 0;
+
+function manejarMantenimiento(mensajeServidor) {
+  const texto = mensajeServidor || 'El sistema está en mantenimiento.';
+  const ahora = Date.now();
+  if (ahora - avisoMantenimientoMostrado < 5 * 60 * 1000) return;
+  avisoMantenimientoMostrado = ahora;
+
+  const destino = el('reconexion-mensaje') || el('login-mensaje');
+  if (destino) destino.textContent = texto;
+
+  mostrarModalAviso(
+    'Sistema en mantenimiento',
+    '<p>' + String(texto).replace(/</g, '&lt;') + '</p>'
+    + '<p>Tus registros sin sincronizar se conservan. La app se pondrá al día '
+    + 'automáticamente cuando el mantenimiento termine.</p>'
+  );
 }
 
 // ---------------------------------------------------------------------
@@ -2805,8 +2833,8 @@ const CAMPOS_DETALLE_REGISTRO = {
         ['aptitud', 'Aptitud', 'aptitudes'],
         ['f_servicio', 'Fecha de servicio'],
         ['nro_parto', 'Número de parto'],
-        ['produccion_leche', 'Producción de leche'],
-        ['proposito', 'Propósito'],
+        ['produccion_leche', 'Entra en lactancia'],
+        ['proposito', 'Entrar en lactancia'],
         ['f_secado', 'Fecha de secado'],
         ['observaciones', 'Observaciones'],
       ],
@@ -2848,10 +2876,11 @@ function valorDetalleRegistro(registro, modulo, clave, catalogos) {
     return ({ 1: 'Vivo', 2: 'Muerto' })[valor] || String(valor);
   }
   if (clave === 'produccion_leche') {
-    return ({ 1: 'Sí, entra a producción de leche', 2: 'No' })[valor] || 'Sin información';
+    return Number(valor) === 1 ? 'Sí' : 'No';
   }
   if (clave === 'proposito') {
-    return ({ 1: 'Lactancia', 2: 'Producción de leche' })[valor] || 'Sin información';
+    /* 2 = Sí (entra en lactancia); 0 = No. El 1 es de registros viejos. */
+    return (Number(valor) === 2 || Number(valor) === 1) ? 'Sí' : 'No';
   }
   if (clave === 'nac_fundo') {
     return [true, 1, '1', 't', 'true'].includes(valor) ? 'Sí' : 'No';
@@ -4275,14 +4304,15 @@ function poblarSelectAnimalesDesdeLista(idCampo, animales, textoVacio) {
 // que antes.
 // ---------------------------------------------------------------------
 
-const MAX_TERNEROS_PARTO = 6;
+const MAX_TERNEROS_PARTO = 5;
 
 async function agregarFilaTernero(datos = {}) {
   const lista = el('nacimientos-terneros');
   if (!lista) return;
 
   if (lista.querySelectorAll('.ternero-fila').length >= MAX_TERNEROS_PARTO) {
-    el('form-nacimientos-mensaje').textContent = 'Un parto no puede tener más de ' + MAX_TERNEROS_PARTO + ' terneros.';
+    el('form-nacimientos-mensaje').textContent = 'Un parto no puede tener más de '
+      + MAX_TERNEROS_PARTO + ' terneros/as.';
     return;
   }
 
@@ -5251,7 +5281,11 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
   el('nacimientos-fecha-parto').value = comoFechaInput(registro.f_parto);
   el('nacimientos-tipo-servicio').value = registro.mtiposervicios_id ? String(registro.mtiposervicios_id) : '';
   el('nacimientos-nro-parto').value = registro.nro_parto ?? '';
-  el('nacimientos-proposito').value = String(Number(registro.proposito) || 0);
+  el('nacimientos-proposito').value = (function () {
+    /* Compatibilidad: los registros viejos guardaban 1 = Lactancia. */
+    var guardado = Number(registro.proposito) || 0;
+    return String(guardado === 1 ? 2 : guardado);
+  })();
   el('nacimientos-fecha-secado').value = comoFechaInput(registro.f_secado);
   el('nacimientos-observaciones').value = registro.observaciones || '';
 
@@ -7996,6 +8030,14 @@ async function manejarEventoSync(detalle) {
       return;
     }
     escribirEstado('Sincronizando…');
+    return;
+  }
+
+  // El servidor está en mantenimiento: no es un fallo de los registros.
+  // Se informa y se deja todo pendiente para el próximo intento.
+  if (detalle.mantenimiento) {
+    escribirEstado('El sistema está en mantenimiento. La sincronización se reanudará automáticamente.');
+    await actualizarIndicadorSincronizacion();
     return;
   }
 

@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Reporte de Producción de Leche
+   SOVCA | Reporte de Producción de Leche
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
 
@@ -809,6 +809,16 @@ class pdfreporte extends fpdf
         $this->SetAligns(array('C'));
 
         $this->RowM(array('REPORTE DE PRODUCCIÓN DE LECHE'));
+
+        /* Nomenclatura de salida: animal / lote / rango */
+        if (!empty($this->contexto_detalle)) {
+            $this->SetXY($x + 10, $this->GetY() + 1);
+            $this->SetFont("ARIAL", "", 8);
+            $this->SetJump(4);
+            $this->SetWidths(array(190));
+            $this->SetAligns(array('C'));
+            $this->RowM(array(__pdf_txt($this->contexto_detalle)));
+        }
     }
 
     function Footer()

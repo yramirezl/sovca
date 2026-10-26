@@ -343,10 +343,17 @@ $(function() {
                             <label style="font-weight:700; color:#334155;">Parámetros:</label><br>
                             <label data-param="sexo_hembra" style="color:fuchsia; display:none; margin-right:12px;"><input type="checkbox" id="sexo_hembra"> HEMBRA</label>
                             <label data-param="sexo_macho" style="color:blue; display:none; margin-right:12px;"><input type="checkbox" id="sexo_macho"> MACHO</label>
-                            <label data-param="rango_id" style="color:orange; display:none; margin-right:12px;"><input type="checkbox" id="rango_id"> CÓDIGO (rango)</label>
+                            <label data-param="rango_id" style="color:orange; display:none; margin-right:12px;"><input type="checkbox" id="rango_id"> CÓDIGO SOVCA</label>
                             <label data-param="rango_fecha" style="color:teal; display:none; margin-right:12px;"><input type="checkbox" id="rango_fecha"> FECHA (rango)</label>
-                            <label data-param="rango_lote" style="color:green; display:none; margin-right:12px;"><input type="checkbox" id="rango_lote"> LOTES (rango)</label>
-                            <label data-param="cod_bovs" style="color:red; display:none; margin-right:12px;"><input type="checkbox" id="cod_bovs"> CÓDIGO BOVS único</label>
+                            <label data-param="rango_lote" style="color:green; display:none; margin-right:12px;"><input type="checkbox" id="rango_lote"> LOTE</label>
+                            <label data-param="cod_bovs" style="color:red; display:none; margin-right:12px;"><input type="checkbox" id="cod_bovs"> CÓDIGO SOVCA único</label>
+                        </div>
+
+                        <!-- Solo en Producción de Leche: código o lote, no ambos -->
+                        <div id="hint_exclusivo" style="display:none; margin-top:10px; padding:9px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:8px; color:#1e40af; font-size:12.5px; line-height:1.45;">
+                            <i class="fa fa-info-circle"></i>
+                            Genere el reporte por <strong>un código SOVCA</strong> <em>o</em> por <strong>un lote</strong>,
+                            no ambos a la vez. El rango de fechas sí se puede combinar con cualquiera de los dos.
                         </div>
 
                         <div id="params_empty" style="display:none; color:#6B7480; font-style:italic; margin-top:8px;">
@@ -371,43 +378,75 @@ $(function() {
                         </div>
 
                         <div class="row" style="display:none;" id="row_cod_rango">
-                            <div class="col-sm-6">
-                                <label>Código BOVS Desde</label>
-                                <input class="form-control" id="cod_bovs_inicio" type="text">
-                            </div>
-                            <div class="col-sm-6">
-                                <label>Código BOVS Hasta</label>
-                                <input class="form-control" id="cod_bovs_final" type="text">
+                            <div class="col-sm-8">
+                                <label>Código SOVCA del animal</label>
+                                <div class="sel-animal" id="sel_rep_cod">
+                                    <div class="sel-animal__bar">
+                                        <i class="fa fa-search"></i>
+                                        <input type="text" class="sel-animal__filtro" data-sel="filtro"
+                                               placeholder="Buscar por nombre, código SOVCA o N° de arete…"
+                                               autocomplete="off">
+                                        <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
+                                            <i class="fa fa-refresh"></i>
+                                        </button>
+                                    </div>
+                                    <div class="sel-animal__lista" data-sel="lista"></div>
+                                    <div class="sel-animal__pie">
+                                        <span data-sel="contador"></span>
+                                        <span data-sel="resumen"></span>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="cod_bovs_unico">
                             </div>
                         </div>
 
                         <div class="row" style="display:none;" id="row_lotes">
                             <div class="col-sm-6">
-                                <label>Desde el Lote</label>
-                                <select id="lote_inicio" class="form-control"><option value=""></option></select>
-                            </div>
-                            <div class="col-sm-6">
-                                <label>Hasta el Lote</label>
-                                <select id="lote_final" class="form-control"><option value=""></option></select>
+                                <label>Lote</label>
+                                <select id="lote_unico" class="form-control"><option value=""></option></select>
+                                <small style="color:#6B7480;">Un solo lote: los rangos «desde/hasta» quedan reservados para las fechas.</small>
                             </div>
                         </div>
 
                         <div class="row" style="display:none; margin-top: 10px;" id="row_cod_unico">
                             <div class="col-sm-8">
-                                <label>
-                                    <input type="checkbox" id="nro_arete"> Nro Arete
-                                    &nbsp;&nbsp;
-                                    <input type="checkbox" id="codigo_bovs"> Código BOVS
-                                </label>
-                                <input class="form-control" id="id_cod_bovs" type="text" placeholder="Código / Nro Arete">
+                                <label>Código SOVCA del animal</label>
+                                <div class="sel-animal" id="sel_rep_unico">
+                                    <div class="sel-animal__bar">
+                                        <i class="fa fa-search"></i>
+                                        <input type="text" class="sel-animal__filtro" data-sel="filtro"
+                                               placeholder="Buscar por nombre, código SOVCA o N° de arete…"
+                                               autocomplete="off">
+                                        <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
+                                            <i class="fa fa-refresh"></i>
+                                        </button>
+                                    </div>
+                                    <div class="sel-animal__lista" data-sel="lista"></div>
+                                    <div class="sel-animal__pie">
+                                        <span data-sel="contador"></span>
+                                        <span data-sel="resumen"></span>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="nro_arete">
+                                <input type="hidden" id="codigo_bovs">
+                                <input type="hidden" id="id_cod_bovs">
                                 <div id="ms_id_cod_bovs" style="background:#F39C12; color:#fff; text-align:center; margin-top:4px; border-radius:4px;"></div>
                                 <div id="ms_id_cod_bovs_acep" style="background:#19ac1b; color:#fff; text-align:center; margin-top:4px; border-radius:4px;"></div>
                             </div>
-                            <div class="col-sm-2" style="padding-top:22px;">
-                                <button id="valida_cod" type="button" class="btn btn-primary btn-sm">
-                                    <i class="fa fa-check-square-o"></i> Validar
-                                </button>
-                            </div>
+                        </div>
+
+                        <!-- Animal elegido: se muestra siempre, para que nunca
+                             quede la duda de cuál animal se va a reportar -->
+                        <div class="rep-animal-sel" id="rep_animal_sel" style="display:none;">
+                            <i class="fa fa-check-circle"></i>
+                            <span class="rep-animal-sel__lbl">Animal seleccionado:</span>
+                            <strong data-sel="codigo"></strong>
+                            <span data-sel="nombre"></span>
+                            <span data-sel="arete"></span>
+                            <span class="rep-animal-sel__tag" data-sel="datos"></span>
+                            <button type="button" class="rep-animal-sel__quitar" id="rep_animal_quitar">
+                                <i class="fa fa-pencil"></i> Cambiar
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -434,6 +473,8 @@ $(function() {
 <script type="text/javascript" src="../../plugins/datepicker/bootstrap-datepicker.js"></script>
 <script src="../../plugins/datepicker/locales/bootstrap-datepicker.es.js" charset="UTF-8"></script>
 <link rel="stylesheet" href="../../plugins/datepicker/datepicker3.css" type="text/css" />
+<link rel="stylesheet" href="../../css/servicio-selector.css?v=16" type="text/css" />
+<script type="text/javascript" src="../../js/servicio-selector.js?v=16"></script>
 <script type="text/javascript" src="../../plugins/amcharts4/core.js"></script>
 <script type="text/javascript" src="../../plugins/amcharts4/charts.js"></script>
 <script type="text/javascript" src="../../plugins/amcharts4/themes/animated.js"></script>
@@ -489,6 +530,43 @@ $(function() {
 
     #crear_reporte:disabled { opacity: 0.5; cursor: not-allowed; }
     #params_container label { cursor: pointer; margin-right: 8px; }
+
+    /* Franja con el animal elegido en el gestor de reportes */
+    .rep-animal-sel {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0 2px;
+        padding: 10px 14px;
+        background: #EAF7EE;
+        border: 1px solid #B7E0C4;
+        border-radius: 8px;
+        color: #146B2E;
+        font-size: 13.5px;
+    }
+    .rep-animal-sel > i { font-size: 17px; }
+    .rep-animal-sel strong { font-weight: 700; letter-spacing: .02em; }
+    .rep-animal-sel__lbl { color: #2C6B41; }
+    .rep-animal-sel__tag {
+        background: #19ac1b;
+        color: #fff;
+        border-radius: 12px;
+        padding: 2px 10px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .rep-animal-sel__quitar {
+        margin-left: auto;
+        background: transparent;
+        border: 1px solid #9BCFAC;
+        color: #146B2E;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 12.5px;
+        cursor: pointer;
+    }
+    .rep-animal-sel__quitar:hover { background: #D9F0E1; }
 </style>
 
 <script type="text/javascript">
@@ -504,8 +582,8 @@ $(function() {
     var codigo_validado = false;
     var verificando_reporte = false;
 
-    /* Prefijo BOVS del fundo activo (usado para filtrar por código BOVS) */
-    var BOVS_PREFIJO = (function() {
+    /* Prefijo SOVCA del fundo activo (usado para filtrar por código SOVCA) */
+    var SOVCA_PREFIJO = (function() {
         var f = <?php echo (int)$_SESSION['mfundos_id']; ?>;
         var s = String(f);
         while (s.length < 3) { s = '0' + s; }
@@ -531,7 +609,7 @@ $(function() {
         'rep_ctl_lote':     ['rango_fecha', 'rango_lote'],
         'rep_nacimientos':  ['rango_fecha', 'cod_bovs'],
         'rep_grupo_etario': [],
-        'rep_cons_peso':    ['rango_fecha', 'rango_lote']
+        'rep_cons_peso':    ['rango_fecha', 'rango_lote', 'cod_bovs']
     };
 
     var PARAM_A_FILA = {
@@ -802,6 +880,11 @@ $(function() {
         var activos = REPORTE_CONFIG[tipo] || [];
         var todos = ['sexo_hembra', 'sexo_macho', 'rango_id', 'rango_fecha', 'rango_lote', 'cod_bovs'];
 
+        /* En Producción de Leche el código y el lote son excluyentes */
+        $('#rango_id, #rango_lote').prop('disabled', false);
+        if (tipo === 'rep_prod_leche') $('#hint_exclusivo').show();
+        else $('#hint_exclusivo').hide();
+
         if (!tipo) {
             $('#params_container').hide();
             $('#params_empty').hide();
@@ -831,20 +914,42 @@ $(function() {
         Object.values(PARAM_A_FILA).forEach(function(rowId) { $('#' + rowId).hide(); });
     }
 
+    /* ------------------------------------------------------------
+       EXCLUSIVIDAD CÓDIGO / LOTE (solo Producción de Leche)
+       El reporte se genera por UN código SOVCA o por UN lote:
+       al marcar uno se desmarca e inhabilita el otro. Al desmarcarlo
+       se vuelven a habilitar ambos.
+       ------------------------------------------------------------ */
+    function excluirCodigoLote(activo) {
+        if (tipo_rep !== 'rep_prod_leche') return;
+
+        if (activo === 'codigo') {
+            $('#rango_lote').prop('checked', false).prop('disabled', true);
+            $('#row_lotes').hide();
+            $('#lote_unico').val('');
+        } else if (activo === 'lote') {
+            $('#rango_id').prop('checked', false).prop('disabled', true);
+            $('#row_cod_rango').hide();
+            $('#cod_bovs_unico').val('');
+            ocultarAnimalSeleccionado();
+        } else {
+            $('#rango_id, #rango_lote').prop('disabled', false);
+        }
+    }
+
     function cargarLotes(tipo) {
         var action = '';
         if (tipo === 'rep_prod_leche') action = 'get_lote_prod_leche';
         else if (tipo === 'rep_cons_peso') action = 'get_lote_consecutivo_peso';
         else if (tipo === 'rep_ctl_animal' || tipo === 'rep_ctl_lote') action = 'get_lote_control_sanitario';
         else {
-            $("#lote_inicio, #lote_final").html('<option value=""></option>');
+            $("#lote_unico").html('<option value=""></option>');
             return;
         }
 
         $.post("../../controllers/mlotes_controller", { action: action })
             .done(function(data) {
-                $("#lote_inicio").html(data);
-                $("#lote_final").html(data);
+                $("#lote_unico").html(data);
             });
     }
 
@@ -854,8 +959,9 @@ $(function() {
         if (!tipo_rep) { $("#crear_reporte").prop('disabled', true); return; }
 
         var tiene_fecha_completa       = $("#rango_fecha").prop('checked') && $("#fecha_inicio").val() !== '' && $("#fecha_final").val() !== '';
-        var tiene_rango_cod_completo   = $("#rango_id").prop('checked') && $("#cod_bovs_inicio").val() !== '' && $("#cod_bovs_final").val() !== '';
-        var tiene_rango_lote_completo  = $("#rango_lote").prop('checked') && $("#lote_inicio").val() !== '' && $("#lote_final").val() !== '';
+        /* El código y el lote son valores ÚNICOS: no se comparan rangos */
+        var tiene_rango_cod_completo   = $("#rango_id").prop('checked') && $.trim($("#cod_bovs_unico").val()) !== '';
+        var tiene_rango_lote_completo  = $("#rango_lote").prop('checked') && $("#lote_unico").val() !== '';
         var tiene_sexo                 = $("#sexo_hembra").prop('checked') || $("#sexo_macho").prop('checked');
         var tiene_codigo_validado      = $("#cod_bovs").prop('checked') && codigo_validado === true && $("#id_cod_bovs").val() !== '';
 
@@ -866,7 +972,7 @@ $(function() {
             case 'rep_nacimientos':    puede = tiene_fecha_completa || tiene_codigo_validado; break;
             case 'rep_ser_animal':     puede = tiene_sexo || tiene_codigo_validado; break;
             case 'rep_prod_leche':     puede = tiene_fecha_completa || tiene_rango_cod_completo || tiene_rango_lote_completo; break;
-            case 'rep_cons_peso':      puede = tiene_fecha_completa || tiene_rango_lote_completo; break;
+            case 'rep_cons_peso':      puede = tiene_fecha_completa || tiene_rango_lote_completo || tiene_codigo_validado; break;
             default:                   puede = false;
         }
         $("#crear_reporte").prop('disabled', !puede);
@@ -876,8 +982,8 @@ $(function() {
         $('#vista').val('').trigger('change');
         $("#rango_fecha, #rango_id, #rango_lote, #cod_bovs, #sexo_hembra, #sexo_macho, #nro_arete, #codigo_bovs")
             .prop('checked', false).val(0);
-        $("#fecha_inicio, #fecha_final, #cod_bovs_inicio, #cod_bovs_final, #id_cod_bovs").val('');
-        $("#lote_inicio, #lote_final").html('<option value=""></option>').val('');
+        $("#fecha_inicio, #fecha_final, #cod_bovs_unico, #id_cod_bovs").val('');
+        $("#lote_unico").html('<option value=""></option>').val('');
         $("#ms_id_cod_bovs").text('').hide();
         $("#ms_id_cod_bovs_acep").text('').hide();
         tipo_rep = '';
@@ -888,12 +994,156 @@ $(function() {
         $('#params_prompt').show();
         Object.values(PARAM_A_FILA).forEach(function(rowId) { $('#' + rowId).hide(); });
         $("#crear_reporte").prop('disabled', true);
+        vaciarSelectoresReporte();
+    }
+
+    /* ============================================================
+       SELECTOR INTERACTIVO DE ANIMALES PARA LOS REPORTES
+       Reutiliza js/servicio-selector.js (el mismo listado filtrable de
+       Servicios, Pesaje, Control Sanitario…). El filtrado es LOCAL sobre
+       el listado del fundo: se busca por nombre, código SOVCA o N° de arete.
+       ============================================================ */
+    var SELECTOR_REPORTE_CONFIG = {
+        url:         '../../controllers/manimales_controller',
+        accion:      'listar_animales_reporte',
+        rol:         'reporte',
+        maxInicial:  100,
+        maxFiltrado: 100,
+        textoVacio:  'No hay animales registrados en este fundo.',
+        textoResumen: function(ok) {
+            return ok + (tipo_rep ? ' con datos' : ' animales');
+        },
+        /* El backend devuelve únicamente los animales con datos para el
+           reporte elegido (y, si hay rango de fechas, dentro de ese rango). */
+        params: function() {
+            var con_fechas = $('#rango_fecha').prop('checked');
+            return {
+                reporte:      tipo_rep || '',
+                fecha_inicio: con_fechas ? parseFechaAISO($('#fecha_inicio').val()) : '',
+                fecha_final:  con_fechas ? parseFechaAISO($('#fecha_final').val())  : ''
+            };
+        }
+    };
+
+    function iniciarSelectorReporte(id, alElegir) {
+        var $sel = $('#' + id);
+        if ($sel.length === 0 || typeof $sel.bovsSelectorAnimal !== 'function') return;
+        $sel.bovsSelectorAnimal($.extend({}, SELECTOR_REPORTE_CONFIG, { onElegir: alElegir }));
+    }
+
+    function vaciarSelectoresReporte() {
+        $.each(['sel_rep_cod', 'sel_rep_unico'], function(i, id) {
+            var $sel = $('#' + id);
+            if ($sel.length && typeof $sel.bovsSelectorAnimal === 'function') {
+                $sel.bovsSelectorAnimal('vaciar');
+            }
+        });
+        ocultarAnimalSeleccionado();
+    }
+
+    /* Texto del estado vacío según el reporte (explica por qué no hay nada). */
+    function textosSelectorReporte() {
+        var mapa = {
+            'rep_prod_leche':  'Ningún animal tiene producción de leche registrada',
+            'rep_cons_peso':   'Ningún animal tiene pesajes registrados',
+            'rep_ctl_animal':  'Ningún animal tiene controles sanitarios registrados',
+            'rep_nacimientos': 'Ninguna hembra tiene partos registrados',
+            'rep_ser_animal':  'Ningún animal tiene servicios registrados'
+        };
+        var txt = mapa[tipo_rep] || 'No hay animales registrados en este fundo';
+
+        if ($('#rango_fecha').prop('checked')) {
+            txt += ' para el rango de fechas indicado';
+        }
+
+        return txt + '.';
+    }
+
+    /* Vuelve a pedir el listado con el reporte y el rango de fechas vigentes.
+       La selección se limpia: si cambian las condiciones, el animal anterior
+       podría dejar de cumplirlas. */
+    function recargarSelectorReporte() {
+        var id   = (tipo_rep === 'rep_prod_leche') ? 'sel_rep_cod' : 'sel_rep_unico';
+        var $sel = $('#' + id);
+
+        if (!$sel.length || typeof $sel.bovsSelectorAnimal !== 'function') {
+            return;
+        }
+
+        /* Sin reporte elegido no hay requisitos que aplicar: solo se limpia */
+        if (!tipo_rep) {
+            $sel.bovsSelectorAnimal('vaciar');
+            ocultarAnimalSeleccionado();
+            return;
+        }
+
+        var inst = $sel.data('bovsSelectorAnimal');
+        if (inst && inst.cfg) {
+            inst.cfg.textoVacio = textosSelectorReporte();
+        }
+
+        $sel.bovsSelectorAnimal('vaciar');
+        $sel.bovsSelectorAnimal('recargar');
+
+        $("#cod_bovs_unico, #id_cod_bovs").val('');
+        $("#codigo_bovs").prop('checked', false);
+        codigo_validado = false;
+        ocultarAnimalSeleccionado();
+        validarBotonGenerar();
+    }
+
+    /* Franja visible con el animal elegido */
+    function mostrarAnimalSeleccionado(fila) {
+        if (!fila) {
+            ocultarAnimalSeleccionado();
+            return;
+        }
+
+        var $box = $('#rep_animal_sel');
+
+        $box.find('[data-sel="codigo"]').text(fila.codigo || '');
+        $box.find('[data-sel="nombre"]').text(fila.nombre ? '· ' + fila.nombre : '');
+        $box.find('[data-sel="arete"]').text(fila.nro_arete ? '· Arete ' + fila.nro_arete : '');
+        $box.find('[data-sel="datos"]').text(fila.etiqueta || '');
+        $box.show();
+    }
+
+    function ocultarAnimalSeleccionado() {
+        $('#rep_animal_sel').hide();
+        $('#rep_animal_sel [data-sel]').text('');
     }
 
     /* ============================================================
        INIT
        ============================================================ */
     $(document).ready(function() {
+
+        /* Reporte por UN código SOVCA (Producción de Leche) */
+        iniciarSelectorReporte('sel_rep_cod', function(fila) {
+            $("#cod_bovs_unico").val(fila.codigo).trigger('input');
+            $('#sel_rep_cod [data-sel="resumen"]').text('Seleccionado: ' + fila.codigo);
+            mostrarAnimalSeleccionado(fila);
+            validarBotonGenerar();
+        });
+
+        /* Reporte por código/Nro de arete (Servicios, Control Sanitario,
+           Nacimientos, Consecutivo de Peso): el código viene del listado del
+           fundo, así que ya está verificado y se habilita Generar sin el paso
+           manual. */
+        iniciarSelectorReporte('sel_rep_unico', function(fila) {
+            $("#nro_arete").prop('checked', false);
+            $("#codigo_bovs").prop('checked', true);
+            buscar_cod = 1;
+            $("#id_cod_bovs").val(fila.codigo).trigger('input');
+            codigo_validado = true;
+            $("#ms_id_cod_bovs").text('').hide();
+            $("#ms_id_cod_bovs_acep").text('Animal seleccionado').show();
+            setTimeout(function() { $("#ms_id_cod_bovs_acep").text('').hide(); }, 2500);
+            $('#sel_rep_unico [data-sel="resumen"]').text('Seleccionado: ' + fila.codigo);
+            mostrarAnimalSeleccionado(fila);
+            validarBotonGenerar();
+        });
+
         $.post("../../controllers/mreportes_controller", { action: "search_datos_animales" })
             .done(function(data) {
                 var p = $.parseJSON(data);
@@ -1329,57 +1579,82 @@ $(function() {
 
         $("#rango_fecha, #rango_id, #rango_lote, #cod_bovs, #sexo_hembra, #sexo_macho, #nro_arete, #codigo_bovs")
             .prop('checked', false).val(0);
-        $("#fecha_inicio, #fecha_final, #cod_bovs_inicio, #cod_bovs_final, #id_cod_bovs").val('');
-        $("#lote_inicio, #lote_final").val('');
+        $("#fecha_inicio, #fecha_final, #cod_bovs_unico, #id_cod_bovs").val('');
+        $("#lote_unico").val('');
         $("#ms_id_cod_bovs").text('').hide();
         $("#ms_id_cod_bovs_acep").text('').hide();
 
+        vaciarSelectoresReporte();
         aplicarConfiguracionReporte(tipo_rep);
         cargarLotes(tipo_rep);
+        recargarSelectorReporte();
+        validarBotonGenerar();
+    });
+
+    /* Cambiar el animal elegido sin cerrar el gestor */
+    $("#rep_animal_quitar").click(function() {
+        $("#cod_bovs_unico, #id_cod_bovs").val('');
+        $("#codigo_bovs").prop('checked', false);
+        codigo_validado = false;
+        buscar_cod = 0;
+        vaciarSelectoresReporte();
+
+        var $foco = (tipo_rep === 'rep_prod_leche')
+            ? $('#sel_rep_cod .sel-animal__filtro')
+            : $('#sel_rep_unico .sel-animal__filtro');
+
+        setTimeout(function() { $foco.focus(); }, 50);
         validarBotonGenerar();
     });
 
     $("#rango_fecha").click(function() {
         if ($(this).prop('checked')) $('#row_fechas').show();
         else { $('#row_fechas').hide(); $("#fecha_inicio, #fecha_final").val(''); }
+
+        /* El catálogo solo ofrece animales con datos en el rango indicado */
+        recargarSelectorReporte();
         validarBotonGenerar();
     });
 
     $("#rango_id").click(function() {
         if ($(this).prop('checked')) {
+            /* Producción de Leche: un código O un lote */
+            excluirCodigoLote('codigo');
+
             $('#row_cod_rango').show();
-            $("#cod_bovs_inicio").val(BOVS_PREFIJO);
-            $("#cod_bovs_final").val(BOVS_PREFIJO);
-            setTimeout(function() {
-                var $inp = $("#cod_bovs_inicio");
-                $inp.focus();
-                if ($inp[0] && $inp[0].setSelectionRange) {
-                    var len = $inp.val().length;
-                    $inp[0].setSelectionRange(len, len);
-                }
-            }, 50);
+            setTimeout(function() { $('#sel_rep_cod .sel-animal__filtro').focus(); }, 50);
         } else {
+            excluirCodigoLote('');
             $('#row_cod_rango').hide();
-            $("#cod_bovs_inicio, #cod_bovs_final").val('');
+            $("#cod_bovs_unico").val('');
+            vaciarSelectoresReporte();
         }
         validarBotonGenerar();
     });
 
     $("#rango_lote").click(function() {
-        if ($(this).prop('checked')) $('#row_lotes').show();
-        else { $('#row_lotes').hide(); $("#lote_inicio, #lote_final").val(''); }
+        if ($(this).prop('checked')) {
+            excluirCodigoLote('lote');
+            $('#row_lotes').show();
+        } else {
+            excluirCodigoLote('');
+            $('#row_lotes').hide();
+            $("#lote_unico").val('');
+        }
         validarBotonGenerar();
     });
 
     $("#cod_bovs").click(function() {
         if ($(this).prop('checked')) {
             $('#row_cod_unico').show();
+            setTimeout(function() { $('#sel_rep_unico .sel-animal__filtro').focus(); }, 50);
         } else {
             $('#row_cod_unico').hide();
             $("#id_cod_bovs").val('').trigger('input');
             codigo_validado = false;
             $("#nro_arete, #codigo_bovs").prop('checked', false);
             buscar_cod = 0;
+            vaciarSelectoresReporte();
         }
         validarBotonGenerar();
     });
@@ -1402,8 +1677,8 @@ $(function() {
         if ($(this).prop('checked')) {
             $("#nro_arete").prop('checked', false);
             buscar_cod = 1;
-            $("#id_cod_bovs").val(BOVS_PREFIJO).trigger('input');
-            $("#id_cod_bovs").attr('placeholder', 'Código BOVS');
+            $("#id_cod_bovs").val(SOVCA_PREFIJO).trigger('input');
+            $("#id_cod_bovs").attr('placeholder', 'Código SOVCA');
             setTimeout(function() {
                 var $inp = $("#id_cod_bovs");
                 $inp.focus();
@@ -1429,17 +1704,8 @@ $(function() {
         validarBotonGenerar();
     });
 
-    $("#cod_bovs_inicio, #cod_bovs_final").on('input', validarBotonGenerar);
-    $("#lote_inicio, #lote_final").on('change', validarBotonGenerar);
-
-    // Autocompletar "Hasta" si solo se escribió el "Desde"
-    $("#cod_bovs_inicio").on('blur', function() {
-        var desde = $(this).val().trim();
-        var hasta = $("#cod_bovs_final").val().trim();
-        if (desde && desde !== BOVS_PREFIJO && hasta === BOVS_PREFIJO) {
-            $("#cod_bovs_final").val(desde).trigger('input');
-        }
-    });
+    $("#cod_bovs_unico").on('input', validarBotonGenerar);
+    $("#lote_unico").on('change', validarBotonGenerar);
 
     $("#id_cod_bovs").on('input', function() {
         codigo_validado = false;
@@ -1454,6 +1720,7 @@ $(function() {
         language: 'es',
         container: 'body'
     }).on('changeDate', function() {
+        recargarSelectorReporte();
         validarBotonGenerar();
     });
 
@@ -1463,10 +1730,8 @@ $(function() {
         var parametros = "";
         var fecha_inicio = parseFechaAISO($("#fecha_inicio").val()),
             fecha_final  = parseFechaAISO($("#fecha_final").val());
-        var cod_bovs_inicio = $("#cod_bovs_inicio").val(),
-            cod_bovs_final  = $("#cod_bovs_final").val();
-        var lote_inicio = $("#lote_inicio").val(),
-            lote_final  = $("#lote_final").val();
+        var cod_bovs_unico = $.trim($("#cod_bovs_unico").val());
+        var lote_unico     = $("#lote_unico").val();
         var codigo_bovs = $("#id_cod_bovs").val();
         var tipo = 0, genera = false, mensaje = 0;
 
@@ -1478,15 +1743,17 @@ $(function() {
                         genera = true; tipo = 1;
                     } else mensaje = 1;
                 }
+                /* Código ÚNICO: se envía el mismo valor en los dos extremos
+                   para que el reporte filtre exactamente ese animal. */
                 if ($("#rango_id").prop('checked')) {
-                    if (cod_bovs_inicio && cod_bovs_final) {
-                        parametros += (parametros ? '&' : '') + 'cod_bovs_inicio=' + cod_bovs_inicio + '&cod_bovs_final=' + cod_bovs_final;
+                    if (cod_bovs_unico) {
+                        parametros += (parametros ? '&' : '') + 'cod_bovs_inicio=' + encodeURIComponent(cod_bovs_unico) + '&cod_bovs_final=' + encodeURIComponent(cod_bovs_unico);
                         genera = true; tipo = 1;
                     } else mensaje = 2;
                 }
                 if ($("#rango_lote").prop('checked')) {
-                    if (lote_inicio && lote_final) {
-                        parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_inicio + '&lote_final=' + lote_final;
+                    if (lote_unico) {
+                        parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_unico + '&lote_final=' + lote_unico;
                         genera = true; tipo = 1;
                     } else mensaje = 3;
                 }
@@ -1510,8 +1777,8 @@ $(function() {
                     parametros += (parametros ? '&' : '') + 'fecha_inicio=' + fecha_inicio + '&fecha_final=' + fecha_final;
                     genera = true; tipo = 3;
                 }
-                if ($("#rango_lote").prop('checked') && lote_inicio && lote_final) {
-                    parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_inicio + '&lote_final=' + lote_final;
+                if ($("#rango_lote").prop('checked') && lote_unico) {
+                    parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_unico + '&lote_final=' + lote_unico;
                     genera = true; tipo = 3;
                 }
                 if (buscar_cod > 0 && codigo_bovs && codigo_validado) {
@@ -1525,8 +1792,8 @@ $(function() {
                     parametros += (parametros ? '&' : '') + 'fecha_inicio=' + fecha_inicio + '&fecha_final=' + fecha_final;
                     genera = true; tipo = 3;
                 }
-                if ($("#rango_lote").prop('checked') && lote_inicio && lote_final) {
-                    parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_inicio + '&lote_final=' + lote_final;
+                if ($("#rango_lote").prop('checked') && lote_unico) {
+                    parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_unico + '&lote_final=' + lote_unico;
                     genera = true; tipo = 3;
                 }
                 parametros += (parametros ? '&' : '') + 'modo=lote';
@@ -1553,10 +1820,15 @@ $(function() {
                     } else mensaje = 1;
                 }
                 if ($("#rango_lote").prop('checked')) {
-                    if (lote_inicio && lote_final) {
-                        parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_inicio + '&lote_final=' + lote_final;
+                    if (lote_unico) {
+                        parametros += (parametros ? '&' : '') + 'lote_inicio=' + lote_unico + '&lote_final=' + lote_unico;
                         genera = true; tipo = 5;
                     } else mensaje = 3;
+                }
+                /* Un solo animal: el reporte acepta codigo_bovs/cod_bovs */
+                if (buscar_cod > 0 && codigo_bovs && codigo_validado) {
+                    parametros += (parametros ? '&' : '') + 'cod_bovs=' + codigo_bovs + '&codigo_erete=' + buscar_cod;
+                    genera = true; tipo = 5;
                 }
                 break;
             default: mensaje = 40;
@@ -1565,8 +1837,8 @@ $(function() {
         if (mensaje > 0) {
             var msg = {
                 1: 'Debe seleccionar todos los parametros',
-                2: 'Debe completar el rango de fechas',
-                3: 'Debe completar el rango de lotes',
+                2: 'Debe indicar el código SOVCA del animal',
+                3: 'Debe seleccionar el lote',
                 4: 'Debe seleccionar sexo o codigo',
                 40: 'Debe seleccionar al menos un filtro'
             };

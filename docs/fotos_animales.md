@@ -69,7 +69,7 @@ Los 169 nombres siguen tres patrones, y ninguno coincide con el disco:
 | Patrón | Cantidad | Ejemplo |
 |---|---|---|
 | `<CODIGO>_<apodo>.ext` | 29 | `BOVS-013-010_Dante.jpeg` |
-| `<CODIGO>_<hash32>.ext` | — | `BOVS-02-011_a270dd1e3cc64a6b9052862982bfeb3e.jpg` |
+| `<CODIGO>_<hash32>.ext` | — | `SOVCA-02-011_a270dd1e3cc64a6b9052862982bfeb3e.jpg` |
 | `<CODIGO>.ext` | 140 | `BOVS-02-043.jpg` |
 
 Formatos: 144 `.jpg`, 22 `.jpeg`, 3 `.png`. Hay nombres delicados como

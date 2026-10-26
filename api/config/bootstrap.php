@@ -41,7 +41,7 @@ require_once __DIR__ . '/../lib/ApiResponse.php';
 require_once __DIR__ . '/../lib/ApiAuth.php';
 
 set_exception_handler(function (Throwable $e) {
-    error_log('[API BOVS] ' . $e->getMessage());
+    error_log('[API SOVCA] ' . $e->getMessage());
     \Api\ApiResponse::error('Error interno del servidor.', 500);
 });
 

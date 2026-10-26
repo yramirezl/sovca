@@ -105,7 +105,7 @@ views/login.php                                   (aviso "Acceso suspendido" del
 
 ```bash
 # En el servidor de producción
-cd /ruta/al/bovs
+cd /ruta/al/sovca
 git fetch --all
 git checkout <rama-o-tag-del-cambio>
 ```
@@ -144,7 +144,7 @@ node --check app_offline/js/db.js   # si no hay node, abrir la app y revisar la 
 ## 4. Migración de base de datos
 
 ```bash
-cd /ruta/al/bovs
+cd /ruta/al/sovca
 export PGPASSWORD='<clave-del-usuario-de-la-app>'
 psql -h 127.0.0.1 -U <usuario> -d <base> -P pager=off -v ON_ERROR_STOP=1 \
      -f scripts/migracion_offline_multifundo.sql
@@ -216,7 +216,7 @@ moría con *"Argument #2 ($values) could not be passed by reference"*.
 Verificación (debe imprimir dos veces el nombre de un usuario):
 
 ```bash
-cd /ruta/al/bovs/controllers
+cd /ruta/al/sovca/controllers
 php -r '
 require_once "../config/conexion.php";
 $c = Musuario::connection();
@@ -234,7 +234,7 @@ Reemplazar `<USUARIO>` y `<CLAVE>` por una cuenta real (idealmente un productor
 multifundo). El token se guarda en una variable.
 
 ```bash
-API=http://<host>/bovs/api
+API=http://<host>/sovca/api
 
 TOKEN=$(curl -s -X POST -H "Content-Type: application/json" \
   -d '{"action":"login","usuario":"<USUARIO>","password":"<CLAVE>","dispositivo":"Prueba despliegue"}' \
@@ -407,7 +407,7 @@ Con el usuario multifundo real (por ejemplo el caso de cuentas duplicadas ya uni
       animales listados** (no se mezclan).
 - [ ] Registrar un animal en cada fundo (idealmente con códigos provisionales) y
       sincronizar: en cada fundo debe quedar con su código definitivo correcto
-      (`BOVS-0<fundo>-…`).
+      (`SOVCA-0<fundo>-…`).
 - [ ] En la web, comprobar que cada animal quedó en su fundo.
 - [ ] Abrir la app sin conexión (modo avión) y confirmar que se ven los datos de ambos
       fundos.

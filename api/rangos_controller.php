@@ -7,7 +7,7 @@
  *   - reservar { modulo, cantidad? } (requiere header Authorization)
  *     Reserva un bloque de números correlativos para que un
  *     dispositivo pueda registrar offline y generar de una vez su
- *     código definitivo (BOVS-<fundo>-<n> para animales,
+ *     código definitivo (SOVCA-<fundo>-<n> para animales,
  *     MA-<fundo>-<n> para nacimientos), sin riesgo de duplicados con
  *     otro dispositivo del mismo fundo.
  *

@@ -51,7 +51,7 @@ pg_dump -h 127.0.0.1 -U postgres -d bovs_prod \
 ### 2. Simulación (no escribe nada)
 
 ```bash
-cd /var/www/html/bovs
+cd /var/www/html/sovca
 php scripts/migracion_fecha_secado.php
 ```
 

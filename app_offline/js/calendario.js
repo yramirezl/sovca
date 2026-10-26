@@ -1,5 +1,5 @@
 /* ============================================================
-   Calendario propio de BOVS Offline.
+   Calendario propio de SOVCA Offline.
    Se usa en lugar del selector nativo del navegador, que no es
    amigable: al elegir año/mes a veces no vuelve a los días.
    El <input type="date"> se mantiene como almacén del valor

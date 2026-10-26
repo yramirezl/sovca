@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Movimientos de un animal específico
+   SOVCA | Movimientos de un animal específico
    ------------------------------------------------------------
    Recibe por GET: id_animal
    Devuelve JSON con el historial completo de movimientos.

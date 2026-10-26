@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Verifica si una categoría tiene animales activos
+   SOVCA | Verifica si una categoría tiene animales activos
    ------------------------------------------------------------
    Recibe por POST: id_categoria
    Devuelve JSON:   { "cant_reg": N, "error": "..." }

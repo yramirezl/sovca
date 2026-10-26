@@ -116,7 +116,7 @@
     }
 
     function esCodigoBovs(codigo) {
-        return /^BOVS-\d+-\d+$/i.test(String(codigo || '').trim());
+        return /^SOVCA-\d+-\d+$/i.test(String(codigo || '').trim());
     }
 
     /* ---------- madre / padre externos ---------- */
@@ -343,7 +343,7 @@
 
             if (!chk) continue;
 
-            /* Un animal del hato se identifica con el código BOVS-0NN-0NNN; si
+            /* Un animal del hato se identifica con el código SOVCA-0NN-0NNN; si
                el código guardado no tiene ese formato se trata como externo. */
             if (codigo !== '' && !esCodigoBovs(codigo)) {
                 chk.checked = true;

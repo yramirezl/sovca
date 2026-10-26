@@ -32,13 +32,13 @@
  * existe, el global (mfundos_id = 0).
  */
 
-if (!defined('BOVS_SECADO_DIAS_AJUSTE')) {
+if (!defined('SOVCA_SECADO_DIAS_AJUSTE')) {
     /** Días desde el servicio para el cierre anticipado de lactancia (regla de la imagen). */
-    define('BOVS_SECADO_DIAS_AJUSTE', 210);
+    define('SOVCA_SECADO_DIAS_AJUSTE', 210);
 }
-if (!defined('BOVS_SECADO_DIAS_MINIMOS_PARTO_SERVICIO')) {
+if (!defined('SOVCA_SECADO_DIAS_MINIMOS_PARTO_SERVICIO')) {
     /** Días mínimos entre el último parto y el servicio para considerar el ajuste. */
-    define('BOVS_SECADO_DIAS_MINIMOS_PARTO_SERVICIO', 180);
+    define('SOVCA_SECADO_DIAS_MINIMOS_PARTO_SERVICIO', 180);
 }
 
 if (!function_exists('bovs_fecha_a_objeto')) {
@@ -176,14 +176,14 @@ if (!function_exists('bovs_calcular_secado_servicio')) {
         }
 
         // (2) Ajuste de la imagen: servicio antes de 180 días post-parto.
-        if ($dias_desde_parto < BOVS_SECADO_DIAS_MINIMOS_PARTO_SERVICIO) {
+        if ($dias_desde_parto < SOVCA_SECADO_DIAS_MINIMOS_PARTO_SERVICIO) {
             $fecha = clone $servicio;
-            $fecha->modify('+' . BOVS_SECADO_DIAS_AJUSTE . ' days');
+            $fecha->modify('+' . SOVCA_SECADO_DIAS_AJUSTE . ' days');
             $resultado['fecha'] = $fecha;
-            $resultado['regla'] = 'AJUSTE_' . BOVS_SECADO_DIAS_AJUSTE;
-            $resultado['dias_periodo'] = BOVS_SECADO_DIAS_AJUSTE;
+            $resultado['regla'] = 'AJUSTE_' . SOVCA_SECADO_DIAS_AJUSTE;
+            $resultado['dias_periodo'] = SOVCA_SECADO_DIAS_AJUSTE;
             $resultado['mensaje'] = 'Servicio antes de los 180 días post-parto: secado a los '
-                . BOVS_SECADO_DIAS_AJUSTE . ' días del servicio.';
+                . SOVCA_SECADO_DIAS_AJUSTE . ' días del servicio.';
             return $resultado;
         }
 

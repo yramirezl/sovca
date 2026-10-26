@@ -1617,7 +1617,7 @@ switch ($action) {
 		$usr->updated                   = date('Y-m-d H:i:s');
 
 		if (!$usr->save()) {
-			error_log('[BOVS reset] No se pudo guardar el código del usuario ' . (int) $cuenta_reset->id);
+			error_log('[SOVCA reset] No se pudo guardar el código del usuario ' . (int) $cuenta_reset->id);
 			echo json_encode(array(
 				'ok'  => false,
 				'msg' => 'No se pudo procesar la solicitud. Intenta nuevamente.'
@@ -1644,7 +1644,7 @@ switch ($action) {
 
 		// Si el correo no salió se anula el código, para no dejar uno válido
 		// que el usuario nunca recibió.
-		error_log('[BOVS reset] Falló el envío a ' . $email_reset . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
+		error_log('[SOVCA reset] Falló el envío a ' . $email_reset . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
 
 		$usr->password_reset_codigo   = null;
 		$usr->password_reset_expires  = null;
@@ -1736,7 +1736,7 @@ switch ($action) {
 		);
 
 		if (empty($envio['ok'])) {
-			error_log('[BOVS reset] Falló el reenvío a ' . $email_reset . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
+			error_log('[SOVCA reset] Falló el reenvío a ' . $email_reset . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
 			$usr->password_reset_codigo   = null;
 			$usr->password_reset_expires  = null;
 			$usr->save();
@@ -1899,7 +1899,7 @@ switch ($action) {
 				'msg' => 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.'
 			));
 		} else {
-			error_log('[BOVS reset] No se pudo actualizar la contraseña del usuario ' . $cuenta_id);
+			error_log('[SOVCA reset] No se pudo actualizar la contraseña del usuario ' . $cuenta_id);
 			echo json_encode(array(
 				'ok'  => false,
 				'msg' => 'No se pudo guardar la nueva contraseña. Intenta nuevamente.'
@@ -1970,6 +1970,22 @@ switch ($action) {
 
 
 				foreach ($consulta as $rs) {
+
+					/* ============================================================
+					   MODO MANTENIMIENTO
+					   ------------------------------------------------------------
+					   Solo pueden iniciar sesión los perfiles 1 (Administrador)
+					   y 4 (Super Usuario). Los productores (2) y ayudantes (3)
+					   quedan fuera mientras el sistema esté en mantenimiento.
+					   ============================================================ */
+					require_once '../lib/mantenimiento_helper.php';
+					if (bovs_mantenimiento_activo() && !bovs_mantenimiento_permite_rol((int) $rs->mroles_id)) {
+						if ($usuario !== '') {
+							$_SESSION['login_usuario_temp'] = $usuario;
+						}
+						header("Location: ../views/login?stat=mantenimiento");
+						exit();
+					}
 
 					// Un AYUDANTE (rol 3) hereda la situación del productor dueño de
 					// su fundo: si no queda ningún productor activo en sus fundos,
@@ -2135,12 +2151,12 @@ switch ($action) {
 				   RESPALDO: CUENTAS DE DEMOSTRACIÓN
 				   ------------------------------------------------------------
 				   La cuenta no existe en la base real. Antes de rechazar el
-				   acceso se prueba en la base de pruebas (bovs_demo): las
+				   acceso se prueba en la base de pruebas (sovca_demo): las
 				   cuentas creadas desde "Acceso demostrativo" viven allí y
 				   no en la base de producción.
 
 				   Si entra, la sesión queda con $_SESSION['demo'] = 1 y
-				   config/conexion.php resuelve todo contra bovs_demo.
+				   config/conexion.php resuelve todo contra sovca_demo.
 				   ============================================================ */
 				require_once '../lib/demo_helper.php';
 

@@ -968,7 +968,7 @@ textarea:focus-visible {
 }
 
 /* Franja verde de cierre del bloque, igual que crud-form__card::after en
-   la web: es la firma visual de BOVS. */
+   la web: es la firma visual de SOVCA. */
 .form-animal-contenedor::after {
   content: '';
   position: absolute;

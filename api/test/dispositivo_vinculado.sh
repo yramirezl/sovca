@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-API="http://127.0.0.1:8000/bovs/api"   # ajustá si tu API vive en otro host/puerto
+API="http://127.0.0.1:8000/sovca/api"   # ajustá si tu API vive en otro host/puerto
 USUARIO="DEMO"
 PASSWORD="tu_password_de_prueba"
 

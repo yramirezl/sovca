@@ -5,6 +5,8 @@ ValidaSession("../login");
 <?php include("../layouts/constantes.php"); ?>
 <?php include_once("../layouts/cabecera.php"); ?>
 
+<link rel="stylesheet" href="../../css/agrupado-lista.css?v=1">
+
 <?php
 $crud = [
     'title'    => 'Control Sanitario',
@@ -55,6 +57,13 @@ $crud = [
         if (rolx == 3) {
             \$('#delete, #edit').hide();
         }
+
+        // La vista agrupada (js/controlsanitario-agrupado.js) necesita el
+        // objeto crud para devolver el listado a su estado normal y saber
+        // si el rol puede editar.
+        window.CS_CRUD = crud;
+        window.CS_PUEDE_EDITAR = (rolx != 3);
+
         \$('#gestion_lote').on('click', function() {
             window.location.href = '../controlsanitariomasivo/index.php';
         });
@@ -63,5 +72,8 @@ $crud = [
 
 include("../layouts/_crud_index.php");
 ?>
+
+<!-- Vista agrupada por animal (mismo patrón que Servicios y Producción de Leche) -->
+<script src="../../js/controlsanitario-agrupado.js?v=1"></script>
 
 <?php include_once("../layouts/pie.php"); ?>

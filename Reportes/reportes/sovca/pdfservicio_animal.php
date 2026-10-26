@@ -891,6 +891,15 @@ class pdfreporte extends fpdf
             $this->SetWidths(array(250));
             $this->RowM(array('INFORME DETALLADO DE SERVICIO ANIMAL'));
         }
+
+        /* Nomenclatura de salida: animal / lote / rango */
+        if (!empty($this->contexto_detalle)) {
+            $this->SetFont('ARIAL', '', 8);
+            $this->SetJump(5);
+            $this->SetWidths(array(250));
+            $this->SetAligns(array('C'));
+            $this->RowM(array(__pdf_txt($this->contexto_detalle)));
+        }
     }
 
     function Footer()

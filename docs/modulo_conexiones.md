@@ -139,10 +139,10 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d sovca_qas \
   -v ON_ERROR_STOP=1 -f scripts/migracion_conexiones_historial.sql
 
 # 2) Endpoints (requieren sesión de rol 1 o 4)
-curl -b cookies.txt "http://127.0.0.1/bovs/data_json/data_mconexiones_resumen.php?dias=30"
-curl -b cookies.txt "http://127.0.0.1/bovs/data_json/data_mconexiones.php?dias=30"
+curl -b cookies.txt "http://127.0.0.1/sovca/data_json/data_mconexiones_resumen.php?dias=30"
+curl -b cookies.txt "http://127.0.0.1/sovca/data_json/data_mconexiones.php?dias=30"
 # Historial completo de una cuenta (detalle del resumen)
-curl -b cookies.txt "http://127.0.0.1/bovs/data_json/data_mconexiones.php?usuario=77&dias=0"
+curl -b cookies.txt "http://127.0.0.1/sovca/data_json/data_mconexiones.php?usuario=77&dias=0"
 
 # 3) Verificar que un login real inserta una fila
 PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d sovca_qas \

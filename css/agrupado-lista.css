@@ -1,0 +1,296 @@
+/*!
+ * css/agrupado-lista.css
+ * ---------------------------------------------------------------------------
+ * Vista agrupada por animal (patrón de Servicios y Producción de Leche),
+ * reutilizable por los módulos que lo necesiten.
+ *
+ * Se usan clases con prefijo `ag-` para no interferir con los estilos
+ * propios de cada listado (Servicios conserva su bloque `sv-` inline).
+ *
+ * Reglas clave:
+ *  - La cabecera del animal es una CUADRÍCULA de columnas fijas: el ancho
+ *    de cada dato no depende del contenido (un nombre largo no corre las
+ *    columnas ni desalinea filas).
+ *  - Los textos largos se recortan con puntos suspensivos y el valor
+ *    completo queda en el atributo title.
+ */
+
+.ag-agrupada { padding: 2px 18px 10px; }
+.ag-agrupada[hidden] { display: none !important; }
+
+/* ------------------------------ Barra superior ------------------------- */
+.ag-barra {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 4px 0 10px;
+    border-bottom: 1px solid #e5e9ef;
+    margin-bottom: 8px;
+}
+.ag-buscador {
+    position: relative;
+    flex: 0 1 280px;
+    max-width: 300px;
+    min-width: 170px;
+}
+.ag-buscador i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 12px;
+}
+.ag-buscador input {
+    width: 100%;
+    height: 31px;
+    padding: 4px 10px 4px 28px;
+    border: 1px solid #d7dee6;
+    border-radius: 7px;
+    font-size: 12.5px;
+    background: #ffffff;
+    color: #0f172a;
+}
+.ag-buscador input:focus {
+    outline: none;
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .15);
+}
+.ag-resumen {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #64748b;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+/* El único elemento que va al extremo derecho es el botón de expandir. */
+.ag-todo { margin-left: auto; }
+
+/* ------------------------------ Lista ---------------------------------- */
+.ag-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 62vh;
+    overflow-y: auto;
+    padding-right: 2px;
+    transition: opacity .15s ease;
+}
+.ag-lista.is-cargando { opacity: .5; pointer-events: none; }
+
+.ag-animal {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+    /* Dentro de un contenedor flex con scroll los bloques no deben encogerse. */
+    flex: 0 0 auto;
+}
+.ag-animal.is-open {
+    border-color: #bbf7d0;
+    box-shadow: 0 2px 8px rgba(15, 81, 50, .07);
+}
+
+.ag-animal__cab {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 24%) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    background: #ffffff;
+    transition: background-color .15s ease;
+}
+.ag-animal__cab:hover { background: #f8fafc; }
+.ag-animal__cab:focus-visible { box-shadow: inset 0 0 0 2px rgba(22, 163, 74, .35); }
+
+.ag-animal__chevron {
+    color: #94a3b8;
+    font-size: 12px;
+    width: 12px;
+    margin-top: 13px;
+    transition: transform .18s ease, color .18s ease;
+}
+.ag-animal.is-open .ag-animal__chevron { transform: rotate(90deg); color: #16a34a; }
+
+.ag-animal__id {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+.ag-animal__linea {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+    overflow: hidden;
+}
+.ag-cod {
+    font-size: 12.8px;
+    color: #0f172a;
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ag-animal__nombre {
+    font-size: 11.5px;
+    color: #475569;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ag-animal__meta {
+    font-size: 10.5px;
+    color: #94a3b8;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ag-animal__datos {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: start;
+    gap: 4px 10px;
+    min-width: 0;
+    padding-left: 10px;
+}
+.ag-dato { display: flex; flex-direction: column; min-width: 0; }
+.ag-dato__label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ag-dato__valor {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ------------------------------ Chips ---------------------------------- */
+.ag-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.ag-chip--ok     { background: #dcfce7; color: #0f5132; border: 1px solid #86efac; }
+.ag-chip--warn   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.ag-chip--bad    { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.ag-chip--neutro { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+
+/* ------------------------------ Detalle -------------------------------- */
+.ag-animal__detalle { border-top: 1px solid #eef2f7; background: #fcfdff; }
+.ag-animal__detalle[hidden] { display: none !important; }
+
+.ag-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ag-tabla th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 7px 10px;
+    border-bottom: 1px solid #eef2f7;
+    white-space: nowrap;
+}
+.ag-tabla td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+}
+.ag-tabla tbody tr:last-child td { border-bottom: 0; }
+.ag-tabla tbody tr:hover { background: #f0fdf4; }
+.ag-tabla td.ag-num { text-align: center; font-variant-numeric: tabular-nums; }
+.ag-tabla td.ag-acc { text-align: right; white-space: nowrap; }
+/* El tema global pinta los enlaces en verde con más especificidad que
+   .crud-btn--primary; aquí se fuerza el texto blanco del botón. */
+.ag-tabla a.crud-btn { color: #ffffff !important; text-decoration: none !important; }
+.ag-btn-mini {
+    padding: 3px 9px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+.ag-btn-mini i { font-size: 11px; }
+
+.ag-muted { color: #94a3b8; font-weight: 600; }
+
+.ag-vacio,
+.ag-cargando {
+    padding: 28px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+}
+.ag-vacio i,
+.ag-cargando i { margin-right: 6px; }
+
+/* ------------------------------ Móvil ---------------------------------- */
+@media (max-width: 767px) {
+    .ag-agrupada { padding: 2px 10px 10px; }
+    .ag-buscador { flex: 1 1 100%; max-width: none; }
+    .ag-animal__cab {
+        grid-template-columns: 14px minmax(0, 1fr);
+        row-gap: 2px;
+    }
+    .ag-animal__datos {
+        grid-column: 2 / -1;
+        /* Dos columnas (no tres): los chips de estado ("DONADORA ACTIVO")
+           necesitan ancho para no recortarse en pantallas estrechas. */
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding-left: 0;
+        padding-top: 4px;
+        row-gap: 6px;
+    }
+    .ag-chip { font-size: 9px; padding: 2px 6px; }
+    /* En móvil las etiquetas largas pueden ocupar dos líneas; se reserva
+       el alto para que los valores queden alineados entre columnas. */
+    .ag-dato__label {
+        white-space: normal;
+        min-height: 27px;
+    }
+    .ag-tabla thead { display: none; }
+    .ag-tabla td {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 0;
+    }
+    .ag-tabla td::before {
+        content: attr(data-l);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: #94a3b8;
+    }
+    .ag-tabla tr {
+        display: block;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .ag-tabla td.ag-acc { justify-content: flex-end; }
+}

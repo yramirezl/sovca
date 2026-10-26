@@ -1,9 +1,10 @@
 <?php
 /* ============================================================
-   BOVS | Wrapper del Reporte de Movimiento de Rebaño
+   SOVCA | Wrapper del Reporte de Movimiento de Rebaño
    ============================================================ */
 
 require_once('pdfmovimiento.php');
+require_once('../../lib/reporte_contexto_helper.php');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -12,7 +13,12 @@ if (session_status() === PHP_SESSION_NONE) {
 $obj = new pdfreporte();
 
 $mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
-$name = 'Movimiento_Rebano.pdf';
+
+/* Nomenclatura de salida: reporte + contexto + fecha de generado */
+$ctx = bovs_reporte_contexto($mfundos_id);
+$obj->contexto_detalle = $ctx['detalle'];
+$obj->SetTitle(bovs_reporte_titulo('REPORTE DE MOVIMIENTO DE REBAÑO', $ctx));
+$name = bovs_reporte_nombre_archivo('Movimiento_Rebano', $ctx);
 
 if ($mfundos_id > 0) {
 

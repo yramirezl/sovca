@@ -306,7 +306,7 @@ abstract class Connection
 	/**
 	 * Execute a raw SQL query on the database.
 	 *
-	 * NOTA BOVS: $values se recibe POR VALOR a propósito (el original de
+	 * NOTA: $values se recibe POR VALOR a propósito (el original de
 	 * php-activerecord lo recibía por referencia). El cuerpo solo lee el
 	 * arreglo —nunca lo modifica—, así que la referencia no aportaba
 	 * nada y en cambio obligaba a declarar una variable previa: cualquier

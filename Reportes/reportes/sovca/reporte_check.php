@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Verificación previa de reportes
+   SOVCA | Verificación previa de reportes
    ------------------------------------------------------------
    Devuelve la cantidad de filas que tendría un reporte, SIN
    generar el PDF. El gestor de reportes lo usa para avisar al

@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Aviso de validación de correo electrónico
+   SOVCA | Aviso de validación de correo electrónico
    ------------------------------------------------------------
    Se muestra a los usuarios que todavía no confirmaron su
    correo (musuarios.act_email = 0).

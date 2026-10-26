@@ -14,6 +14,384 @@ if ($parametros !== false && $parametros !== '') {
     }
 }
 if ($id_animal <= 0) { die('ID de animal inválido'); }
+
+/* ---------------------------------------------------------------------
+   El parámetro de esta página es el id del NACIMIENTO, pero la ficha es
+   la del ANIMAL. Hay que resolver el ternero:
+     · si ya está registrado  -> se muestra su ficha (con el id del animal),
+     · si todavía no existe   -> se ofrece CREARLA.
+   Antes se llamaba al endpoint con el id del nacimiento y respondía
+   404 "Animal no disponible", aunque el ternero estuviera "Sin Fichar".
+   --------------------------------------------------------------------- */
+$id_reg_nac      = (int)$id_animal;
+$nac             = null;
+$nac_pendiente   = false;
+$nac_codigo_cria = '';
+$nac_madre       = '';
+$nac_padre       = '';
+$nac_fecha_txt   = '';
+$nac_sexo_txt    = '';
+$nac_peso_txt    = '';
+$nac_raza_id     = 0;
+$nac_raza_nombre = '';
+$bovs_alta_url   = '../animales/frm_registrar';
+
+$cwd_ficha = getcwd();
+chdir(__DIR__ . '/../../controllers');   // CWD de primer nivel (includes relativos)
+require_once '../models/Mregnacimiento.php';
+chdir($cwd_ficha);
+
+/* ---------------------------------------------------------------------
+   Helpers del alta de crías (se usan cuando el parto tiene mellizos y
+   hay que preparar una ficha por cada ternero/a).
+   --------------------------------------------------------------------- */
+if (!function_exists('bovs_nac_nombre_animal')) {
+    function bovs_nac_nombre_animal($codigo, $mfundos_id)
+    {
+        $codigo = trim((string)$codigo);
+        if ($codigo === '' || (int)$mfundos_id <= 0) {
+            return '';
+        }
+        try {
+            $cod_sql = "'" . str_replace("'", "''", $codigo) . "'";
+            $q = Mregnacimiento::find_by_sql(
+                'SELECT nombre FROM manimales
+                  WHERE mfundos_id = ' . (int)$mfundos_id . '
+                    AND status = 1
+                    AND UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(' . $cod_sql . ')
+                  LIMIT 1'
+            );
+            return $q ? trim((string)$q[0]->nombre) : '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+}
+
+if (!function_exists('bovs_nac_raza_esperada')) {
+    function bovs_nac_raza_esperada($nac, $mfundos_id, $madre, $padre)
+    {
+        $consultas = array();
+
+        if (!empty($nac->mregservicios_id)) {
+            $consultas[] = 'SELECT mrazas_id FROM mregservicios
+                             WHERE id = ' . (int)$nac->mregservicios_id . '
+                               AND mfundos_id = ' . (int)$mfundos_id . '
+                             LIMIT 1';
+        }
+
+        foreach (array($madre, $padre) as $cod) {
+            $cod = trim((string)$cod);
+            if ($cod === '') {
+                continue;
+            }
+            $consultas[] = 'SELECT mrazas_id FROM manimales
+                             WHERE mfundos_id = ' . (int)$mfundos_id . '
+                               AND status = 1
+                               AND UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(\''
+                                . str_replace("'", "''", $cod) . "')
+                             LIMIT 1";
+        }
+
+        foreach ($consultas as $sql) {
+            try {
+                $q = Mregnacimiento::find_by_sql($sql);
+                if ($q && (int)$q[0]->mrazas_id > 0) {
+                    return (int)$q[0]->mrazas_id;
+                }
+            } catch (Throwable $e) {
+                // se prueba la siguiente fuente
+            }
+        }
+
+        return 0;
+    }
+}
+
+try {
+    $nac = Mregnacimiento::find('first', array(
+        'conditions' => array('id=? and mfundos_id=? and status=1', $id_reg_nac, (int)$_SESSION['mfundos_id'])
+    ));
+} catch (Throwable $e) {
+    $nac = null;
+}
+
+if ($nac) {
+    $nac_codigo_cria = trim((string)$nac->codigo_ternero);
+    if ($nac_codigo_cria === '') {
+        $nac_codigo_cria = trim((string)$nac->id_ternero);
+    }
+    $nac_madre = trim((string)$nac->codigo_rgb_id_animal_hembra);
+    $nac_padre = trim((string)$nac->codigo_rgb_id_animal_macho);
+    $nac_fecha_txt = ($nac->f_parto instanceof DateTimeInterface)
+        ? $nac->f_parto->format('d-m-Y')
+        : trim((string)$nac->f_parto);
+    $nac_sexo_txt = ((int)$nac->sexo === 1) ? 'Hembra' : (((int)$nac->sexo === 2) ? 'Macho' : '');
+    $nac_peso_txt = trim((string)$nac->peso_nacimiento);
+
+    /* ¿El ternero ya tiene ficha? El vínculo es manimales.codigo_ternero
+       (el animal se crea con su código SOVCA y guarda aquí el código del
+       parto, p. ej. MA-063-0140). Se acepta también el código del animal
+       como respaldo. */
+    $id_animal_ficha = 0;
+    $nac_fichado = in_array($nac->fichado, array(true, 1, '1', 't', 'true'), true);
+    if ($nac_codigo_cria === '') {
+        $nac_codigo_cria = trim((string)$nac->id_ternero);
+    }
+    if ($nac_codigo_cria !== '') {
+        try {
+            /* El adaptador de esta versión de php-activerecord NO tiene
+               quote(): se escapa a mano para la consulta. */
+            $cod_cria_sql = "'" . str_replace("'", "''", $nac_codigo_cria) . "'";
+            $q_ficha = Mregnacimiento::find_by_sql(
+                'SELECT id FROM manimales
+                  WHERE mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
+                    AND status = 1
+                    AND ( UPPER(BTRIM(codigo_ternero)) = UPPER(' . $cod_cria_sql . ')
+                       OR UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(' . $cod_cria_sql . ') )
+                  ORDER BY CASE WHEN UPPER(BTRIM(codigo_ternero)) = UPPER(' . $cod_cria_sql . ') THEN 0 ELSE 1 END
+                  LIMIT 1'
+            );
+            if ($q_ficha) {
+                $id_animal_ficha = (int)$q_ficha[0]->id;
+            }
+        } catch (Throwable $e) {
+            $id_animal_ficha = 0;
+        }
+    }
+
+    if ($id_animal_ficha > 0) {
+        $id_animal = $id_animal_ficha;   // la ficha se pide por id de ANIMAL
+    } else {
+        $nac_pendiente = true;
+
+        /* Nombres de la madre y del padre para precargarlos en el alta. */
+        $nac_madre_nombre = '';
+        $nac_padre_nombre = '';
+        $bovs_padres = array('madre' => $nac_madre, 'padre' => $nac_padre);
+        foreach ($bovs_padres as $bovs_rol => $bovs_cod) {
+            if ($bovs_cod === '') {
+                continue;
+            }
+            $bovs_nombre = '';
+            try {
+                $bovs_cod_sql = "'" . str_replace("'", "''", $bovs_cod) . "'";
+                $bovs_q = Mregnacimiento::find_by_sql(
+                    'SELECT nombre FROM manimales
+                      WHERE mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
+                        AND status = 1
+                        AND UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(' . $bovs_cod_sql . ')
+                      LIMIT 1'
+                );
+                $bovs_nombre = $bovs_q ? trim((string)$bovs_q[0]->nombre) : '';
+            } catch (Throwable $e) {
+                $bovs_nombre = '';
+            }
+            if ($bovs_rol === 'madre') {
+                $nac_madre_nombre = $bovs_nombre;
+            } else {
+                $nac_padre_nombre = $bovs_nombre;
+            }
+        }
+
+        /* Raza esperada de la cría: la del servicio gestante (la que se
+           eligió en el formulario de servicios); si no hay servicio, la de
+           la madre; y como último recurso, la del padre. */
+        $nac_raza_id = 0;
+        $bovs_consultas_raza = array();
+
+        if (!empty($nac->mregservicios_id)) {
+            $bovs_consultas_raza[] = 'SELECT mrazas_id FROM mregservicios
+                                       WHERE id = ' . (int)$nac->mregservicios_id . '
+                                         AND mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
+                                       LIMIT 1';
+        }
+        foreach (array($nac_madre, $nac_padre) as $bovs_cod_raza) {
+            if ($bovs_cod_raza === '') {
+                continue;
+            }
+            $bovs_consultas_raza[] = "SELECT mrazas_id FROM manimales
+                                       WHERE mfundos_id = " . (int)$_SESSION['mfundos_id'] . "
+                                         AND status = 1
+                                         AND UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER('" . str_replace("'", "''", $bovs_cod_raza) . "')
+                                       LIMIT 1";
+        }
+        foreach ($bovs_consultas_raza as $bovs_sql_raza) {
+            try {
+                $bovs_q_raza = Mregnacimiento::find_by_sql($bovs_sql_raza);
+                if ($bovs_q_raza && (int)$bovs_q_raza[0]->mrazas_id > 0) {
+                    $nac_raza_id = (int)$bovs_q_raza[0]->mrazas_id;
+                    break;
+                }
+            } catch (Throwable $e) {
+                $nac_raza_id = 0;
+            }
+        }
+
+        if ($nac_raza_id > 0) {
+            try {
+                $bovs_q_raza_nom = Mregnacimiento::find_by_sql(
+                    'SELECT nombre FROM mrazas WHERE id = ' . $nac_raza_id . ' LIMIT 1'
+                );
+                $nac_raza_nombre = $bovs_q_raza_nom
+                    ? trim((string)$bovs_q_raza_nom[0]->nombre)
+                    : '';
+            } catch (Throwable $e) {
+                $nac_raza_nombre = '';
+            }
+        }
+
+        /* Se pasan TODOS los datos que ya trae el parto para que el alta los
+           precargue (y el usuario solo complete lo que falte). */
+        $params_alta = 'id_reg_nac=' . $id_reg_nac
+            . '&sexo=' . (int)$nac->sexo
+            . '&fecha=' . rawurlencode($nac_fecha_txt)
+            . '&peso=' . rawurlencode($nac_peso_txt)
+            . '&ternero=' . rawurlencode($nac_codigo_cria)
+            . '&aptitud=' . (int)$nac->aptitud
+            . '&raza=' . $nac_raza_id
+            . '&servicio=' . (int)$nac->mtiposervicios_id
+            . '&madre=' . rawurlencode($nac_madre)
+            . '&madre_nombre=' . rawurlencode($nac_madre_nombre)
+            . '&padre=' . rawurlencode($nac_padre)
+            . '&padre_nombre=' . rawurlencode($nac_padre_nombre);
+        $bovs_alta_url = '../animales/frm_registrar?%$%=' . rawurlencode(base64_encode($params_alta));
+    }
+}
+
+/* ---------------------------------------------------------------------
+   CRÍAS DEL PARTO (MELLIZOS)
+   ---------------------------------------------------------------------
+   Un nacimiento puede tener 2 crías y cada una necesita SU PROPIA ficha
+   de animal. Antes esta pantalla resolvía únicamente el ternero principal
+   del registro, así que la segunda cría no se podía fichar y la ficha
+   mostraba los datos de una sola.
+   --------------------------------------------------------------------- */
+$nac_crias     = array();
+$nac_multiples = false;
+$bovs_alta_crias = array();
+
+if ($nac) {
+    try {
+        $q_crias = Mregnacimiento::find_by_sql(
+            'SELECT t.nro_ternero,
+                    COALESCE(t.id_ternero, \'\')            AS id_ternero,
+                    COALESCE(t.sexo, 0)                   AS sexo,
+                    COALESCE(t.estatus_nacido, 0)         AS estatus_nacido,
+                    COALESCE(t.peso_nacimiento, \'\')      AS peso_nacimiento,
+                    COALESCE(t.aptitud, 0)                AS aptitud,
+                    a.id                                  AS id_animal,
+                    COALESCE(a.codigo_rgb_id_animal, \'\') AS codigo_animal
+               FROM mternerosxnacimientos t
+          LEFT JOIN manimales a
+                 ON a.mfundos_id = t.mfundos_id
+                AND a.status = 1
+                AND UPPER(BTRIM(a.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+              WHERE t.mregnacimientos_id = ' . (int)$id_reg_nac . '
+                AND t.mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
+                AND t.status = 1
+              ORDER BY t.nro_ternero, t.id'
+        );
+    } catch (Throwable $e) {
+        $q_crias = null;
+    }
+
+    if ($q_crias) {
+        foreach ($q_crias as $c) {
+            $sexo_c  = (int)$c->sexo;
+            $nacio_c = (int)$c->estatus_nacido;
+
+            $nac_crias[] = array(
+                'nro_ternero' => (int)$c->nro_ternero,
+                'id_ternero'  => (string)$c->id_ternero,
+                'sexo_txt'    => $sexo_c === 1 ? 'Hembra' : ($sexo_c === 2 ? 'Macho' : ''),
+                'estatus_txt' => $nacio_c === 2 ? 'Muerto' : ($nacio_c === 1 ? 'Vivo' : ''),
+                'peso'        => trim((string)$c->peso_nacimiento),
+                'aptitud'     => (int)$c->aptitud,
+                'id_animal'   => (int)$c->id_animal,
+                'codigo_animal' => (string)$c->codigo_animal,
+                'sexo'        => $sexo_c
+            );
+        }
+    }
+
+    /* Nacimientos antiguos sin detalle: la cría del registro. */
+    if (count($nac_crias) === 0) {
+        $nac_crias[] = array(
+            'nro_ternero' => 1,
+            'id_ternero'  => $nac_codigo_cria,
+            'sexo_txt'    => $nac_sexo_txt,
+            'estatus_txt' => '',
+            'peso'        => $nac_peso_txt,
+            'aptitud'     => (int)$nac->aptitud,
+            'id_animal'   => ($id_animal !== (int)$id_reg_nac) ? (int)$id_animal : 0,
+            'codigo_animal' => '',
+            'sexo'        => (int)$nac->sexo
+        );
+    }
+
+    $nac_multiples = count($nac_crias) > 1;
+
+    if ($nac_multiples) {
+
+        /* Con mellizos se muestra SIEMPRE la tarjeta de crías (con el
+           estado de ficha de cada una), no la ficha de un solo animal. */
+        $nac_pendiente = true;
+        $id_animal     = 0;
+
+        $nac_madre_nombre = isset($nac_madre_nombre) ? $nac_madre_nombre : '';
+        $nac_padre_nombre = isset($nac_padre_nombre) ? $nac_padre_nombre : '';
+
+        if (trim((string)$nac_madre_nombre) === '') {
+            $nac_madre_nombre = bovs_nac_nombre_animal($nac_madre, $_SESSION['mfundos_id']);
+        }
+        if (trim((string)$nac_padre_nombre) === '') {
+            $nac_padre_nombre = bovs_nac_nombre_animal($nac_padre, $_SESSION['mfundos_id']);
+        }
+
+        if ((int)$nac_raza_id <= 0) {
+            $nac_raza_id = bovs_nac_raza_esperada($nac, $_SESSION['mfundos_id'], $nac_madre, $nac_padre);
+        }
+        if ((int)$nac_raza_id > 0 && $nac_raza_nombre === '') {
+            try {
+                $bovs_q_raza_nom = Mregnacimiento::find_by_sql(
+                    'SELECT nombre FROM mrazas WHERE id = ' . (int)$nac_raza_id . ' LIMIT 1'
+                );
+                $nac_raza_nombre = $bovs_q_raza_nom
+                    ? trim((string)$bovs_q_raza_nom[0]->nombre)
+                    : '';
+            } catch (Throwable $e) {
+                $nac_raza_nombre = '';
+            }
+        }
+
+        /* Una URL de alta por cada cría sin ficha. */
+        foreach ($nac_crias as $i => $cria) {
+            if ((int)$cria['id_animal'] > 0) {
+                continue;
+            }
+
+            $params_cria = 'id_reg_nac=' . $id_reg_nac
+                . '&sexo=' . (int)$cria['sexo']
+                . '&fecha=' . rawurlencode($nac_fecha_txt)
+                . '&peso=' . rawurlencode($cria['peso'])
+                . '&ternero=' . rawurlencode($cria['id_ternero'])
+                . '&aptitud=' . (int)$cria['aptitud']
+                . '&raza=' . (int)$nac_raza_id
+                . '&servicio=' . (int)$nac->mtiposervicios_id
+                . '&madre=' . rawurlencode($nac_madre)
+                . '&madre_nombre=' . rawurlencode($nac_madre_nombre)
+                . '&padre=' . rawurlencode($nac_padre)
+                . '&padre_nombre=' . rawurlencode($nac_padre_nombre);
+
+            $bovs_alta_crias[$i] = '../animales/frm_registrar?%$%=' . rawurlencode(base64_encode($params_cria));
+        }
+
+        if (isset($bovs_alta_crias[0])) {
+            $bovs_alta_url = $bovs_alta_crias[0];
+        }
+    }
+}
 ?>
 <?php include("../layouts/constantes.php") ?>
 <?php include_once("../layouts/cabecera.php") ?>
@@ -574,6 +952,87 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
 </div>
 
 <!-- Ficha principal -->
+<?php if ($nac_pendiente): ?>
+<div id="ficha_pendiente" style="max-width:<?php echo $nac_multiples ? '900px' : '640px'; ?>;margin:30px auto;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.06);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#2f8f4a,#237a3c);color:#fff;padding:22px 24px;">
+        <h2 style="margin:0;font-size:20px;color:#fff;border:none;"><i class="fa fa-id-card-o"></i> <?php echo $nac_multiples ? 'Crías del parto' : 'Ficha pendiente'; ?></h2>
+        <p style="margin:6px 0 0;font-size:13px;opacity:.95;"><?php echo $nac_multiples ? 'Cada ternero/a del parto lleva su propia ficha de animal.' : 'Este nacimiento todavía no tiene ficha de animal registrada.'; ?></p>
+    </div>
+    <div style="padding:20px 24px;">
+        <?php if ($nac_multiples): ?>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f4f7fa;">
+                    <th style="text-align:left;padding:6px 8px;">#</th>
+                    <th style="text-align:left;padding:6px 8px;">ID / Arete</th>
+                    <th style="text-align:left;padding:6px 8px;">Sexo</th>
+                    <th style="text-align:left;padding:6px 8px;">Peso</th>
+                    <th style="text-align:left;padding:6px 8px;">¿Nació?</th>
+                    <th style="text-align:left;padding:6px 8px;">Estado</th>
+                    <th style="text-align:right;padding:6px 8px;">Ficha</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($nac_crias as $i_cria => $cria): ?>
+                <tr style="border-bottom:1px solid #eef1f5;">
+                    <td style="padding:8px;color:#6b7a8c;"><?php echo (int)$cria['nro_ternero']; ?></td>
+                    <td style="padding:8px;font-weight:700;"><?php echo htmlspecialchars($cria['id_ternero'] !== '' ? $cria['id_ternero'] : '(sin ID)', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td style="padding:8px;"><?php echo htmlspecialchars($cria['sexo_txt'] !== '' ? $cria['sexo_txt'] : '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td style="padding:8px;"><?php echo htmlspecialchars($cria['peso'] !== '' ? $cria['peso'] . ' kg' : '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td style="padding:8px;"><?php echo htmlspecialchars($cria['estatus_txt'] !== '' ? $cria['estatus_txt'] : '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td style="padding:8px;">
+                        <?php if ((int)$cria['id_animal'] > 0): ?>
+                        <span style="background:#e8f5ec;color:#146b2e;border-radius:10px;padding:2px 9px;font-size:11.5px;font-weight:700;">Fichada</span>
+                        <?php else: ?>
+                        <span style="background:#fdeceb;color:#b3261e;border-radius:10px;padding:2px 9px;font-size:11.5px;font-weight:700;">Sin fichar</span>
+                        <?php endif; ?>
+                    </td>
+                    <td style="padding:8px;text-align:right;">
+                        <?php if ((int)$cria['id_animal'] > 0): ?>
+                        <a class="btn btn-default btn-xs" href="../animales/frm_ficha.php?%$%=<?php echo rawurlencode(base64_encode('id=' . (int)$cria['id_animal'])); ?>">
+                            <i class="fa fa-eye"></i> Ver ficha
+                        </a>
+                        <?php elseif (isset($bovs_alta_crias[$i_cria])): ?>
+                        <a class="btn btn-success btn-xs" href="<?php echo htmlspecialchars($bovs_alta_crias[$i_cria], ENT_QUOTES, 'UTF-8'); ?>">
+                            <i class="fa fa-plus"></i> Crear ficha
+                        </a>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <table style="width:100%;font-size:13px;margin-top:16px;">
+        <?php else: ?>
+        <table style="width:100%;font-size:13px;">
+        <?php endif; ?>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;"><?php echo $nac_multiples ? 'Código del parto' : 'Cría'; ?></th><td style="padding:4px 0;font-weight:700;"><?php echo htmlspecialchars($nac_codigo_cria !== '' ? $nac_codigo_cria : '(sin código)', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Madre</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_madre !== '' ? $nac_madre : '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Padre</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_padre !== '' ? $nac_padre : '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Fecha de parto</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_fecha_txt !== '' ? $nac_fecha_txt : '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <?php if (!$nac_multiples): ?>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Sexo</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_sexo_txt !== '' ? $nac_sexo_txt : '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Peso al nacer</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_peso_txt !== '' ? $nac_peso_txt : '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <?php endif; ?>
+            <?php if ($nac_raza_nombre !== ''): ?>
+            <tr><th style="text-align:left;color:#6b7a8c;font-weight:600;padding:4px 0;">Raza esperada</th><td style="padding:4px 0;"><?php echo htmlspecialchars($nac_raza_nombre, ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <?php endif; ?>
+        </table>
+        <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+            <?php if (!$nac_multiples): ?>
+            <a class="btn btn-success" href="<?php echo htmlspecialchars($bovs_alta_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="fa fa-plus"></i> Crear ficha del ternero</a>
+            <?php endif; ?>
+            <a class="btn btn-default" href="index.php">Volver al listado</a>
+        </div>
+        <?php if ($nac_fichado): ?>
+        <p style="margin-top:14px;font-size:12px;color:#b45309;"><b>Atención:</b> este nacimiento figura como <b>Fichado</b>, pero su animal no aparece en el hato (puede estar dado de baja, migrado o con otro código). Revise antes de crear una ficha nueva.</p>
+        <?php else: ?>
+        <p style="margin-top:14px;font-size:12px;color:#6b7a8c;"><?php echo $nac_multiples ? 'Al guardar la ficha de cada cría, este nacimiento quedará marcado como <b>Fichado</b>; cada ternero/a conserva su propio estado en la lista de arriba.' : 'Al guardar el animal, este nacimiento quedará marcado como <b>Fichado</b>.'; ?></p>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="ficha-wrap" id="ficha_container" style="display:none;">
 
     <!-- ⭐ Banner de migración -->
@@ -752,6 +1211,7 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
 <script src="../../plugins/qrcode/qrcode.min.js"></script>
 <script>
 var ID_ANIMAL   = <?php echo json_encode((int)$id_animal); ?>;
+var FICHA_PENDIENTE = <?php echo $nac_pendiente ? 'true' : 'false'; ?>;
 var QR_DATA_URL = '';
 var HISTORIAL_ORIGEN = null;
 var DATOS_ANIMAL_REPORTE = null;
@@ -883,6 +1343,9 @@ $(document).on('click', '#hist_reporte_preview_overlay', function(e) {
 
 $(document).ready(function () {
 
+    if (FICHA_PENDIENTE) {
+        $("#ficha_loading").hide();
+    } else {
     $.ajax({
         url: "../../data_json/data_manimales_ficha.php",
         type: "POST",
@@ -1035,6 +1498,7 @@ $(document).ready(function () {
 
         console.error('AJAX fail:', xhr.status, st, err, xhr.responseText);
     });
+    }
 
     // ═══════════════════════════════════════════════════════════
     // BOTÓN "VER HISTORIAL DE ORIGEN"

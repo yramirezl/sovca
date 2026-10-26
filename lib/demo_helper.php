@@ -5,7 +5,7 @@
  * ---------------------------------------------------------------------
  * Todo lo que necesita el modo demo está aquí:
  *
- *   · una conexión PDO propia a la base de pruebas (bovs_demo),
+ *   · una conexión PDO propia a la base de pruebas (sovca_demo),
  *   · la creación de la cuenta + fundo + vigencia de 15 días,
  *   · la autenticación de esas cuentas (usada como respaldo del login),
  *   · el armado de la sesión igual que el login normal, pero marcando
@@ -17,7 +17,7 @@
  *   1. NADA de ActiveRecord en este archivo. ActiveRecord ya está
  *      inicializado contra la base real cuando este helper se usa
  *      (el login todavía no sabe que el usuario es demo), así que aquí
- *      se trabaja con PDO y SQL directo contra bovs_demo.
+ *      se trabaja con PDO y SQL directo contra sovca_demo.
  *   2. Ninguna consulta usa datos del usuario sin preparar (SQL
  *      parametrizado) salvo identificadores internos ya casteados.
  *   3. La base demo NUNCA contiene datos de productores reales: el
@@ -38,7 +38,7 @@ if (!function_exists('bovs_demo_activo')) {
      */
     function bovs_demo_activo()
     {
-        return defined('BOVS_DEMO_ACTIVO') && BOVS_DEMO_ACTIVO;
+        return defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO;
     }
 }
 
@@ -48,9 +48,9 @@ if (!function_exists('bovs_demo_dsn')) {
      */
     function bovs_demo_dsn($base = null)
     {
-        $base = ($base === null || $base === '') ? BOVS_DEMO_DB : (string) $base;
-        return 'pgsql:host=' . BOVS_DEMO_HOST
-            . ';port=' . BOVS_DEMO_PUERTO
+        $base = ($base === null || $base === '') ? SOVCA_DEMO_DB : (string) $base;
+        return 'pgsql:host=' . SOVCA_DEMO_HOST
+            . ';port=' . SOVCA_DEMO_PUERTO
             . ';dbname=' . $base;
     }
 }
@@ -67,7 +67,7 @@ if (!function_exists('bovs_demo_pdo')) {
     {
         static $conexiones = array();
 
-        $base = ($base === null || $base === '') ? BOVS_DEMO_DB : (string) $base;
+        $base = ($base === null || $base === '') ? SOVCA_DEMO_DB : (string) $base;
 
         if (isset($conexiones[$base]) && $conexiones[$base] instanceof PDO) {
             return $conexiones[$base];
@@ -75,8 +75,8 @@ if (!function_exists('bovs_demo_pdo')) {
 
         $pdo = new PDO(
             bovs_demo_dsn($base),
-            BOVS_DEMO_USUARIO,
-            BOVS_DEMO_CLAVE,
+            SOVCA_DEMO_USUARIO,
+            SOVCA_DEMO_CLAVE,
             array(
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -194,7 +194,7 @@ if (!function_exists('bovs_demo_preparar')) {
                 $pdo->exec($sql);
             } catch (Throwable $e) {
                 /* Solo importa si la tabla quedó inutilizable: se comprueba abajo. */
-                error_log('[BOVS demo] preparar: ' . $e->getMessage());
+                error_log('[SOVCA demo] preparar: ' . $e->getMessage());
             }
         }
 
@@ -216,7 +216,7 @@ if (!function_exists('bovs_demo_suscripcion_id')) {
             $pdo = bovs_demo_pdo();
         }
 
-        $dias = (int) BOVS_DEMO_DIAS;
+        $dias = (int) SOVCA_DEMO_DIAS;
 
         $st = $pdo->prepare('SELECT id FROM msuscripciones WHERE cantidad_dias = ? ORDER BY id LIMIT 1');
         $st->execute(array($dias));
@@ -252,7 +252,7 @@ if (!function_exists('bovs_demo_geo_por_defecto')) {
         $pais = 0;
         try {
             $st = $pdo->prepare('SELECT id FROM mpaises WHERE paisnombre ILIKE ? ORDER BY id LIMIT 1');
-            $st->execute(array('%' . BOVS_DEMO_PAIS . '%'));
+            $st->execute(array('%' . SOVCA_DEMO_PAIS . '%'));
             $pais = (int) $st->fetchColumn();
         } catch (Throwable $e) {
             $pais = 0;
@@ -402,8 +402,8 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
             /* --- Datos de apoyo de los catálogos --------------------- */
             $geo      = bovs_demo_geo_por_defecto($pdo);
             $suscrip  = bovs_demo_suscripcion_id($pdo);
-            $plan     = (int) BOVS_DEMO_PLAN_ID;
-            $dias     = (int) BOVS_DEMO_DIAS;
+            $plan     = (int) SOVCA_DEMO_PLAN_ID;
+            $dias     = (int) SOVCA_DEMO_DIAS;
             $caduca   = date('Y-m-d', strtotime('+' . $dias . ' days'));
 
             $pdo->beginTransaction();
@@ -426,12 +426,12 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
             ";
             $st = $pdo->prepare($sqlUsuario);
             $st->execute(array(
-                (int) BOVS_DEMO_ROL_PRODUCTOR,
+                (int) SOVCA_DEMO_ROL_PRODUCTOR,
                 $d['usuario'],
                 $hash,
                 $d['nombre'],
                 $d['email'],
-                (int) BOVS_DEMO_TIPO_USUARIO_ID,
+                (int) SOVCA_DEMO_TIPO_USUARIO_ID,
                 $plan,
             ));
             $usuarioId = (int) $st->fetchColumn();
@@ -454,7 +454,7 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
             $st->execute(array(
                 'DEMO-' . $d['usuario'],
                 $d['fundo'],
-                (int) BOVS_DEMO_TIPO_FUNDO_ID,
+                (int) SOVCA_DEMO_TIPO_FUNDO_ID,
                 (int) $geo['pais'],
                 (string) $geo['estado'],
                 (string) $geo['municipio'],
@@ -462,7 +462,7 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
                 'Creado automáticamente desde el acceso demostrativo (vigencia ' . $dias . ' días).',
                 $usuarioId,
                 $usuarioId,
-                (int) BOVS_DEMO_TIPO_GANADERIA_ID,
+                (int) SOVCA_DEMO_TIPO_GANADERIA_ID,
                 $plan,
             ));
             $fundoId = (int) $st->fetchColumn();
@@ -493,7 +493,7 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
             if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            error_log('[BOVS demo] Error al crear cuenta: ' . $e->getMessage());
+            error_log('[SOVCA demo] Error al crear cuenta: ' . $e->getMessage());
             return array('ok' => false, 'msg' => 'No se pudo crear la cuenta de demostración. Intenta nuevamente.');
         }
 
@@ -501,7 +501,7 @@ if (!function_exists('bovs_demo_crear_cuenta_verificada')) {
             'ok'      => true,
             'msg'     => 'Cuenta de demostración creada.',
             'caduca'  => $caduca,
-            'usuario' => bovs_demo_datos_sesion($pdo, $usuarioId),
+            'usuario' => sovca_demo_datos_sesion($pdo, $usuarioId),
         );
     }
 }
@@ -543,7 +543,7 @@ if (!function_exists('bovs_demo_enviar_codigo')) {
         $usuarioSafe = htmlspecialchars((string) $usuario, ENT_QUOTES, 'UTF-8');
         $codigoSafe  = htmlspecialchars((string) $codigo, ENT_QUOTES, 'UTF-8');
         $minutos     = (int) $minutos;
-        $dias        = (int) (defined('SOVCA_DEMO_DIAS') ? SOVCA_DEMO_DIAS : BOVS_DEMO_DIAS);
+        $dias        = (int) SOVCA_DEMO_DIAS;
         $base        = htmlspecialchars(bovs_url_base(), ENT_QUOTES, 'UTF-8');
 
         // El enlace solo se escribe si hay una URL pública real: un enlace
@@ -629,14 +629,14 @@ if (!function_exists('bovs_demo_solicitar_cuenta')) {
         $d = $v['datos'];
 
         $pendienteId = 0;
-        $minutos = max(1, (int) BOVS_DEMO_VERIF_MINUTOS);
+        $minutos = max(1, (int) SOVCA_DEMO_VERIF_MINUTOS);
 
         try {
             $pdo = bovs_demo_pdo();
             bovs_demo_preparar($pdo);
 
             /* --- Cuota por IP (24 h). 0 = sin límite ------------------ */
-            $limite = (int) BOVS_DEMO_MAX_POR_IP;
+            $limite = (int) SOVCA_DEMO_MAX_POR_IP;
             if ($limite > 0) {
                 $st = $pdo->prepare("SELECT count(*) FROM demo_registros WHERE ip = ? AND created > now() - interval '1 day'");
                 $st->execute(array(bovs_demo_ip()));
@@ -720,7 +720,7 @@ if (!function_exists('bovs_demo_solicitar_cuenta')) {
             if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            error_log('[BOVS demo] Error al solicitar cuenta: ' . $e->getMessage());
+            error_log('[SOVCA demo] Error al solicitar cuenta: ' . $e->getMessage());
 
             if ($e instanceof PDOException && (string) $e->getCode() === '23505') {
                 return array('ok' => false, 'msg' => 'Ese usuario o correo se acaba de registrar. Elige otros datos.');
@@ -736,10 +736,10 @@ if (!function_exists('bovs_demo_solicitar_cuenta')) {
             try {
                 $pdo->prepare('DELETE FROM demo_verificaciones WHERE id = ?')->execute(array($pendienteId));
             } catch (Throwable $e) {
-                error_log('[BOVS demo] No se pudo borrar la solicitud fallida: ' . $e->getMessage());
+                error_log('[SOVCA demo] No se pudo borrar la solicitud fallida: ' . $e->getMessage());
             }
 
-            error_log('[BOVS demo] No se pudo enviar el código a ' . $d['email'] . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
+            error_log('[SOVCA demo] No se pudo enviar el código a ' . $d['email'] . ': ' . (isset($envio['error']) ? $envio['error'] : 'sin detalle'));
 
             return array(
                 'ok'  => false,
@@ -797,7 +797,7 @@ if (!function_exists('bovs_demo_confirmar_cuenta')) {
             }
 
             $idPend = (int) $pend['id'];
-            $max    = max(1, (int) BOVS_DEMO_VERIF_INTENTOS);
+            $max    = max(1, (int) SOVCA_DEMO_VERIF_INTENTOS);
 
             /* --- Caducidad ------------------------------------------- */
             if (strtotime((string) $pend['expira']) < time()) {
@@ -841,7 +841,7 @@ if (!function_exists('bovs_demo_confirmar_cuenta')) {
                 'caduca'  => $alta['caduca'],
             );
         } catch (Throwable $e) {
-            error_log('[BOVS demo] Error al confirmar cuenta: ' . $e->getMessage());
+            error_log('[SOVCA demo] Error al confirmar cuenta: ' . $e->getMessage());
             return array('ok' => false, 'msg' => 'No se pudo verificar el código. Intenta nuevamente.');
         }
     }
@@ -878,7 +878,7 @@ if (!function_exists('bovs_demo_reenviar_codigo')) {
             }
 
             /* --- Espera mínima entre envíos --------------------------- */
-            $esperaSeg = max(0, (int) BOVS_DEMO_REENVIO_SEG);
+            $esperaSeg = max(0, (int) SOVCA_DEMO_REENVIO_SEG);
             $transcurrido = time() - strtotime((string) $pend['ultimo_envio']);
             $faltan = $esperaSeg - $transcurrido;
             if ($faltan > 0) {
@@ -889,7 +889,7 @@ if (!function_exists('bovs_demo_reenviar_codigo')) {
                 );
             }
 
-            $minutos = max(1, (int) BOVS_DEMO_VERIF_MINUTOS);
+            $minutos = max(1, (int) SOVCA_DEMO_VERIF_MINUTOS);
             $codigo  = bovs_mail_codigo();
 
             $up = $pdo->prepare('UPDATE demo_verificaciones SET codigo_hash = ?, expira = ?, intentos = 0, ultimo_envio = now() WHERE id = ?');
@@ -906,7 +906,7 @@ if (!function_exists('bovs_demo_reenviar_codigo')) {
                 'msg'     => 'Enviamos un código nuevo a <strong>' . htmlspecialchars(bovs_demo_email_oculto($pend['email']), ENT_QUOTES, 'UTF-8') . '</strong>.'
             );
         } catch (Throwable $e) {
-            error_log('[BOVS demo] Error al reenviar código: ' . $e->getMessage());
+            error_log('[SOVCA demo] Error al reenviar código: ' . $e->getMessage());
             return array('ok' => false, 'msg' => 'No se pudo reenviar el código. Intenta nuevamente.');
         }
     }
@@ -925,13 +925,13 @@ if (!function_exists('bovs_demo_whatsapp_url')) {
      */
     function bovs_demo_whatsapp_url(array $datos = array())
     {
-        $numero = defined('BOVS_WHATSAPP_NUMERO') ? BOVS_WHATSAPP_NUMERO : '584268205177';
+        $numero = defined('SOVCA_WHATSAPP_NUMERO') ? SOVCA_WHATSAPP_NUMERO : '584268205177';
 
         $usuario = isset($datos['usuario']) ? trim((string) $datos['usuario']) : '';
         $fundo   = isset($datos['fundo']) ? trim((string) $datos['fundo']) : '';
         $email   = isset($datos['email']) ? trim((string) $datos['email']) : '';
 
-        $texto = 'Hola, deseo comprar una suscripción de BOVS y conservar los datos de mi cuenta de demostración.';
+        $texto = 'Hola, deseo comprar una suscripción de SOVCA y conservar los datos de mi cuenta de demostración.';
         if ($usuario !== '') {
             $texto .= ' Usuario demo: ' . $usuario . '.';
         }
@@ -950,14 +950,14 @@ if (!function_exists('bovs_demo_whatsapp_url')) {
    AUTENTICACIÓN / SESIÓN
    --------------------------------------------------------------------- */
 
-if (!function_exists('bovs_demo_datos_sesion')) {
+if (!function_exists('sovca_demo_datos_sesion')) {
     /**
      * Reúne los datos que la sesión necesita, tomados de la base demo.
      * Devuelve null si el usuario no existe o está inactivo.
      *
      * @return array|null
      */
-    function bovs_demo_datos_sesion(PDO $pdo, $usuarioId)
+    function sovca_demo_datos_sesion(PDO $pdo, $usuarioId)
     {
         $usuarioId = (int) $usuarioId;
         if ($usuarioId <= 0) {
@@ -1074,7 +1074,7 @@ if (!function_exists('bovs_demo_autenticar')) {
                 return array('ok' => false, 'error' => 'credenciales');
             }
 
-            $datos = bovs_demo_datos_sesion($pdo, $id);
+            $datos = sovca_demo_datos_sesion($pdo, $id);
             if (!$datos) {
                 return array('ok' => false, 'error' => 'credenciales');
             }
@@ -1085,7 +1085,7 @@ if (!function_exists('bovs_demo_autenticar')) {
 
             return array('ok' => true, 'usuario' => $datos);
         } catch (Throwable $e) {
-            error_log('[BOVS demo] Error al autenticar: ' . $e->getMessage());
+            error_log('[SOVCA demo] Error al autenticar: ' . $e->getMessage());
             return array('ok' => false, 'error' => 'error');
         }
     }
@@ -1097,7 +1097,7 @@ if (!function_exists('bovs_demo_iniciar_sesion')) {
      * Debe llamarse justo antes de redirigir: la petición actual ya tiene
      * ActiveRecord apuntando a la base real, la siguiente no.
      *
-     * @param array $u Datos devueltos por bovs_demo_datos_sesion().
+     * @param array $u Datos devueltos por sovca_demo_datos_sesion().
      */
     function bovs_demo_iniciar_sesion(array $u)
     {

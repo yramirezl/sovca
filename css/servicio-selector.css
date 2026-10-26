@@ -165,7 +165,7 @@
 .sel-animal__item[data-ocupado="1"] { background: #fffdf4; }
 .sel-animal__item[data-ocupado="1"]:hover { background: #fef9e7; }
 
-/* Código BOVS: primera columna, discreta pero legible */
+/* Código SOVCA: primera columna, discreta pero legible */
 .sel-animal__codigo {
     font-size: 10.5px;
     font-weight: 500;

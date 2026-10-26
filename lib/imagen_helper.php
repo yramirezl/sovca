@@ -2,7 +2,7 @@
 /**
  * lib/imagen_helper.php
  * ---------------------------------------------------------------------------
- * Procesamiento y almacenamiento de imágenes para BOVS.
+ * Procesamiento y almacenamiento de imágenes para SOVCA.
  *
  * Al subir una imagen (ficha de animales, foto de perfil, etc.) se redimensiona
  * y se recomprime a WebP (con fallback a JPEG si el GD del servidor no trae
@@ -16,14 +16,14 @@
  * Requiere la extensión GD (extension=gd en php.ini).
  */
 
-if (!defined('BOVS_IMAGEN_MAX_BYTES')) {
-    define('BOVS_IMAGEN_MAX_BYTES', 5 * 1024 * 1024); // 5 MB (sobre el archivo original)
+if (!defined('SOVCA_IMAGEN_MAX_BYTES')) {
+    define('SOVCA_IMAGEN_MAX_BYTES', 5 * 1024 * 1024); // 5 MB (sobre el archivo original)
 }
-if (!defined('BOVS_IMAGEN_MAX_DIM')) {
-    define('BOVS_IMAGEN_MAX_DIM', 800); // lado mayor en px (nunca agranda)
+if (!defined('SOVCA_IMAGEN_MAX_DIM')) {
+    define('SOVCA_IMAGEN_MAX_DIM', 800); // lado mayor en px (nunca agranda)
 }
-if (!defined('BOVS_IMAGEN_CALIDAD')) {
-    define('BOVS_IMAGEN_CALIDAD', 80); // 1-100
+if (!defined('SOVCA_IMAGEN_CALIDAD')) {
+    define('SOVCA_IMAGEN_CALIDAD', 80); // 1-100
 }
 
 /**
@@ -52,8 +52,8 @@ function bovs_imagen_error_archivo($file) {
     if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
         return 'No se recibió ninguna imagen válida.';
     }
-    if (isset($file['size']) && $file['size'] > BOVS_IMAGEN_MAX_BYTES) {
-        return 'La imagen supera el máximo de ' . (int) (BOVS_IMAGEN_MAX_BYTES / (1024 * 1024)) . ' MB.';
+    if (isset($file['size']) && $file['size'] > SOVCA_IMAGEN_MAX_BYTES) {
+        return 'La imagen supera el máximo de ' . (int) (SOVCA_IMAGEN_MAX_BYTES / (1024 * 1024)) . ' MB.';
     }
     $info = @getimagesize($file['tmp_name']);
     $tipos_ok = array(IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_WEBP, IMAGETYPE_BMP);
@@ -69,16 +69,16 @@ function bovs_imagen_error_archivo($file) {
  * @param string $origen      Ruta del archivo subido (tmp_name) o un data URI.
  * @param string $dirDestino  Directorio destino (se crea si no existe).
  * @param string $nombreBase  Nombre sin extensión (ej. el código del animal).
- * @param int    $maxDim      Lado mayor máximo en px (0 = usar BOVS_IMAGEN_MAX_DIM).
- * @param int    $calidad     Calidad 1-100 (0 = usar BOVS_IMAGEN_CALIDAD).
- * @return string|null        Nombre del archivo guardado (ej. "BOVS-01-01.webp") o null si falla.
+ * @param int    $maxDim      Lado mayor máximo en px (0 = usar SOVCA_IMAGEN_MAX_DIM).
+ * @param int    $calidad     Calidad 1-100 (0 = usar SOVCA_IMAGEN_CALIDAD).
+ * @return string|null        Nombre del archivo guardado (ej. "SOVCA-01-01.webp") o null si falla.
  */
 function bovs_imagen_procesar($origen, $dirDestino, $nombreBase, $maxDim = 0, $calidad = 0) {
     if (!function_exists('imagecreatefromstring')) {
         return null; // GD no disponible
     }
-    $maxDim  = $maxDim  > 0 ? $maxDim  : BOVS_IMAGEN_MAX_DIM;
-    $calidad = $calidad > 0 ? $calidad : BOVS_IMAGEN_CALIDAD;
+    $maxDim  = $maxDim  > 0 ? $maxDim  : SOVCA_IMAGEN_MAX_DIM;
+    $calidad = $calidad > 0 ? $calidad : SOVCA_IMAGEN_CALIDAD;
 
     // --- Leer el binario (desde archivo o desde data URI) ---
     if (is_string($origen) && strpos($origen, 'data:') === 0) {

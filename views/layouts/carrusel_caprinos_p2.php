@@ -1,5 +1,4 @@
 <div class="box box-primary" style="width:100%;height:50%;position:absolute; background-size:cover;background-position: top center;" id="backg">
-<!-- <img id="imguni" height="75" src="../inicio/img/bovs.png" width="130" style="position:absolute;top:380px; left:35px;visibility:visible; z-index:1;"> -->
 </div>
 
 <script>

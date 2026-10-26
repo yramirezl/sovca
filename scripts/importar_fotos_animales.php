@@ -175,7 +175,7 @@ function extension_de($archivo)
 function codigo_de_nombre($archivo)
 {
     $base = base_sin_extension($archivo);
-    if (preg_match('/^((?:SOVCA|BOVS)-[0-9A-Za-z]+-[0-9A-Za-z]+)/', $base, $m)) {
+    if (preg_match('/^(SOVCA-[0-9A-Za-z]+-[0-9A-Za-z]+)/', $base, $m)) {
         return strtoupper($m[1]);
     }
     $pos = strpos($base, '_');
@@ -357,8 +357,8 @@ function buscar_origen(array $indice, array $fila)
     if (isset($indice['exacto'][$claveExacta])) {
         return array($indice['exacto'][$claveExacta], 'nombre exacto');
     }
-    // Mismo nombre con otra extensión (BOVS-02-060.jpeg en la base y
-    // BOVS-02-060.jpg en la carpeta).
+    // Mismo nombre con otra extensión (SOVCA-02-060.jpeg en la base y
+    // SOVCA-02-060.jpg en la carpeta).
     $base = clave_nombre(base_sin_extension($imagen));
     if (isset($indice['base'][$base])) {
         return array($indice['base'][$base], 'mismo nombre, otra extensión');

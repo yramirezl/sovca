@@ -292,7 +292,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -345,7 +345,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>

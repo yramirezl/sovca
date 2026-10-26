@@ -1,6 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../lib/texto_helper.php';
+require_once __DIR__ . '/../../lib/mantenimiento_helper.php';
+
+/* MODO MANTENIMIENTO: los administradores (1/4) siguen dentro del
+   sistema; el aviso les recuerda que los usuarios están bloqueados. */
+$mttoActivo = bovs_mantenimiento_activo();
+$mttoRol    = isset($_SESSION['rolx']) ? (int) $_SESSION['rolx'] : 0;
+$mttoAdmin  = in_array($mttoRol, array(1, 4), true);
 
 $cantidad = $_SESSION['maximo_registros'];
 $cambiar  = false;
@@ -92,7 +99,7 @@ if ($demoSesion) {
     .navbar-soporte__salir .navbar-soporte__salir-texto { display: none; }
 }
 /* ============================================================
-   NAVBAR BOVS — Card de fundo ajustado al contenido
+   NAVBAR SOVCA — Card de fundo ajustado al contenido
    ============================================================ */
 
 .navbar-bovs {
@@ -517,6 +524,20 @@ if ($demoSesion) {
                 <small>Fundo activo</small>
                 <strong id="navbar-active-fundo-linea"><span id="navbar-active-fundo-type"></span><span id="navbar-active-fundo-name"><?php echo htmlspecialchars($fundoActivoNombre, ENT_QUOTES, 'UTF-8'); ?></span></strong>
             </span>
+        </div>
+    <?php } ?>
+
+    <?php if ($mttoActivo && $mttoAdmin) { ?>
+        <div class="navbar-soporte navbar-mtto"
+             title="Modo mantenimiento activo: solo los administradores del sistema pueden acceder. Los productores y ayudantes están bloqueados. Abre la gestión para desactivarlo.">
+            <span class="navbar-soporte__chip">
+                <i class="fa fa-wrench" aria-hidden="true"></i>
+                <span class="navbar-soporte__texto">Mantenimiento</span>
+            </span>
+            <a class="navbar-soporte__salir" href="../mantenimiento/">
+                <i class="fa fa-cog" aria-hidden="true"></i>
+                <span class="navbar-soporte__salir-texto">Gestionar</span>
+            </a>
         </div>
     <?php } ?>
 

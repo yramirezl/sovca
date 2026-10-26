@@ -66,7 +66,7 @@ psql -h 127.0.0.1 -U postgres -d <base_de_datos> -f scripts/migracion_alerta_ina
 
 ```cron
 # 2) Programar la ejecución (todos los días a las 6:00 a.m.)
-0 6 * * * cd /var/www/html/bovs/alertas && php controlador_email_inactividad.php >> /var/log/bovs_inactividad.log 2>&1
+0 6 * * * cd /var/www/html/sovca/alertas && php controlador_email_inactividad.php >> /var/log/sovca_inactividad.log 2>&1
 ```
 
 > **Nota (credenciales SMTP):** igual que el resto de los enviadores de `alertas/`, la
@@ -149,7 +149,7 @@ diario por falta de control).
   datos, revisión de reportes y configuración, soporte técnico (incluidos los equipos que
   trabajan sin señal).
 - Tabla con los usuarios activos del fundo, su rol y su última conexión.
-- Botón `Ingrese Aquí` hacia `https://global.ruted.net/bovs/`.
+- Botón `Ingrese Aquí` hacia `https://global.ruted.net/sovca/`.
 - Firma "Ruted, Tecnología y Desarrollo Rural."
 
 ---
@@ -224,7 +224,7 @@ inactividad semanal y uno de alertas de eventos cuando existan), en lugar de has
 ### Detalles de implementación
 
 - En el asunto y en la introducción se refleja si el aviso cubre uno o varios fundos
-  (`¿Cómo podemos ayudarle con el fundo X?` vs. `Detectamos N fundos sin actividad en su cuenta BOVS`).
+  (`¿Cómo podemos ayudarle con el fundo X?` vs. `Detectamos N fundos sin actividad en su cuenta SOVCA`).
 - Cada fundo se rotula con su nombre y RIF, y muestra sus propios días de inactividad y su tabla
   de usuarios (el aviso de inactividad) o su lista de animales/actividades (alertas de eventos).
 - El **seguimiento anti-duplicado sigue siendo por fundo** en ambos casos: se registra cada

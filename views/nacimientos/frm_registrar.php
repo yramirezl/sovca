@@ -46,14 +46,24 @@ ValidaSession("../login");
    (tabla de terneros + buscador de servicios gestantes)
    ============================================================ */
 .nac-terneros-hint { display:block; margin:2px 0 8px; color:#687780; font-size:12px; }
-.terneros-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 8px; }
-#tabla_terneros { min-width:690px; margin-bottom:0; }
-#tabla_terneros th { white-space:nowrap; font-size:12px; }
-#tabla_terneros td { min-width:82px; vertical-align:middle !important; }
-#tabla_terneros .ternero-peso { min-width:88px; }
-#tabla_terneros .ternero-id { min-width:125px; }
-#tabla_terneros .ternero-aptitud { min-width:135px; }
-.ternero-id-error { display:block; min-height:14px; color:#b94a48; font-size:10px; }
+.nac-terneros-tope { display:none; margin:-4px 0 8px; color:#b94a48; font-size:12px; font-weight:600; }
+.nac-terneros-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0 0 8px; }
+.nac-terneros-toolbar > label { flex:1 1 auto; min-width:0; }
+.nac-terneros-toolbar > .btn { flex:0 0 auto; }
+#tabla_terneros { width:100%; min-width:540px; margin-bottom:0; table-layout:fixed; }
+#tabla_terneros th { white-space:nowrap; font-size:12px; padding:7px 6px; }
+#tabla_terneros td { vertical-align:middle !important; padding:6px; }
+#tabla_terneros th:nth-child(1), #tabla_terneros td:nth-child(1) { width:5%; text-align:center; }
+#tabla_terneros th:nth-child(2) { width:17%; }
+#tabla_terneros th:nth-child(3) { width:17%; }
+#tabla_terneros th:nth-child(4) { width:13%; }
+#tabla_terneros th:nth-child(5) { width:20%; }
+#tabla_terneros th:nth-child(6) { width:23%; }
+#tabla_terneros th:nth-child(7), #tabla_terneros td:nth-child(7) { width:5%; text-align:center; }
+#tabla_terneros .ternero-input { width:100%; height:32px; padding:5px 8px; font-size:12.5px; }
+.ternero-ordinal { font-weight:700; color:#64748b; }
+.ternero-cell-id { position:relative; }
+.ternero-id-error { position:absolute; left:6px; right:6px; bottom:2px; min-height:0; color:#b94a48; font-size:10px; line-height:12px; }
 
 .nac-servicio-buscador { position:relative; margin:0 0 14px; }
 .nac-servicio-resultados {
@@ -197,7 +207,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -250,7 +260,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -316,22 +326,22 @@ ValidaSession("../login");
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="proposito">Propósito ?</label>
+                            <label for="proposito">Entrar en lactancia ?</label>
                             <select id="proposito" class="btn-sm" tabindex="4">
                                 <option value="*">Seleccione</option>
-                                <option value="1">Lactancia</option>
-                                <option value="2">Producción de Leche</option>
+                                <option value="2">Sí</option>
+                                <option value="0">No</option>
                             </select>
                         </div>
                         <div class="crud-form__field">
-                            <label>P. Prod. Leche</label>
+                            <label>Periodo de lactancia</label>
                             <input type="text" id="periodo_prodleche" class="form-control" placeholder="Periodo">
                         </div>
                     </div>
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="fecha_secado">Fecha Secado / Destete</label>
+                            <label for="fecha_secado">Fecha de secado</label>
                             <input class="form-control bbb" id="fecha_secado" data-date-format="dd-mm-yyyy"
                                    placeholder="dia-mes-año" type="text" onpaste="return false"
                                    tabindex="10" readonly="true">
@@ -354,7 +364,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -405,7 +415,11 @@ ValidaSession("../login");
                             <i class="fa fa-plus"></i> Agregar ternero/a
                         </button>
                     </div>
-                    <small class="nac-terneros-hint">Registra aquí una o varias crías del mismo parto. Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</small>
+                    <small class="nac-terneros-hint">Registra aquí las crías del mismo parto (máximo 5). Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</small>
+                    <small class="nac-terneros-tope" id="nac_terneros_tope">
+                        <i class="fa fa-exclamation-circle"></i>
+                        <span id="nac_terneros_tope_texto">Ya registraste el máximo de crías posibles de este parto.</span>
+                    </small>
 
                     <div class="table-responsive">
                         <table id="tabla_terneros" class="table table-bordered table-hover">
@@ -491,6 +505,32 @@ var temporizadorBusquedaGestante = null;
 var solicitudBusquedaGestante = null;
 var tipoServicioGestanteSeleccionado = '';
 
+/* Un parto admite como máximo 5 crías: en ganadería ovina y caprina los
+   partos múltiples (2 a 5 crías) son habituales. Es el mismo tope que
+   aplica la app sin conexión y el controlador al guardar. */
+var MAX_TERNEROS = 5;
+var ternerosBloqueados = true;
+
+function maxTernerosAlcanzado() {
+    return $('#terneros_tbody .ternero-row').length >= MAX_TERNEROS;
+}
+
+/* El botón "Agregar ternero/a" depende de dos cosas: que el bloque del
+   parto esté habilitado y que no se haya llegado al máximo de crías. */
+function actualizarBotonAgregarTernero() {
+    var tope = maxTernerosAlcanzado();
+
+    $('#agregar_ternero')
+        .prop('disabled', ternerosBloqueados || tope)
+        .attr('title', tope ? 'Máximo ' + MAX_TERNEROS + ' crías por parto' : '');
+
+    $('#nac_terneros_tope').toggle(tope);
+    $('#nac_terneros_tope_texto').text(
+        'Ya registraste las ' + MAX_TERNEROS + ' crías posibles de este parto. '
+        + 'Quita una para poder agregar otra.'
+    );
+}
+
 function escaparHtmlNacimiento(valor) {
     return $('<div>').text(valor === null || valor === undefined ? '' : String(valor)).html();
 }
@@ -502,6 +542,7 @@ function actualizarNumeracionTerneros() {
         $(this).find('.ternero-ordinal').text(index + 1);
         $(this).find('.quitar-ternero').prop('disabled', filas.length <= 1);
     });
+    actualizarBotonAgregarTernero();
 }
 
 function agregarFilaTernero(datos) {
@@ -512,9 +553,9 @@ function agregarFilaTernero(datos) {
         '<td><select class="form-control input-sm ternero-input ternero-nacio"><option value="">Seleccione</option><option value="1">Vivo</option><option value="2">Muerto</option></select></td>' +
         '<td><select class="form-control input-sm ternero-input ternero-sexo"><option value="">Seleccione</option><option value="1">Hembra</option><option value="2">Macho</option></select></td>' +
         '<td><input type="text" class="form-control input-sm ternero-input ternero-peso" placeholder="Peso" onpaste="return false" onkeypress="return filterFloat(event,this)"></td>' +
-        '<td><input type="text" class="form-control input-sm ternero-input ternero-id" placeholder="ID / Arete" onpaste="return false" onkeypress="return es_id_ternero(event)"><small class="ternero-id-error"></small></td>' +
+        '<td class="ternero-cell-id"><input type="text" class="form-control input-sm ternero-input ternero-id" placeholder="ID / Arete" onpaste="return false" onkeypress="return es_id_ternero(event)"><small class="ternero-id-error"></small></td>' +
         '<td><select class="form-control input-sm ternero-input ternero-aptitud">' + opcionesAptitud + '</select></td>' +
-        '<td><button type="button" class="btn btn-danger btn-xs quitar-ternero" title="Quitar ternero"><i class="fa fa-trash"></i></button></td>' +
+        '<td class="ternero-cell-accion"><button type="button" class="btn btn-danger btn-xs quitar-ternero" title="Quitar ternero"><i class="fa fa-trash"></i></button></td>' +
     '</tr>');
     $('#terneros_tbody').append(fila);
     fila.find('.ternero-nacio').val(datos.estatus_nacido || '');
@@ -531,8 +572,9 @@ function agregarFilaTernero(datos) {
 
 function reiniciarListaTerneros() {
     $('#terneros_tbody').empty();
+    ternerosBloqueados = true;
     agregarFilaTernero();
-    $('#agregar_ternero').prop('disabled', true);
+    actualizarBotonAgregarTernero();
 }
 
 function obtenerTernerosFormulario() {
@@ -638,7 +680,14 @@ $.post("../../controllers/maptitudes_controller", {
 });
 
 $('#agregar_ternero').on('click', function() {
-    if (!$(this).prop('disabled')) agregarFilaTernero();
+    if ($(this).prop('disabled')) return;
+
+    if (maxTernerosAlcanzado()) {
+        actualizarBotonAgregarTernero();
+        return;
+    }
+
+    agregarFilaTernero();
 });
 $('#terneros_tbody').on('click', '.quitar-ternero', function() {
     if ($('#terneros_tbody .ternero-row').length > 1) {
@@ -687,8 +736,7 @@ $.post("../../controllers/mperiodos_controller", {
     var parsedJson = $.parseJSON(data);
     periodoLactanciaDias = parseInt(parsedJson.periodo_lactancia_dias, 10) || 0;
     periodoProduccionLecheDias = parseInt(parsedJson.periodo_prodleche_dias, 10) || 0;
-    $("#periodo_prodleche").val(parsedJson.periodo_prodleche);
-    $("#periodo_prodleche").html(parsedJson.periodo_prodleche);
+    $("#periodo_prodleche").val(parsedJson.periodo_lactancia);
     actualizarFechaSecadoNacimiento();
 });
 
@@ -1233,10 +1281,11 @@ function BloquearCampos() {
     document.getElementById("nombre_m").disabled = true;
     document.getElementById("fecha_parto").disabled = true;
     $('#terneros_tbody .ternero-input').prop('disabled', true);
-    $('#agregar_ternero').prop('disabled', true);
+    ternerosBloqueados = true;
+    actualizarBotonAgregarTernero();
     document.getElementById("proposito").disabled = true;
     document.getElementById("fecha_secado").disabled = true;
-    document.getElementById("observaciones").disabled = true;
+    /* Observaciones queda siempre disponible: es texto libre del parto. */
     document.getElementById("periodo_prodleche").disabled = true;
     document.getElementById("nro_parto").disabled = true;
     document.getElementById("cod_animal_dona").disabled = true;
@@ -1260,6 +1309,13 @@ function DesBloquearCampos() {
     document.getElementById("cod_animal_h").disabled = false;
     document.getElementById("cod_animal_m").disabled = true;
     document.getElementById("nombre_m").disabled = true;
+    /* El bloque del parto (crías, propósito, secado y observaciones) se
+       habilita al fijar el servicio o la fecha del parto. */
+    document.getElementById("observaciones").disabled = false;
+    document.getElementById("proposito").disabled = false;
+    document.getElementById("fecha_secado").disabled = false;
+    ternerosBloqueados = false;
+    actualizarBotonAgregarTernero();
 }
 
 function es_codigo_nro_arete_dona(e) {
@@ -1345,9 +1401,13 @@ function habilitarBloquePartoNacimiento() {
     // fecha de secado, y se recalcula el secado con el período del fundo.
     DesBloquearMacho();
     $('.ternero-nacio').prop('disabled', false);
-    $('#agregar_ternero').prop('disabled', false);
+    ternerosBloqueados = false;
+    actualizarBotonAgregarTernero();
     document.getElementById("proposito").disabled = false;
     document.getElementById("fecha_secado").disabled = false;
+    /* Observaciones es texto libre del parto: debe poder escribirse. Antes
+       quedaba deshabilitado por BloquearCampos() y no se volvía a habilitar. */
+    document.getElementById("observaciones").disabled = false;
     actualizarFechaSecadoNacimiento();
 }
 
@@ -1357,8 +1417,11 @@ $('#proposito').change(function(event) {
 
 function actualizarFechaSecadoNacimiento() {
     var proposito = $("#proposito").val();
-    var dias = proposito === '1' ? periodoLactanciaDias :
-        (proposito === '2' ? periodoProduccionLecheDias : 0);
+    /* "Entrar en lactancia" = Sí (2): la fecha de secado es fecha de parto
+       + el período de lactancia configurado en el fundo (PPL). */
+    /* "Entrar en lactancia" = Sí (2): la fecha de secado es fecha de parto
+       + el PERÍODO DE LACTANCIA del fundo (PBL). */
+    var dias = proposito === '2' ? periodoLactanciaDias : 0;
     var partes = $("#fecha_parto").val().split('-');
     if (dias <= 0 || partes.length !== 3) {
         $("#fecha_secado").val("");

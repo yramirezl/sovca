@@ -11,7 +11,7 @@ cuenta demo, recuperación de contraseña y notificaciones).
 
 | Elemento | Antes | Ahora |
 |---|---|---|
-| Remitente | `BOVS · Gestión Ganadera` | `SOVCA · Gestión Ovina y Caprina` |
+| Remitente | `Gestión Ganadera` (heredado) | `SOVCA · Gestión Ovina y Caprina` |
 | Reply-To | el mismo del `From` | `SOVCA · Soporte` (`reply_to`) |
 | Return-Path (`Sender`) | lo ponía PHPMailer sin control | `sender_email` (mismo dominio que el `From`) |
 | HELO | hostname del servidor | `mail.ruted.net` |
@@ -160,9 +160,9 @@ Prueba externa recomendada: enviar a una cuenta de Gmail y revisar
 ## 6. Pendientes conocidos
 
 - `alertas/enviar.php` todavía tiene el botón "Ingrese Aquí" apuntando a
-  `https://global.ruted.net/bovs/` (tres bloques de HTML). Debe pasar a
+  `https://global.ruted.net/sovca/` (tres bloques de HTML). Debe pasar a
   `/sovca/`.
-- `alertas/enviar_promo.php` conserva el enlace al producto de BOVS en
-  `ruted.net`; si se publica el producto SOVCA, actualizar la URL.
+- `alertas/enviar_promo.php` ya apunta a `https://global.ruted.net/sovca/`;
+  si se publica una página de producto SOVCA en `ruted.net`, actualizar la URL.
 - El `PHP 5.1` de PHPMailer no soporta `DKIM_passphrase`; si la clave privada
   se protege con contraseña habría que migrar a PHPMailer 6.

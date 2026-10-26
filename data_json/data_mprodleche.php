@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Producción de Leche — API del listado por animal
+   SOVCA | Producción de Leche — API del listado por animal
    ------------------------------------------------------------
    action=lista   (por defecto)
      ?pagina=1&tamano=25&q=texto
@@ -8,7 +8,7 @@
         totales. No incluye el detalle (se pide al desplegar).
 
    action=detalle
-     ?codigo=BOVS-059-01&pagina=1&tamano=15
+     ?codigo=SOVCA-059-01&pagina=1&tamano=15
      -> registros paginados del animal (fecha DESC) + totales.
         Cada registro trae "editable" (últimos 30 días).
 

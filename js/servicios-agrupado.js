@@ -1,6 +1,6 @@
 /*!
  * servicios-agrupado.js
- * Ubicación: /bovs/js/servicios-agrupado.js
+ * Ubicación: /sovca/js/servicios-agrupado.js
  *
  * Vista agrupada del listado de Servicios (mismo patrón visual que
  * Producción de Leche): un bloque por hembra y, dentro, sus servicios

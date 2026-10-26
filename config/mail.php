@@ -12,7 +12,7 @@
  *    Al desplegar, se define de una de estas dos formas:
  *
  *      1) Variable de entorno del servidor:
- *             BOVS_SMTP_PASS="la-clave-del-buzon"
+ *             SOVCA_SMTP_PASS="la-clave-del-buzon"
  *
  *      2) Escribiéndola en el valor de 'password' de este archivo.
  *
@@ -27,13 +27,11 @@ return array(
     'port'     => 465,
     'secure'   => 'ssl',            // 'ssl' (465) o 'tls' (587)
     'username' => 'global@ruted.net',
-    // La variable de entorno SOVCA_SMTP_PASS tiene prioridad; se mantiene
-    // BOVS_SMTP_PASS como compatibilidad con el despliegue anterior.
+    // La variable de entorno SOVCA_SMTP_PASS tiene prioridad sobre el valor
+    // escrito aquí.
     'password' => (getenv('SOVCA_SMTP_PASS') !== false && getenv('SOVCA_SMTP_PASS') !== ''
                     ? getenv('SOVCA_SMTP_PASS')
-                    : (getenv('BOVS_SMTP_PASS') !== false && getenv('BOVS_SMTP_PASS') !== ''
-                        ? getenv('BOVS_SMTP_PASS')
-                        : 'Gl0b@l*2023#')),
+                    : 'Gl0b@l*2023#'),
 
     /* ---------------- Remitente ----------------
        IMPORTANTE PARA NO CAER EN SPAM:

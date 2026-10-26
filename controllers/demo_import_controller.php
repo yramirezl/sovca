@@ -99,7 +99,7 @@ switch ($action) {
                 'hoy'           => date('Y-m-d'),
             ));
         } catch (Throwable $e) {
-            error_log('[BOVS import demo] listar: ' . $e->getMessage());
+            error_log('[SOVCA import demo] listar: ' . $e->getMessage());
             imp_responder(array('ok' => false, 'msg' => 'No se pudo consultar la información: ' . $e->getMessage()));
         }
         break;

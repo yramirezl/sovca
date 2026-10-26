@@ -60,10 +60,10 @@ $arrp = $bd->select($sql);
 $documento = new Spreadsheet();
 $documento
     ->getProperties()
-    ->setCreator("Ing Yonny Ramírez (BOVS)")
-    ->setLastModifiedBy('BOVS')
+    ->setCreator("Ing Yonny Ramírez (SOVCA)")
+    ->setLastModifiedBy('SOVCA')
     ->setTitle('Archivo exportado desde Postgres')
-    ->setDescription('Un archivo de Excel exportado desde Postgres por BOVS');
+    ->setDescription('Un archivo de Excel exportado desde Postgres por SOVCA');
     
 
 # Como ya hay una hoja por defecto, la obtenemos, no la creamos

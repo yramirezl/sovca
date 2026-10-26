@@ -1,6 +1,6 @@
 <?php
 /**
- * BOVS · Geolocalización de IP y registro del historial de conexiones.
+ * SOVCA · Geolocalización de IP y registro del historial de conexiones.
  *
  * Compatible PHP 7.4 y 8.3: sin ??, ?->, match, str_contains ni tipos de unión.
  *
@@ -11,14 +11,14 @@
  *  - Si no se puede resolver la ubicación, se guarda NULL y se sigue.
  */
 
-if (!defined('BOVS_GEOIP_TIMEOUT')) {
-    define('BOVS_GEOIP_TIMEOUT', 2);          // segundos por proveedor
+if (!defined('SOVCA_GEOIP_TIMEOUT')) {
+    define('SOVCA_GEOIP_TIMEOUT', 2);          // segundos por proveedor
 }
-if (!defined('BOVS_GEOIP_CACHE_DIAS')) {
-    define('BOVS_GEOIP_CACHE_DIAS', 30);      // vigencia de un acierto
+if (!defined('SOVCA_GEOIP_CACHE_DIAS')) {
+    define('SOVCA_GEOIP_CACHE_DIAS', 30);      // vigencia de un acierto
 }
-if (!defined('BOVS_GEOIP_FALLO_HORAS')) {
-    define('BOVS_GEOIP_FALLO_HORAS', 24);     // espera antes de reintentar un fallo
+if (!defined('SOVCA_GEOIP_FALLO_HORAS')) {
+    define('SOVCA_GEOIP_FALLO_HORAS', 24);     // espera antes de reintentar un fallo
 }
 
 /* ============================================================
@@ -168,7 +168,7 @@ if (!function_exists('bovs_ip_cliente')) {
 if (!function_exists('bovs_geo_http_get')) {
     function bovs_geo_http_get($url)
     {
-        $timeout = (int)BOVS_GEOIP_TIMEOUT;
+        $timeout = (int)SOVCA_GEOIP_TIMEOUT;
 
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
@@ -177,7 +177,7 @@ if (!function_exists('bovs_geo_http_get')) {
             curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'BOVS/1.0');
+            curl_setopt($ch, CURLOPT_USERAGENT, 'SOVCA/1.0');
             $out = curl_exec($ch);
             curl_close($ch);
             return is_string($out) ? $out : null;
@@ -272,7 +272,7 @@ if (!function_exists('bovs_geo_cache_leer')) {
                     (now() - actualizado) < (? || ' hours')::interval AS reciente
                FROM geoip_cache
               WHERE ip = ?",
-            array((string)BOVS_GEOIP_CACHE_DIAS, (string)BOVS_GEOIP_FALLO_HORAS, $ip)
+            array((string)SOVCA_GEOIP_CACHE_DIAS, (string)SOVCA_GEOIP_FALLO_HORAS, $ip)
         );
         if (empty($filas)) {
             return null;
@@ -430,6 +430,54 @@ if (!function_exists('bovs_cx_dispositivo')) {
  * Registro de conexiones
  * ============================================================ */
 
+if (!function_exists('bovs_cx_duracion_texto')) {
+    /** Duración legible: "45 s", "12 min", "1 h 8 min", "2 d 3 h". */
+    function bovs_cx_duracion_texto($seg)
+    {
+        if ($seg === null || $seg === '') {
+            return '';
+        }
+        $seg = (int)$seg;
+        if ($seg < 0) {
+            $seg = 0;
+        }
+        if ($seg < 60) {
+            return $seg . ' s';
+        }
+        $min = (int)floor($seg / 60);
+        if ($min < 60) {
+            return $min . ' min';
+        }
+        $h = (int)floor($min / 60);
+        $r = $min % 60;
+        if ($h < 24) {
+            return $h . ' h' . ($r > 0 ? ' ' . $r . ' min' : '');
+        }
+        $d = (int)floor($h / 24);
+        $hh = $h % 24;
+        return $d . ' d' . ($hh > 0 ? ' ' . $hh . ' h' : '');
+    }
+}
+
+if (!function_exists('bovs_cx_hash_sesion')) {
+    /**
+     * Huella de la sesión PHP actual. Se guarda un sha256, nunca el id
+     * en claro. Funciona también cuando la sesión se abrió con
+     * read_and_close (sanitizar.php): en ese caso se usa la cookie.
+     */
+    function bovs_cx_hash_sesion()
+    {
+        $sid = '';
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $sid = (string)session_id();
+        }
+        if ($sid === '' && isset($_COOKIE[session_name()])) {
+            $sid = (string)$_COOKIE[session_name()];
+        }
+        return $sid === '' ? '' : hash('sha256', $sid);
+    }
+}
+
 if (!function_exists('bovs_cx_actualizar_rastreo')) {
     /**
      * Mantiene el comportamiento legado de `mrastreosessiones`
@@ -504,23 +552,45 @@ if (!function_exists('bovs_conexion_registrar')) {
 
         $geo = bovs_geo_localizar($ip);
 
-        $ok = bovs_cx_x(
-            'INSERT INTO conexiones_historial
-                (musuarios_id, username, nombre, ip, pais, ciudad, region, user_agent, origen, resultado, fecha)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())',
-            array(
-                $uid,
-                substr($username, 0, 60),
-                substr($nombre, 0, 120),
-                substr($ip, 0, 45),
-                $geo['pais'] !== null ? substr($geo['pais'], 0, 100) : null,
-                $geo['ciudad'] !== null ? substr($geo['ciudad'], 0, 100) : null,
-                $geo['region'] !== null ? substr($geo['region'], 0, 100) : null,
-                $ua,
-                $origen,
-                'ok',
-            )
+        $params = array(
+            $uid,
+            substr($username, 0, 60),
+            substr($nombre, 0, 120),
+            substr($ip, 0, 45),
+            $geo['pais'] !== null ? substr($geo['pais'], 0, 100) : null,
+            $geo['ciudad'] !== null ? substr($geo['ciudad'], 0, 100) : null,
+            $geo['region'] !== null ? substr($geo['region'], 0, 100) : null,
+            $ua,
+            $origen,
+            'ok',
         );
+
+        /* La fila nace con ultima_actividad = fecha: la duración de la
+           sesión se mide desde el login hasta la última petición. */
+        $sessionHash = bovs_cx_hash_sesion();
+        $filas = bovs_cx_q(
+            'INSERT INTO conexiones_historial
+                (musuarios_id, username, nombre, ip, pais, ciudad, region, user_agent, origen, resultado, fecha,
+                 session_id_hash, ultima_actividad)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?, now())
+             RETURNING id',
+            array_merge($params, array($sessionHash !== '' ? $sessionHash : null))
+        );
+
+        $ok = !empty($filas);
+        if ($ok) {
+            $idHistorial = (int)$filas[0]['id'];
+            $_SESSION['cx_historial_id'] = $idHistorial;
+        } else {
+            /* Respaldo si la migración aún no se aplicó: se registra el
+               acceso como antes y el login sigue funcionando. */
+            $ok = bovs_cx_x(
+                'INSERT INTO conexiones_historial
+                    (musuarios_id, username, nombre, ip, pais, ciudad, region, user_agent, origen, resultado, fecha)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())',
+                $params
+            );
+        }
 
         bovs_cx_actualizar_rastreo($uid, $ip, $geo);
 

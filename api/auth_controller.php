@@ -88,6 +88,11 @@ switch ($action) {
 
         $usuarioId = (int) $registro->id;
 
+        // MODO MANTENIMIENTO: solo los perfiles 1 (Administrador) y 4
+        // (Super Usuario) pueden autenticarse mientras el sistema está
+        // cerrado. La PWA recibe 403 con codigo 'mantenimiento'.
+        \Api\ApiAuth::exigirMantenimientoPermitido($usuarioId);
+
         // ¿El administrador habilitó el modo offline para esta cuenta?
         \Api\ApiAuth::exigirAccesoOffline($usuarioId);
 

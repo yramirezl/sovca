@@ -1,6 +1,6 @@
 /*!
  * crud-index.js
- * Ubicación: /bovs/js/crud-index.js
+ * Ubicación: /sovca/js/crud-index.js
  */
 (function (window, $) {
     'use strict';

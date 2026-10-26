@@ -27,6 +27,25 @@ function ValidaSession($ruta){
 	}
 
 	//----------------------------------------------------------------
+	// MODO MANTENIMIENTO: los perfiles de productor (2) y ayudante (3)
+	// quedan fuera del sistema; el Administrador (1) y el Super Usuario
+	// (4) pueden navegar (y usar el Modo soporte para entrar a los fundos).
+	//----------------------------------------------------------------
+	require_once __DIR__ . '/mantenimiento_helper.php';
+	if (bovs_mantenimiento_activo() && !bovs_mantenimiento_permite_rol($rolActual)) {
+		bovs_mantenimiento_bloquear_sesion_web($ruta);
+	}
+
+	//----------------------------------------------------------------
+	// DURACIÓN DE LA SESIÓN
+	// Registra la última actividad del usuario ("última transacción")
+	// para poder medir desde el login hasta su última petición.
+	//----------------------------------------------------------------
+	require_once __DIR__ . '/conexiones_helper.php';
+	$rutaLatido = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+	bovs_cx_latido($rutaLatido);
+
+	//----------------------------------------------------------------
 	// MODO SOPORTE: cierre automático al cumplirse el tiempo límite.
 	// Un administrador (rol 1/4) que entró temporalmente a un fundo
 	// debe salir solo; aquí se garantiza aunque el navegador haya

@@ -45,6 +45,32 @@ date_default_timezone_set('America/Caracas');
 @$codigo_ternero = ($_POST['codigo_ternero']);
 @$id_reg_nac = ($_POST['id_reg_nac']);
 
+/**
+ * Marca un nacimiento como "Fichado" cuando ya se creó/actualizó su animal.
+ * El id llega por POST (alta desde el parto) y puede venir vacío en un alta
+ * normal: Mregnacimiento::find() lanza RecordNotFound con null/''/0, así que
+ * se valida antes de tocar la base.
+ */
+function bovs_marcar_nacimiento_fichado($id_reg_nac)
+{
+    $id_reg_nac = (int)$id_reg_nac;
+    if ($id_reg_nac <= 0) {
+        return false;
+    }
+
+    try {
+        $update_nacimiento = Mregnacimiento::find($id_reg_nac);
+        if (!$update_nacimiento) {
+            return false;
+        }
+        $update_nacimiento->fichado = true;
+        return (bool)$update_nacimiento->save();
+    } catch (Throwable $e) {
+        error_log('[manimales] no se pudo marcar el nacimiento ' . $id_reg_nac . ': ' . $e->getMessage());
+        return false;
+    }
+}
+
 switch ($action) {
 
     case 'get_buscar_rgb_padre':
@@ -76,7 +102,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -226,6 +252,157 @@ switch ($action) {
 
     //// **************************
 
+    /// LISTADO PARA EL SELECTOR DEL GESTOR DE REPORTES PARAMETRIZABLES
+    /// Devuelve los animales del fundo para que el usuario elija el animal del
+    /// reporte de una lista filtrable (por nombre, código SOVCA o N° de arete)
+    /// en lugar de teclear el código. NO se filtra por estatus: un reporte
+    /// histórico puede necesitar un animal ya desincorporado.
+
+    case 'listar_animales_reporte':
+
+        if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+
+        $mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
+
+        $filas = array();
+
+        /* Reporte elegido en el gestor. Si llega, el catálogo se limitA a los
+           animales que TIENEN datos para ese reporte, de modo que el PDF
+           nunca salga vacío. Sin `reporte` se listan todos (uso genérico). */
+        $reporte = isset($_POST['reporte']) ? trim($_POST['reporte']) : '';
+
+        $f_ini = isset($_POST['fecha_inicio']) ? trim($_POST['fecha_inicio']) : '';
+        $f_fin = isset($_POST['fecha_final'])  ? trim($_POST['fecha_final'])  : '';
+
+        if (!preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $f_ini)) { $f_ini = ''; }
+        if (!preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $f_fin)) { $f_fin = ''; }
+        if ($f_ini === '' || $f_fin === '') { $f_ini = ''; $f_fin = ''; }
+
+        /* Tabla que respalda cada reporte individual: el requisito es que el
+           animal tenga al menos un registro vigente en esa tabla. */
+        $fuentes = array(
+            'rep_prod_leche'  => array('tabla' => 'mprolecheras',       'codigo' => 'codigo_rgb_id_animal_hembra', 'fecha' => 'fecha_produccion', 'unidad' => 'producciones', 'unidad1' => 'producción'),
+            'rep_cons_peso'   => array('tabla' => 'mconsecutivopesos',  'codigo' => 'codigo_rgb_id_animal',        'fecha' => 'fecha_pesaje',     'unidad' => 'pesajes',      'unidad1' => 'pesaje'),
+            'rep_ctl_animal'  => array('tabla' => 'mcontrolsanitarios', 'codigo' => 'codigo_rgb_id_animal',        'fecha' => 'fecha_control',    'unidad' => 'controles',    'unidad1' => 'control'),
+            'rep_nacimientos' => array('tabla' => 'mregnacimientos',    'codigo' => 'codigo_rgb_id_animal_hembra', 'fecha' => 'f_parto',          'unidad' => 'partos',       'unidad1' => 'parto')
+        );
+
+        $sql_registros    = '0';
+        $filtro_requisito = '';
+        $unidad           = '';
+        $unidad1          = '';
+
+        if (isset($fuentes[$reporte])) {
+
+            $f = $fuentes[$reporte];
+
+            /* Si el gestor ya tiene un rango de fechas marcado, el animal solo
+               se ofrece cuando tiene datos DENTRO de ese rango. */
+            $rango = '';
+            if ($f_ini !== '' && $f_fin !== '') {
+                $rango = ' and x.' . $f['fecha']
+                       . " between cast('" . $f_ini . "' as date)"
+                       . " and cast('" . $f_fin . "' as date)";
+            }
+
+            /* Nacimientos: el reporte solo toma registros vigentes. */
+            $extra = ($reporte === 'rep_nacimientos') ? ' and x.mestatus_id = 1 ' : '';
+
+            $sub = 'select count(*)'
+                 . ' from ' . $f['tabla'] . ' x'
+                 . ' where x.mfundos_id = a.mfundos_id'
+                 . ' and x.' . $f['codigo'] . ' = a.codigo_rgb_id_animal'
+                 . ' and x.status = 1' . $extra . $rango;
+
+            $sql_registros    = '(' . $sub . ')';
+            $filtro_requisito = ' and (' . $sub . ') > 0';
+            $unidad           = $f['unidad'];
+            $unidad1          = $f['unidad1'];
+
+        } elseif ($reporte === 'rep_ser_animal') {
+
+            $sub = 'select count(*)'
+                 . ' from mregservicios x'
+                 . ' where x.mfundos_id = a.mfundos_id'
+                 . ' and x.status = 1'
+                 . ' and (x.codigo_rgb_id_animal_hembra = a.codigo_rgb_id_animal'
+                 . ' or x.codigo_rgb_id_animal_dona = a.codigo_rgb_id_animal'
+                 . ' or x.codigo_rgb_id_animal_macho = a.codigo_rgb_id_animal)';
+
+            $sql_registros    = '(' . $sub . ')';
+            $filtro_requisito = ' and (' . $sub . ') > 0';
+            $unidad           = 'servicios';
+            $unidad1          = 'servicio';
+        }
+
+        if ($mfundos_id > 0) {
+
+            $edad_sql = '(extract(year from age(current_date, a.f_nacimiento)) * 12
+                          + extract(month from age(current_date, a.f_nacimiento)))';
+
+            $datos = Manimale::find_by_sql("select a.codigo_rgb_id_animal       as codigo,
+                                                   coalesce(a.nro_arete, '')   as nro_arete,
+                                                   coalesce(a.nombre, '')      as nombre,
+                                                   coalesce(a.sexo, 0)         as sexo,
+                                                   case when a.f_nacimiento is null then 0
+                                                        else " . $edad_sql . "::int
+                                                   end                         as edad_meses,
+                                                   " . $sql_registros . "       as registros
+                                              from manimales a
+                                             where a.mfundos_id = " . $mfundos_id . "
+                                               and a.status = 1
+                                               " . $filtro_requisito . "
+                                             order by a.nombre, a.codigo_rgb_id_animal;");
+
+            if ($datos) {
+                foreach ($datos as $rs) {
+
+                    $sexo      = intval($rs->sexo);
+                    $registros = intval($rs->registros);
+
+                    if ($sexo === 1) {
+                        $etiqueta_sexo = 'Hembra';
+                    } elseif ($sexo === 2) {
+                        $etiqueta_sexo = 'Macho';
+                    } else {
+                        $etiqueta_sexo = 'Sin sexo';
+                    }
+
+                    /* Con reporte elegido, el tag dice cuántos datos tiene el
+                       animal (garantía de que el PDF saldrá con contenido). */
+                    if ($unidad !== '' && $registros > 0) {
+                        $etiqueta = $registros . ' '
+                                  . ($registros === 1 ? $unidad1 : $unidad);
+                    } else {
+                        $etiqueta = $etiqueta_sexo;
+                    }
+
+                    $filas[] = array(
+                        'codigo'         => $rs->codigo,
+                        'nro_arete'      => (string)$rs->nro_arete,
+                        'nombre'         => (string)$rs->nombre,
+                        'edad_meses'     => intval($rs->edad_meses),
+                        'condicion'      => $etiqueta_sexo,
+                        'disponible'     => 1,
+                        'nro_servicio'   => 0,
+                        'registros'      => $registros,
+                        'etiqueta'       => $etiqueta,
+                        'etiqueta_clase' => 'is-ok'
+                    );
+                }
+            }
+        }
+
+        echo json_encode(array(
+            'resultado' => 'ok',
+            'filas'     => $filas,
+            'total'     => count($filas)
+        ));
+
+        break;
+
+    //// **************************
+
     case 'get_buscar_rgb_madre':
 
         $buscar = intval($_POST['buscarx']);
@@ -255,7 +432,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -434,9 +611,8 @@ switch ($action) {
                         }
                     }
 
-                    $update_nacimiento = Mregnacimiento::find($id_reg_nac);
-                    $update_nacimiento->fichado = true;
-                    $update_nacimiento->save();
+                    /* Nacimiento de origen: se marca como fichado (si aplica). */
+                    bovs_marcar_nacimiento_fichado($id_reg_nac);
 
                     $data_search = Manimale::find_by_sql("SELECT max(id) as cod_animal
                  FROM Manimales
@@ -1369,7 +1545,7 @@ switch ($action) {
             $partes = explode('-', $rgb_animal);
             $prefijo = $partes[0];
             $nro = 0;
-            if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+            if ($prefijo == 'SOVCA') {
                 $nro = intval($partes[2]);
             } else {
                 $nro = intval($rgb_animal);

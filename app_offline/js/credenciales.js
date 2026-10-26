@@ -60,7 +60,7 @@ const CredencialLocal = {
   },
 
   _fallbackHashHex(password, salHex) {
-    let bloque = password + '|' + salHex + '|BOVS_OFFLINE_FALLBACK';
+    let bloque = password + '|' + salHex + '|SOVCA_OFFLINE_FALLBACK';
     let a = 0x811c9dc5;
     let b = 0x9e3779b9;
     let c = 0x85ebca6b;

@@ -16,7 +16,31 @@
 
 		function basedatosAdoIbase()
 		{
-			$this->bd = new conexionAdo();
+                        /* =====================================================
+                           MODO MANTENIMIENTO
+                           -----------------------------------------------------
+                           Los reportes usan su PROPIA conexión (ADOdb), así que no
+                           pasan por config/conexion.php. El control se hace aquí,
+                           antes de conectar, para que un productor o ayudante no
+                           pueda generar un PDF durante la ventana de mantenimiento.
+                           ======================================================== */
+                        @require_once(__DIR__ . '/../../../lib/mantenimiento_helper.php');
+                        if (function_exists('bovs_mantenimiento_activo')
+                                && bovs_mantenimiento_activo()
+                                && !empty($_SESSION['idusuariox'])
+                                && !bovs_mantenimiento_permite_rol(isset($_SESSION['rolx']) ? (int) $_SESSION['rolx'] : 0)) {
+                                if (!headers_sent()) {
+                                        http_response_code(403);
+                                        header('Content-Type: text/html; charset=UTF-8');
+                                }
+                                echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Sistema en mantenimiento</title></head>'
+                                        . '<body style="font-family:Arial,Helvetica,sans-serif;background:#fff7ed;color:#7f1d1d;padding:40px;text-align:center;">'
+                                        . '<h2 style="margin:0 0 10px;">Sistema en mantenimiento</h2>'
+                                        . '<p style="margin:0;">' . htmlspecialchars(bovs_mantenimiento_mensaje(), ENT_QUOTES, 'UTF-8') . '</p>'
+                                        . '<script>setTimeout(function(){ window.close(); }, 8000);</script>'
+                                        . '</body></html>';
+                                exit;
+                        }
 
 			/* -----------------------------------------------------------------
 			   BASE DE DATOS DE LOS REPORTES

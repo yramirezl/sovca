@@ -28,7 +28,7 @@ require_once '../models/Musuario.php';
 
 const FUNDO = 2;
 const USUARIO = 4;
-const URL_API = 'http://127.0.0.1/bovs/api/sync_controller.php';
+const URL_API = 'http://127.0.0.1/sovca/api/sync_controller.php';
 
 $ok = 0;
 $fallos = 0;

@@ -275,6 +275,20 @@ const Sync = {
           await this.remapearCodigosDeAnimal(mapaCodigos);
         }
       } catch (e) {
+        // Mantenimiento del servidor: NO es un rechazo de los registros.
+        // Se dejan tal cual (pendientes) y se corta el ciclo completo para
+        // que la app lo informe sin manchar las tarjetas con errores.
+        if (e && e.cuerpo && e.cuerpo.codigo === 'mantenimiento') {
+          modulosConError.push({ modulo, fase: 'push', mensaje: mensajeError(e), mantenimiento: true });
+          return {
+            enviados,
+            conflictos,
+            errores,
+            modulos_con_error: modulosConError,
+            mantenimiento: true,
+          };
+        }
+
         errores += items.length;
         modulosConError.push({
           modulo,
@@ -496,16 +510,31 @@ const Sync = {
           const resultado = await this.traerCambios(sesion, modulo, fundoId);
           return { modulo, traidos: resultado.traidos };
         } catch (e) {
+          if (e && e.cuerpo && e.cuerpo.codigo === 'mantenimiento') {
+            return { modulo, mantenimiento: true, error: mensajeError(e) };
+          }
           return { modulo, error: mensajeError(e) };
         }
       }));
 
+      let mantenimiento = false;
       for (const resultado of resultados) {
         if (resultado.error) {
-          errores.push({ modulo: resultado.modulo, fase: 'pull', mensaje: resultado.error });
+          errores.push({
+            modulo: resultado.modulo,
+            fase: 'pull',
+            mensaje: resultado.error,
+            mantenimiento: resultado.mantenimiento === true,
+          });
+          if (resultado.mantenimiento) mantenimiento = true;
         } else {
           traidos += resultado.traidos;
         }
+      }
+
+      // El servidor está cerrado: no tiene sentido pedir los demás lotes.
+      if (mantenimiento) {
+        return { traidos, errores, mantenimiento: true };
       }
     }
 
@@ -571,11 +600,31 @@ const Sync = {
             acumulado.conflictos += rp.conflictos;
             acumulado.errores += rp.errores;
             erroresFundo.push(...(rp.modulos_con_error || []));
+
+            // Servidor en mantenimiento: se deja todo pendiente y se corta
+            // el ciclo (no se cuenta como error de sincronización).
+            if (rp.mantenimiento) {
+              acumulado.mantenimiento = true;
+              acumulado.motivo_mantenimiento = (rp.modulos_con_error || [])
+                .filter((m) => m.mantenimiento)
+                .map((m) => m.mensaje)
+                .join(' ') || 'El sistema está en mantenimiento.';
+              break;
+            }
           }
 
           const descargas = await this.traerCambiosEnParalelo(sesion, fundo.id);
           acumulado.traidos += descargas.traidos;
           erroresFundo.push(...descargas.errores);
+
+          if (descargas.mantenimiento) {
+            acumulado.mantenimiento = true;
+            acumulado.motivo_mantenimiento = (descargas.errores || [])
+              .filter((x) => x.mantenimiento)
+              .map((x) => x.mensaje)
+              .join(' ') || 'El sistema está en mantenimiento.';
+            break;
+          }
           try {
             await this.asegurarProductosControlSanitario(sesion, fundo.id);
           } catch (e) {

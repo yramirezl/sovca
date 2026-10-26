@@ -1,6 +1,6 @@
 <?php
 /**
- * Helper multi-fundo para BOVS.
+ * Helper multi-fundo para SOVCA.
  * Compatible: PHP 7.4 y 8.3
  *
  * Usa ActiveRecord\ConnectionManager::get_connection()->query()

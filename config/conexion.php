@@ -20,6 +20,26 @@ ActiveRecord\Config::initialize(function($cfg)
     $es_ruta_publica = strpos($ruta_actual, 'login') === 0
         || strpos($ruta_actual, 'logout') === 0
         || in_array($accion_solicitada, $acciones_publicas, true);
+
+    /* ================================================================
+       MODO MANTENIMIENTO (red de seguridad global)
+       ----------------------------------------------------------------
+       Se evalúa aquí porque TODOS los modelos incluyen este archivo:
+       así también quedan cubiertos los endpoints de data_json, los
+       reportes y cualquier script que no pase por los controladores.
+       Solo afecta a sesiones web de productores (2) y ayudantes (3);
+       el API con token no guarda rol en $_SESSION y aplica su propio
+       control en ApiAuth.
+       ================================================================ */
+    require_once __DIR__ . '/../lib/mantenimiento_helper.php';
+    $rol_mantenimiento = (int)(isset($_SESSION['rolx']) ? $_SESSION['rolx'] : 0);
+    if (!$es_ruta_publica
+        && !empty($_SESSION['idusuariox'])
+        && bovs_mantenimiento_activo()
+        && !bovs_mantenimiento_permite_rol($rol_mantenimiento)) {
+        bovs_mantenimiento_respuesta_json();
+    }
+
     $fecha_caduca = isset($_SESSION['fecha_caduca_suscripcion']) ? $_SESSION['fecha_caduca_suscripcion'] : '';
     $rol_sesion = (int)(isset($_SESSION['rolx']) ? $_SESSION['rolx'] : 0);
     $requiere_verificacion = in_array($rol_sesion, array(2, 3), true) && empty($_SESSION['suscripcion_verificada']);

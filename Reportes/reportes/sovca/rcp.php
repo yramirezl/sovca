@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Wrapper del Reporte de Consecutivo de Peso
+   SOVCA | Wrapper del Reporte de Consecutivo de Peso
    ------------------------------------------------------------
    - Instancia pdfconsecutivo_peso y lo muestra en el navegador.
    - Valida sesión (mfundos_id) y disponibilidad de datos.
@@ -8,6 +8,7 @@
    ============================================================ */
 
 require_once('pdfconsecutivo_peso.php');
+require_once('../../lib/reporte_contexto_helper.php');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -16,7 +17,11 @@ if (session_status() === PHP_SESSION_NONE) {
 $obj        = new pdfreporte();
 $mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
 
-$name = 'Consecutivo_de_Peso.pdf';
+/* Nomenclatura de salida: reporte + animal/lote/rango + fecha de generado */
+$ctx = bovs_reporte_contexto($mfundos_id);
+$obj->contexto_detalle = $ctx['detalle'];
+$obj->SetTitle(bovs_reporte_titulo('REPORTE DE CONSECUTIVO DE PESO', $ctx));
+$name = bovs_reporte_nombre_archivo('Consecutivo_de_Peso', $ctx);
 
 if ($mfundos_id > 0) {
 

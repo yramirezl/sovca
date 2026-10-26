@@ -147,7 +147,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -196,7 +196,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -257,22 +257,22 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="proposito">Propósito ?</label>
+                            <label for="proposito">Entrar en lactancia ?</label>
                             <select id="proposito" class="btn-sm" tabindex="4">
                                 <option value="*">Seleccione</option>
-                                <option value="1">Lactancia</option>
-                                <option value="2">Producción de Leche</option>
+                                <option value="2">Sí</option>
+                                <option value="0">No</option>
                             </select>
                         </div>
                         <div class="crud-form__field">
-                            <label>P. Prod. Leche</label>
+                            <label>Periodo de lactancia</label>
                             <input type="text" id="periodo_prodleche" class="form-control" placeholder="Periodo">
                         </div>
                     </div>
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="fecha_secado">Fecha Secado / Destete</label>
+                            <label for="fecha_secado">Fecha de secado</label>
                             <input class="form-control bbb" id="fecha_secado" data-date-format="dd-mm-yyyy"
                                    placeholder="dia-mes-año" type="text" onpaste="return false"
                                    tabindex="10" readonly="true">
@@ -295,7 +295,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -400,6 +400,54 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                         </div>
                     </div>
 
+                    <!-- ===== Crías del parto (mellizos) ===== -->
+                    <style>
+                        #bloque_crias_parto { display:block; }
+                        #bloque_crias_parto .cria-item {
+                            border: 1px solid #e3e7ed; border-radius: 8px;
+                            padding: 8px 10px; margin-bottom: 8px; background: #fbfcfd;
+                        }
+                        #bloque_crias_parto .cria-item__cab {
+                            display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+                        }
+                        #bloque_crias_parto .cria-item__cab strong { font-size: 12.5px; color: #334155; }
+                        #bloque_crias_parto .cria-item__estado {
+                            font-size: 11px; padding: 1px 8px; border-radius: 10px; font-weight: 700;
+                        }
+                        #bloque_crias_parto .cria-item__estado.is-ok { background: #e8f5ec; color: #146b2e; }
+                        #bloque_crias_parto .cria-item__estado.is-pend { background: #fdeceb; color: #b3261e; }
+                        #bloque_crias_parto .cria-item__quitar { margin-left: auto; }
+                        #bloque_crias_parto .cria-item__grid {
+                            display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px;
+                        }
+                        #bloque_crias_parto .cria-item__grid > label {
+                            display: block; margin: 0; font-size: 11.5px;
+                            color: #64748b; font-weight: 600;
+                        }
+                        #bloque_crias_parto .cria-item__grid > label.ancho { grid-column: 1 / -1; }
+                        #bloque_crias_parto .cria-item__grid .form-control {
+                            height: 30px; font-size: 12.5px; padding: 4px 8px;
+                        }
+                    </style>
+                    <div class="crud-form__field" id="bloque_crias_parto" style="display:none;">
+                        <label>Crías del parto
+                            <a data-toggle="tooltip" title="Cada ternero/a lleva su propia ficha. Aquí puedes corregir los datos de cada cría (ID/arete, sexo, peso, si nació y aptitud).">
+                                <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
+                            </a>
+                        </label>
+                        <div id="crias_parto_tbody"></div>
+                        <button type="button" class="btn btn-success btn-xs" id="agregar_cria_parto">
+                            <i class="fa fa-plus"></i> Agregar cría
+                        </button>
+                        <a class="btn btn-default btn-xs" id="ir_fichar_crias"
+                           href="frm_ficha.php?%$%=<?php echo rawurlencode(base64_encode('id=' . intval($cad0))); ?>">
+                            <i class="fa fa-bookmark"></i> Fichar crías
+                        </a>
+                        <small class="text-muted" style="display:block;margin-top:6px;">
+                            Este parto tiene varias crías. Cada una lleva su propia ficha en el Registro de Animales.
+                        </small>
+                    </div>
+
                     <div class="crud-form__field">
                         <label for="aptitud_animal">Aptitud del Animal</label>
                         <select name="aptitud_animal" id="aptitud_animal" class="form-control bbb" tabindex="7">
@@ -491,8 +539,7 @@ $.post("../../controllers/mperiodos_controller", {
     var parsedJson = $.parseJSON(data);
     periodoLactanciaDias = parseInt(parsedJson.periodo_lactancia_dias, 10) || 0;
     periodoProduccionLecheDias = parseInt(parsedJson.periodo_prodleche_dias, 10) || 0;
-    $("#periodo_prodleche").val(parsedJson.periodo_prodleche);
-    $("#periodo_prodleche").html(parsedJson.periodo_prodleche);
+    $("#periodo_prodleche").val(parsedJson.periodo_lactancia);
     actualizarFechaSecadoNacimiento();
 });
 
@@ -531,12 +578,17 @@ $(document).ready(function() {
         $("#nro_parto").val(parsedJson.nro_parto);
         $("#fecha_secado").val(parsedJson.fecha_secado);
         $("#observaciones").val(parsedJson.observaciones);
-        $("#proposito").val(parsedJson.proposito);
+        /* Compatibilidad: los registros viejos guardaban 1 = Lactancia.
+           Ahora "Entrar en lactancia" usa el período configurado (valor 2). */
+        var proposito_guardado = String(parsedJson.proposito);
+        if (proposito_guardado === '1') proposito_guardado = '2';
+        $("#proposito").val(proposito_guardado);
         $("#tipo_servicio").val(parsedJson.tipo_servicio);
         $("#cod_animal_dona").val(parsedJson.cod_animal_dona);
         $("#id_ternero").val(parsedJson.id_ternero);
         proposito = $("#proposito").val();
         actualizarFechaSecadoNacimiento();
+        cargarCriasParto();
     }, "json");
 });
 
@@ -1016,6 +1068,155 @@ $("#exit").click(function() {
     });
 });
 
+/* ============================================================
+   CRÍAS DEL PARTO (MELLIZOS)
+   Un parto puede tener 2 crías y cada una lleva su propia ficha.
+   Se listan aquí para poder corregir sus datos y se guardan con
+   el resto del parto.
+   ============================================================ */
+var MAX_CRIAS_PARTO = 5;
+var criasParto = [];
+
+function escaparHtmlCria(valor) {
+    return $('<div>').text(valor === null || valor === undefined ? '' : String(valor)).html();
+}
+
+function opcionesAptitudCria(seleccion) {
+    var html = '<option value="0">Indique la Aptitud</option>';
+    $('#aptitud_animal option').each(function() {
+        var valor = $(this).val();
+        if (valor === '' || valor === null || valor === undefined) { return; }
+        html += '<option value="' + escaparHtmlCria(valor) + '"' +
+                (String(valor) === String(seleccion) ? ' selected' : '') + '>' +
+                escaparHtmlCria($(this).text()) + '</option>';
+    });
+    return html;
+}
+
+function pintarCriasParto() {
+    var $body = $('#crias_parto_tbody');
+    $body.empty();
+
+    $.each(criasParto, function(i, cria) {
+        var fichada = parseInt(cria.fichado, 10) === 1;
+
+        var html = '<div class="cria-item" data-id-cria="' + (parseInt(cria.id_cria, 10) || 0) + '">' +
+            '<div class="cria-item__cab">' +
+                '<strong>Cría ' + (i + 1) + '</strong>' +
+                '<span class="cria-item__estado ' + (fichada ? 'is-ok' : 'is-pend') + '">' +
+                    (fichada ? 'Fichada' : 'Sin fichar') +
+                '</span>' +
+                '<button type="button" class="btn btn-danger btn-xs cria-item__quitar quitar-cria" title="Quitar cría">' +
+                    '<i class="fa fa-trash"></i>' +
+                '</button>' +
+            '</div>' +
+            '<div class="cria-item__grid">' +
+                '<label class="ancho">ID / Arete' +
+                    '<input type="text" class="form-control cria-id" value="' + escaparHtmlCria(cria.id_ternero) + '"' +
+                    (fichada ? ' readonly="readonly" title="Esta cría ya tiene ficha (' + escaparHtmlCria(cria.codigo_animal || 'animal registrado') + '); el ID no se puede cambiar."' : '') +
+                    '>' +
+                '</label>' +
+                '<label>Sexo' +
+                    '<select class="form-control cria-sexo">' +
+                        '<option value="0">—</option>' +
+                        '<option value="1"' + (parseInt(cria.sexo, 10) === 1 ? ' selected' : '') + '>Hembra</option>' +
+                        '<option value="2"' + (parseInt(cria.sexo, 10) === 2 ? ' selected' : '') + '>Macho</option>' +
+                    '</select>' +
+                '</label>' +
+                '<label>Peso' +
+                    '<input type="text" class="form-control cria-peso" value="' + escaparHtmlCria(cria.peso_nacimiento) + '"' +
+                    ' onpaste="return false" onkeypress="return filterFloat(event,this)">' +
+                '</label>' +
+                '<label>¿Nació?' +
+                    '<select class="form-control cria-nacio">' +
+                        '<option value="0">—</option>' +
+                        '<option value="1"' + (parseInt(cria.estatus_nacido, 10) === 1 ? ' selected' : '') + '>Vivo</option>' +
+                        '<option value="2"' + (parseInt(cria.estatus_nacido, 10) === 2 ? ' selected' : '') + '>Muerto</option>' +
+                    '</select>' +
+                '</label>' +
+                '<label class="ancho">Aptitud' +
+                    '<select class="form-control cria-aptitud">' + opcionesAptitudCria(cria.aptitud) + '</select>' +
+                '</label>' +
+            '</div>' +
+        '</div>';
+
+        $body.append(html);
+    });
+
+    actualizarBotonAgregarCria();
+}
+
+function actualizarBotonAgregarCria() {
+    var total = $('#crias_parto_tbody .cria-item').length;
+    $('#agregar_cria_parto').prop('disabled', total >= MAX_CRIAS_PARTO);
+}
+
+function obtenerCriasEdicion() {
+    var lista = [];
+
+    $('#crias_parto_tbody .cria-item').each(function() {
+        var $fila = $(this);
+        lista.push({
+            id: parseInt($fila.attr('data-id-cria'), 10) || 0,
+            id_ternero: $.trim($fila.find('.cria-id').val()),
+            sexo: $fila.find('.cria-sexo').val(),
+            peso_nacimiento: $.trim($fila.find('.cria-peso').val()),
+            estatus_nacido: $fila.find('.cria-nacio').val(),
+            aptitud: $fila.find('.cria-aptitud').val()
+        });
+    });
+
+    return lista;
+}
+
+function cargarCriasParto() {
+    var idReg = $('#id_reg_nac').val();
+    if (!idReg) { return; }
+
+    $.post('../../controllers/mnacimientos_controller', {
+        action: 'listar_terneros_nacimiento',
+        id_reg_nac: idReg
+    }, null, 'json').done(function(resp) {
+        if (!resp || resp.resultado !== 'ok') { return; }
+
+        criasParto = resp.terneros || [];
+
+        if (criasParto.length > 1) {
+            $('#bloque_crias_parto').show();
+            /* Con mellizos el botón de ficha del ternero único no aplica */
+            $('#fichar_id').hide();
+            pintarCriasParto();
+        } else {
+            $('#bloque_crias_parto').hide();
+        }
+    });
+}
+
+$('#agregar_cria_parto').on('click', function() {
+    if ($('#crias_parto_tbody .cria-item').length >= MAX_CRIAS_PARTO) { return; }
+
+    criasParto.push({
+        id_cria: 0,
+        id_ternero: '',
+        sexo: 0,
+        peso_nacimiento: '',
+        estatus_nacido: 1,
+        aptitud: $('#aptitud_animal').val() || 0,
+        fichado: 0,
+        codigo_animal: ''
+    });
+    pintarCriasParto();
+});
+
+$('#crias_parto_tbody').on('click', '.quitar-cria', function() {
+    if ($('#crias_parto_tbody .cria-item').length <= 1) { return; }
+
+    var $fila = $(this).closest('.cria-item');
+    var indice = $fila.index();
+    criasParto.splice(indice, 1);
+    pintarCriasParto();
+});
+
 $('#save').click(function() {
     document.getElementById('save').disabled = true;
     if (ValidarCamposVacios()) {
@@ -1043,7 +1244,10 @@ $('#save').click(function() {
                     sexo: $("#sexo").val(),
                     fecha_secado: $("#fecha_secado").val(),
                     proposito: $("#proposito").val(),
-                    observaciones: $("#observaciones").val()
+                    observaciones: $("#observaciones").val(),
+                    terneros: $('#bloque_crias_parto').is(':visible')
+                        ? JSON.stringify(obtenerCriasEdicion())
+                        : ''
                 }).done(function(data) {
                     var parsedJson = $.parseJSON(data);
                     $(".message").html(parsedJson.mensaje);
@@ -1109,7 +1313,7 @@ function BloquearCampos() {
     document.getElementById("peso_nacer").disabled = true;
     document.getElementById("proposito").disabled = true;
     document.getElementById("fecha_secado").disabled = true;
-    document.getElementById("observaciones").disabled = true;
+    /* Observaciones queda siempre disponible: es texto libre del parto. */
     document.getElementById("periodo_prodleche").disabled = true;
     document.getElementById("sexo").disabled = true;
     document.getElementById("nro_parto").disabled = true;
@@ -1136,7 +1340,6 @@ function DesBloquearCampos() {
     document.getElementById("cod_animal_h").disabled = false;
     document.getElementById("cod_animal_m").disabled = true;
     document.getElementById("nombre_m").disabled = true;
-    document.getElementById("observaciones").disabled = false;
 }
 
 function es_codigo_nro_arete_dona(e) {
@@ -1236,8 +1439,11 @@ $('#proposito').change(function(event) {
 
 function actualizarFechaSecadoNacimiento() {
     var proposito = $("#proposito").val();
-    var dias = proposito === '1' ? periodoLactanciaDias :
-        (proposito === '2' ? periodoProduccionLecheDias : 0);
+    /* "Entrar en lactancia" = Sí (2): la fecha de secado es fecha de parto
+       + el período de lactancia configurado en el fundo (PPL). */
+    /* "Entrar en lactancia" = Sí (2): fecha de parto + período de
+       lactancia del fundo (PBL). */
+    var dias = proposito === '2' ? periodoLactanciaDias : 0;
     var partes = $("#fecha_parto").val().split('-');
     if (dias <= 0 || partes.length !== 3) {
         $("#fecha_secado").val("");

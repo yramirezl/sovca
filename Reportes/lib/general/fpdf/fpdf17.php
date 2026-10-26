@@ -996,7 +996,7 @@ function Output($name)
 {
 	// Output PDF to some destination
 	$dest='D';
-	// $name = 'Bovs.pdf';
+	// $name = 'Sovca.pdf';
 	if($this->state<3)
 		$this->Close();
 	$dest = strtoupper($dest);
@@ -1006,7 +1006,7 @@ function Output($name)
 		{    
 			// Valor por Defecto
 			//$name = 'doc.pdf';
-			$name = 'Bovs.pdf';
+			$name = 'Sovca.pdf';
 			$dest = 'I';
 		}
 		else

@@ -50,7 +50,7 @@ correo no contiene ninguna URL que dé acceso directo a la cuenta.
 |---|---|
 | `scripts/migracion_reset_password.sql` | Columnas `password_reset_codigo`, `password_reset_expires`, `password_reset_intentos`, `password_reset_solicitado` (+ COMMENTs). Elimina la antigua `password_reset_token`. Idempotente. |
 | `config/mail.php` | SMTP (mismo buzón del módulo de alertas), remitente, `base_url`, `reset_vigencia_min` (15) y `reset_max_intentos` (5), modo de prueba. |
-| `lib/mailer_helper.php` | `bovs_mail_enviar()`, `bovs_mail_enviar_codigo()`, plantilla HTML con la identidad BOVS, `bovs_mail_codigo()` (6 dígitos con `random_int`), `bovs_mail_codigo_hash()` (sha256), `bovs_url_base()`. |
+| `lib/mailer_helper.php` | `bovs_mail_enviar()`, `bovs_mail_enviar_codigo()`, plantilla HTML con la identidad SOVCA, `bovs_mail_codigo()` (6 dígitos con `random_int`), `bovs_mail_codigo_hash()` (sha256), `bovs_url_base()`. |
 | `lib/password_policy.php` | `bovs_password_errores()` y `bovs_password_hash()` — **las mismas reglas de "Cambiar contraseña"**, en un solo lugar. |
 | `lib/captcha_helper.php` | Se agregó `bovs_captcha_validar($token, $respuesta)` (un solo uso, 15 min). El captcha es el mismo del login. |
 | `controllers/musuarios_controller.php` | Acciones nuevas `solicitar_reset`, `reenviar_codigo` y `aplicar_reset`. |
@@ -114,19 +114,19 @@ host: mail.ruted.net · puerto 465 · SSL · usuario global@ruted.net
 
 1. Variable de entorno del servidor:
    ```bash
-   BOVS_SMTP_PASS="la-clave-del-buzon"
+   SOVCA_SMTP_PASS="la-clave-del-buzon"
    ```
 2. Escribiéndola en `'password' => '…'` dentro de `config/mail.php`.
 
 Sin contraseña el envío falla con un mensaje claro en el log de PHP
-(`[BOVS mail] SMTP sin contraseña configurada`) y el usuario ve
+(`[SOVCA mail] SMTP sin contraseña configurada`) y el usuario ve
 "No se pudo enviar el correo…". **Si el correo no sale, el código se borra**: así
 no queda un código válido que nadie recibió.
 
 `base_url` está vacía a propósito: el enlace del correo se arma con el dominio
 desde el que se hizo la solicitud (funciona igual en QAS y en producción). Si el
 sistema está detrás de un proxy, se fija a mano:
-`'base_url' => 'https://global.ruted.net/bovs'`.
+`'base_url' => 'https://global.ruted.net/sovca'`.
 
 ### Modo de prueba (QA sin buzón real)
 
@@ -134,7 +134,7 @@ sistema está detrás de un proxy, se fija a mano:
 `.html` en lugar de enviarlo (carpeta `archivo_dir`; si está vacía, `file/correo/`
 y luego la carpeta temporal del sistema). Así se puede leer el código de 6 dígitos
 sin buzón. **Nunca dejarlo en `true` en producción.** También se puede activar con
-`BOVS_MAIL_ARCHIVO=1`.
+`SOVCA_MAIL_ARCHIVO=1`.
 
 > ⚠️ Si Apache corre con `PrivateTmp`, la carpeta temporal del sistema **no se ve
 > desde la consola** (es otro `/tmp`). Para revisar los correos de prueba, fijar
@@ -145,12 +145,12 @@ sin buzón. **Nunca dejarlo en `true` en producción.** También se puede activa
 ## 5. Instalación en otro entorno (PRD)
 
 ```bash
-psql -h 127.0.0.1 -U postgres -d bovs_prd -f scripts/migracion_reset_password.sql
+psql -h 127.0.0.1 -U postgres -d sovca_prd -f scripts/migracion_reset_password.sql
 ```
 
 Luego, en el servidor:
 
-1. Definir `BOVS_SMTP_PASS` (o la clave en `config/mail.php`).
+1. Definir `SOVCA_SMTP_PASS` (o la clave en `config/mail.php`).
 2. Verificar que `guardar_en_archivo` esté en `false`.
 3. Probar el envío real con una cuenta de prueba.
 

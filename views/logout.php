@@ -21,12 +21,22 @@ if ($__uid > 0 && $__fid > 0) {
 	}
 }
 
+/* ------------------------------------------------------------------
+   Antes de destruir la sesión se cierra su fila en el historial de
+   conexiones: así queda registrada la hora de fin y la duración.
+   ------------------------------------------------------------------ */
+@chdir(__DIR__);
+@include_once __DIR__ . '/../lib/conexiones_helper.php';
+if (function_exists('bovs_cx_cerrar_sesion')) {
+        @bovs_cx_cerrar_sesion('logout');
+}
+
 $_SESSION['idusuario'] = null;
 $_SESSION = array();
 @session_unset();
 
 /* Redirección relativa a este script: funciona en cualquier subcarpeta
-   (/sovca, /bovs o dominio raíz) sin hardcodear la ruta del sistema. */
+   (/sovca o dominio raíz) sin hardcodear la ruta del sistema. */
 header('Location: login');
 exit;
 ?>

@@ -8,7 +8,7 @@
  *
  * USO (siempre primero en simulación):
  *
- *   cd /var/www/html/bovs
+ *   cd /var/www/html/sovca
  *   php scripts/migracion_fecha_secado.php                 # simulación (no escribe nada)
  *   php scripts/migracion_fecha_secado.php --modulo=nacimientos
  *   php scripts/migracion_fecha_secado.php --fundo=63

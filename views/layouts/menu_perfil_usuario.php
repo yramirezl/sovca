@@ -18,7 +18,7 @@ if (count($partes) >= 2) {
     $iniciales = strtoupper(mb_substr($nombre, 0, 2));
 }
 
-/* Clasificación del rol BOVS */
+/* Clasificación del rol SOVCA */
 $rolClase = 'rol-generico';
 $rolEtiqueta = 'USUARIO';
 if ($rolId === 1)      { $rolClase = 'rol-admin';   $rolEtiqueta = 'ADMIN'; }

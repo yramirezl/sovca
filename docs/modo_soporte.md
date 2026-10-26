@@ -1,6 +1,6 @@
 # MODO SOPORTE — acceso temporal de un administrador a un fundo
 
-Documento técnico del **modo soporte** de BOVS: permite que un administrador del
+Documento técnico del **modo soporte** de SOVCA: permite que un administrador del
 sistema (rol **1** o **4**) entre temporalmente a un fundo para revisar y
 corregir datos, **sin cambiar de cuenta ni de rol**.
 
@@ -188,7 +188,7 @@ En navegador (sesión sembrada temporalmente, ya eliminada):
 ## 8. Instalación en otro entorno (PRD)
 
 ```bash
-psql -h 127.0.0.1 -U postgres -d bovs_prd -f scripts/migracion_soporte_fundos.sql
+psql -h 127.0.0.1 -U postgres -d sovca_prd -f scripts/migracion_soporte_fundos.sql
 ```
 
 El script es idempotente (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT

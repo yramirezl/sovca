@@ -632,7 +632,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -920,7 +920,7 @@ switch ($action) {
             $partes = explode('-', $rgb_animal);
             $prefijo = $partes[0];
             $nro = 0;
-            if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+            if ($prefijo == 'SOVCA') {
                 $nro = intval($partes[2]);
             } else {
                 $nro = intval($rgb_animal);

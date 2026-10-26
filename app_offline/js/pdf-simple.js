@@ -207,7 +207,7 @@ const PdfSimple = {
     }
 
     // ---------- Pie con numeración ----------
-    const pie = o.pie || 'BOVS Offline - generado en el equipo';
+    const pie = o.pie || 'SOVCA Offline - generado en el equipo';
     paginas.forEach((operadores, indice) => {
       const previas = actual;
       actual = operadores;
@@ -330,7 +330,7 @@ const PdfSimple = {
       await navigator.share({
         files: [archivo],
         title: titulo || nombreArchivo,
-        text: titulo ? titulo + ' (BOVS)' : undefined,
+        text: titulo ? titulo + ' (SOVCA)' : undefined,
       });
       return 'compartido';
     } catch (error) {

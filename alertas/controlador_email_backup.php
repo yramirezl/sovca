@@ -12,7 +12,7 @@ $correo='cloudsoportesistemas@gmail.com';
 
 
 if ($Path_db!=''){
-  $archivo_db='db_bovs_'.$fecha;
+  $archivo_db='db_sovca_'.$fecha;
   $enviar_correo->enviar_database($correo,$Path_db,$archivo_db);
 }
 

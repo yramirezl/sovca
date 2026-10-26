@@ -1,6 +1,6 @@
 <?php
 /**
- * Helper multi-fundo para BOVS.
+ * Helper multi-fundo para SOVCA.
  *
  * IMPORTANTE: Este helper NO carga modelos por sí solo.
  * Los modelos del proyecto usan rutas relativas ('../config/conexion.php')

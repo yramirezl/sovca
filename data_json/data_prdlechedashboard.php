@@ -16,7 +16,7 @@ $rgb_animal = $cod_animal;
 $partes = explode("-", $rgb_animal);
 $prefijo = $partes[0];
 $nro = 0;
-if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+if ($prefijo == 'SOVCA') {
 	$nro = intval($partes[2]);
 } else {
 	$nro = intval($rgb_animal);

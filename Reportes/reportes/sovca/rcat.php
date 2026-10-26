@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Reporte de Animales Activos por Categoría
+   SOVCA | Reporte de Animales Activos por Categoría
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
 
@@ -394,7 +394,17 @@ class pdfreporte extends fpdf
 // ============================================================
 // Instancia y salida del PDF
 // ============================================================
+require_once('../../lib/reporte_contexto_helper.php');
+
 $pdf = new pdfreporte();
+
+/* Nomenclatura de salida: reporte + categoría + fecha de generado */
+$fecha_generado = date('d-m-Y');
+$pdf->SetTitle(bovs_reporte_titulo(
+    'LISTADO DE ANIMALES EN LA CATEGORÍA: ' . $pdf->nombre_categoria,
+    array('detalle' => '', 'fecha_generado' => $fecha_generado)
+));
+
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->Cuerpo();
@@ -402,4 +412,4 @@ $pdf->Cuerpo();
 // IMPORTANTE: FPDF legacy usa Output($name, $dest) — nombre primero.
 // Destino 'I' = inline (mostrar en el navegador).
 $nombre_archivo = preg_replace('/[^A-Za-z0-9_\-]/', '_', $pdf->nombre_categoria);
-$pdf->Output('Categoria_' . $nombre_archivo . '.pdf', 'I');
+$pdf->Output('Categoria_' . $nombre_archivo . '_' . $fecha_generado . '.pdf', 'I');

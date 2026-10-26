@@ -219,7 +219,7 @@ switch ($action) {
         if (!$animales) {
             /* ¿El código pertenece a otro fundo? (SOVCA-032-0125) */
             $otro_fundo = 0;
-            if (preg_match('/^(?:SOVCA|BOVS)-0*(\d+)-/i', $texto, $partes)) {
+            if (preg_match('/^SOVCA-0*(\d+)-/i', $texto, $partes)) {
                 $otro_fundo = (int)$partes[1];
             }
 
@@ -356,7 +356,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -1046,7 +1046,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -1146,7 +1146,7 @@ switch ($action) {
                 $partes = explode('-', $rgb_animal);
                 $prefijo = $partes[0];
                 $nro = 0;
-                if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+                if ($prefijo == 'SOVCA') {
                     $nro = intval($partes[2]);
                 } else {
                     $nro = intval($rgb_animal);
@@ -1395,7 +1395,7 @@ switch ($action) {
             $partes = explode('-', $rgb_animal);
             $prefijo = $partes[0];
             $nro = 0;
-            if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+            if ($prefijo == 'SOVCA') {
                 $nro = intval($partes[2]);
             } else {
                 $nro = intval($rgb_animal);

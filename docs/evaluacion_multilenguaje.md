@@ -297,7 +297,7 @@ Los **69 usos** de `toLocale`/`es-VE`/`es_ES` hay que unificarlos igual. Es bara
 ## 14. Anexo: cómo reproducir las mediciones
 
 ```bash
-cd /var/www/html/bovs
+cd /var/www/html/sovca
 
 # Volumen
 find views -name '*.php' | wc -l

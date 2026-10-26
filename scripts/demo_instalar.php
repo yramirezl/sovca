@@ -4,9 +4,9 @@
  * scripts/demo_instalar.php — INSTALADOR DEL MODO DEMOSTRACIÓN
  * ---------------------------------------------------------------------
  * Crea (o recrea) la base de datos de pruebas que usa el acceso
- * demostrativo de BOVS:
+ * demostrativo de SOVCA:
  *
- *   1. Crea la base bovs_demo si no existe.
+ *   1. Crea la base sovca_demo si no existe.
  *   2. Clona SOLO LA ESTRUCTURA de la base real (tablas, vistas,
  *      secuencias, índices, restricciones) con pg_dump --schema-only.
  *   3. Carga los CATÁLOGOS básicos (roles, tipos, países, estados,
@@ -25,11 +25,11 @@
  *   php scripts/demo_instalar.php                 # crea si falta
  *   php scripts/demo_instalar.php --recrear       # borra y vuelve a crear
  *   php scripts/demo_instalar.php --purgar        # desactiva cuentas vencidas
- *   php scripts/demo_instalar.php --origen=sovca_qas --destino=bovs_demo
+ *   php scripts/demo_instalar.php --origen=sovca_qas --destino=sovca_demo
  *
  * VARIABLES DE ENTORNO (opcionales, mismas que config/demo.php)
- *   BOVS_DEMO_DB, BOVS_DEMO_DB_ORIGEN, BOVS_DEMO_HOST, BOVS_DEMO_PUERTO,
- *   BOVS_DEMO_USUARIO, BOVS_DEMO_CLAVE
+ *   SOVCA_DEMO_DB, SOVCA_DEMO_DB_ORIGEN, SOVCA_DEMO_HOST, SOVCA_DEMO_PUERTO,
+ *   SOVCA_DEMO_USUARIO, SOVCA_DEMO_CLAVE
  *
  * REQUISITOS
  *   · pg_dump y psql en el PATH (misma versión o superior al servidor)
@@ -51,17 +51,17 @@ require_once __DIR__ . '/../lib/demo_helper.php';
 $opciones = getopt('', array('origen::', 'destino::', 'recrear', 'purgar', 'ayuda', 'sin-catalogos'));
 
 if (isset($opciones['ayuda'])) {
-    echo "Instalador del modo demostración de BOVS\n\n";
+    echo "Instalador del modo demostración de SOVCA\n\n";
     echo "  php scripts/demo_instalar.php [--recrear] [--purgar] [--sin-catalogos]\n";
-    echo "                                [--origen=sovca_qas] [--destino=bovs_demo]\n\n";
+    echo "                                [--origen=sovca_qas] [--destino=sovca_demo]\n\n";
     echo "  --recrear        Borra la base destino y la vuelve a crear.\n";
     echo "  --purgar         Desactiva las cuentas demo vencidas y termina.\n";
     echo "  --sin-catalogos  Solo estructura, sin datos de catálogo.\n";
     exit(0);
 }
 
-$origen  = isset($opciones['origen']) && $opciones['origen'] !== '' ? (string) $opciones['origen'] : BOVS_DEMO_DB_ORIGEN;
-$destino = isset($opciones['destino']) && $opciones['destino'] !== '' ? (string) $opciones['destino'] : BOVS_DEMO_DB;
+$origen  = isset($opciones['origen']) && $opciones['origen'] !== '' ? (string) $opciones['origen'] : SOVCA_DEMO_DB_ORIGEN;
+$destino = isset($opciones['destino']) && $opciones['destino'] !== '' ? (string) $opciones['destino'] : SOVCA_DEMO_DB;
 $recrear = isset($opciones['recrear']);
 $purgar  = isset($opciones['purgar']);
 $sinCatalgos = isset($opciones['sin-catalogos']);
@@ -104,15 +104,15 @@ function demo_ejecutar($comando, &$salida = null)
 try {
     $pdoAdmin = new PDO(
         bovs_demo_dsn('postgres'),
-        BOVS_DEMO_USUARIO,
-        BOVS_DEMO_CLAVE,
+        SOVCA_DEMO_USUARIO,
+        SOVCA_DEMO_CLAVE,
         array(
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         )
     );
 } catch (Throwable $e) {
-    demo_error('No se pudo conectar al servidor PostgreSQL (' . BOVS_DEMO_HOST . ':' . BOVS_DEMO_PUERTO . '): ' . $e->getMessage());
+    demo_error('No se pudo conectar al servidor PostgreSQL (' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . '): ' . $e->getMessage());
     exit(1);
 }
 
@@ -147,14 +147,14 @@ if ($psql === '' || $pgdump === '') {
     exit(1);
 }
 
-$credenciales = 'PGPASSWORD=' . escapeshellarg(BOVS_DEMO_CLAVE)
+$credenciales = 'PGPASSWORD=' . escapeshellarg(SOVCA_DEMO_CLAVE)
     . ' ' . escapeshellarg($psql);
-$dsnBase = ' -h ' . escapeshellarg(BOVS_DEMO_HOST)
-    . ' -p ' . escapeshellarg(BOVS_DEMO_PUERTO)
-    . ' -U ' . escapeshellarg(BOVS_DEMO_USUARIO);
+$dsnBase = ' -h ' . escapeshellarg(SOVCA_DEMO_HOST)
+    . ' -p ' . escapeshellarg(SOVCA_DEMO_PUERTO)
+    . ' -U ' . escapeshellarg(SOVCA_DEMO_USUARIO);
 
 $cmdPsql = $credenciales . $dsnBase;
-$cmdDump = 'PGPASSWORD=' . escapeshellarg(BOVS_DEMO_CLAVE) . ' ' . escapeshellarg($pgdump) . $dsnBase;
+$cmdDump = 'PGPASSWORD=' . escapeshellarg(SOVCA_DEMO_CLAVE) . ' ' . escapeshellarg($pgdump) . $dsnBase;
 
 /* ---------------------------------------------------------------------
    PASO 1 — BASE DESTINO
@@ -193,7 +193,7 @@ if (!$existeDestino) {
 /* ---------------------------------------------------------------------
    PASO 2 — ESTRUCTURA
    --------------------------------------------------------------------- */
-$tmpSchema = sys_get_temp_dir() . '/bovs_demo_schema_' . getmypid() . '.sql';
+$tmpSchema = sys_get_temp_dir() . '/sovca_demo_schema_' . getmypid() . '.sql';
 
 demo_salida('· Copiando estructura desde ' . $origen . '...');
 
@@ -273,7 +273,7 @@ $catalogosPorFundo = array(
 if (!$sinCatalgos) {
     demo_salida('· Copiando catálogos básicos...');
 
-    $tmpDatos = sys_get_temp_dir() . '/bovs_demo_datos_' . getmypid() . '.sql';
+    $tmpDatos = sys_get_temp_dir() . '/sovca_demo_datos_' . getmypid() . '.sql';
 
     $tablas = array_merge($catalogosGlobales, $catalogosPorFundo);
     $filtros = '';
@@ -361,7 +361,7 @@ BEGIN
 END $$;
 SQL;
 
-$tmpSeq = sys_get_temp_dir() . '/bovs_demo_seq_' . getmypid() . '.sql';
+$tmpSeq = sys_get_temp_dir() . '/sovca_demo_seq_' . getmypid() . '.sql';
 @file_put_contents($tmpSeq, $sqlSecuencias);
 $codigo = demo_ejecutar(
     $cmdPsql . ' -d ' . escapeshellarg($destino) . ' -v ON_ERROR_STOP=1 -q -f ' . escapeshellarg($tmpSeq),
@@ -397,15 +397,15 @@ $sin_smtp = empty($mail['guardar_en_archivo']) && trim((string) $mail['password'
 demo_salida('');
 demo_salida('BASE DE PRUEBAS LISTA');
 demo_salida('  Base de datos : ' . $destino);
-demo_salida('  Vigencia demo : ' . (int) BOVS_DEMO_DIAS . ' días (suscripción id ' . $suscripcion . ')');
-demo_salida('  Plan por defecto: ' . (int) BOVS_DEMO_PLAN_ID);
-demo_salida('  Código de correo: ' . (int) BOVS_DEMO_VERIF_MINUTOS . ' min · '
-    . (int) BOVS_DEMO_VERIF_INTENTOS . ' intentos · reenvío cada ' . (int) BOVS_DEMO_REENVIO_SEG . ' s');
+demo_salida('  Vigencia demo : ' . (int) SOVCA_DEMO_DIAS . ' días (suscripción id ' . $suscripcion . ')');
+demo_salida('  Plan por defecto: ' . (int) SOVCA_DEMO_PLAN_ID);
+demo_salida('  Código de correo: ' . (int) SOVCA_DEMO_VERIF_MINUTOS . ' min · '
+    . (int) SOVCA_DEMO_VERIF_INTENTOS . ' intentos · reenvío cada ' . (int) SOVCA_DEMO_REENVIO_SEG . ' s');
 demo_salida('');
 
 if ($sin_smtp) {
     demo_salida('AVISO IMPORTANTE');
-    demo_salida('  No hay contraseña SMTP configurada (config/mail.php o BOVS_SMTP_PASS).');
+    demo_salida('  No hay contraseña SMTP configurada (config/mail.php o SOVCA_SMTP_PASS).');
     demo_salida('  El alta demo exige verificar el correo: sin SMTP nadie podrá crear una cuenta.');
     demo_salida('  Configura el correo saliente antes de publicar el acceso demostrativo.');
     demo_salida('');
@@ -428,4 +428,4 @@ foreach ($resumen as $tabla) {
 
 demo_salida('');
 demo_salida('Siguiente paso: abrir /views/login y usar "Acceso demostrativo".');
-demo_salida('Para apagar la demo: BOVS_DEMO_ACTIVO = false en config/demo.php.');
+demo_salida('Para apagar la demo: SOVCA_DEMO_ACTIVO = false en config/demo.php.');

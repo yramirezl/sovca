@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Aviso común: reporte sin datos
+   SOVCA | Aviso común: reporte sin datos
    ------------------------------------------------------------
    Se incluye desde el bloque "sin datos" de cada wrapper.
    Variables opcionales antes del include:

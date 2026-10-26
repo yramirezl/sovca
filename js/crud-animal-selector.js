@@ -1,5 +1,5 @@
 /* ============================================================================
-   crud-animal-selector.js  (BOVS)
+   crud-animal-selector.js  (SOVCA)
    ----------------------------------------------------------------------------
    Conecta el LISTADO de animales (js/servicio-selector.js) con el buscador
    manual heredado (Nro Arete / Código + Buscar) de los formularios CRUD, para

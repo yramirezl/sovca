@@ -2,7 +2,7 @@
 
 El sistema puede ofrecerse en modo demostrativo: un visitante entra al login,
 pulsa **Acceso demostrativo**, se crea su propia cuenta y empieza a trabajar
-inmediatamente en una **base de datos aparte** (`bovs_demo`) que tiene la misma
+inmediatamente en una **base de datos aparte** (`sovca_demo`) que tiene la misma
 estructura que la base real y solo los **catálogos básicos** cargados.
 
 - **Verificación del correo obligatoria**: la cuenta se crea recién cuando el
@@ -33,7 +33,7 @@ estructura que la base real y solo los **catálogos básicos** cargados.
 
 ```
 sesión normal  → pgsql://…/sovca_qas
-sesión demo    → pgsql://…/bovs_demo      ($_SESSION['demo'] === 1)
+sesión demo    → pgsql://…/sovca_demo      ($_SESSION['demo'] === 1)
 ```
 
 Como todos los modelos usan la conexión por defecto, **no hay que cambiar
@@ -49,15 +49,15 @@ que contra la base de pruebas.
 php scripts/demo_instalar.php
 
 # 2) Verificar en config/demo.php
-#    BOVS_DEMO_ACTIVO = true
+#    SOVCA_DEMO_ACTIVO = true
 ```
 
 Requisitos:
 
 - `pg_dump` y `psql` en el `PATH` (paquete `postgresql-client`).
-- El usuario configurado (`BOVS_DEMO_USUARIO`) debe poder **crear bases de datos**.
+- El usuario configurado (`SOVCA_DEMO_USUARIO`) debe poder **crear bases de datos**.
 - `pg_dump` debe ser de la misma versión o superior al servidor.
-- **Correo saliente configurado** (`config/mail.php` o variable `BOVS_SMTP_PASS`):
+- **Correo saliente configurado** (`config/mail.php` o variable `SOVCA_SMTP_PASS`):
   el alta demo exige verificar el correo. Sin SMTP nadie puede crear una
   cuenta demo (el instalador lo avisa al terminar).
 
@@ -68,7 +68,7 @@ Opciones del instalador:
 | `--recrear` | Borra la base destino y la vuelve a crear desde cero (útil para “resetear” la demo). |
 | `--purgar` | Desactiva las cuentas demo vencidas y sus fundos (no borra filas). |
 | `--sin-catalogos` | Solo estructura, sin datos de catálogo. |
-| `--origen=` / `--destino=` | Cambiar las bases (por defecto `sovca_qas` → `bovs_demo`). |
+| `--origen=` / `--destino=` | Cambiar las bases (por defecto `sovca_qas` → `sovca_demo`). |
 
 ### Qué se copia
 
@@ -109,7 +109,7 @@ El diseño soporta **muchas cuentas demo simultáneas**:
   `uq_musuarios_username_activo`) y el sistema responde con un mensaje claro.
 - La creación de las tablas de apoyo ignora los errores de "ya existe": dos
   peticiones simultáneas no rompen el registro.
-- El límite por IP (`BOVS_DEMO_MAX_POR_IP`, por defecto **20 por día**) está
+- El límite por IP (`SOVCA_DEMO_MAX_POR_IP`, por defecto **20 por día**) está
   pensado para no bloquear a varias personas de una misma oficina que comparten
   salida a Internet. Si se espera un uso masivo desde una sola IP, se sube o se
   pone en `0`.
@@ -165,19 +165,19 @@ aviso que ofrece crear otra cuenta.
 
 | Constante | Por defecto | Descripción |
 |---|---|---|
-| `BOVS_DEMO_ACTIVO` | `true` | Muestra el botón y habilita las sesiones demo. |
-| `BOVS_DEMO_DB` | `bovs_demo` | Base de pruebas. |
-| `BOVS_DEMO_DB_ORIGEN` | `sovca_qas` | Base que se clona (solo estructura + catálogos). |
-| `BOVS_DEMO_HOST` / `_PUERTO` / `_USUARIO` / `_CLAVE` | `127.0.0.1` / `5432` / `postgres` / `postgres` | Conexión. |
-| `BOVS_DEMO_DIAS` | `15` | Vigencia de la cuenta. |
-| `BOVS_DEMO_PLAN_ID` | `5` (DIAMANTE) | Plan del fundo demo. |
-| `BOVS_DEMO_MAX_POR_IP` | `20` | Cuentas por IP cada 24 h (0 = sin límite). |
-| `BOVS_DEMO_VERIF_MINUTOS` | `15` | Vigencia del código de verificación. |
-| `BOVS_DEMO_VERIF_INTENTOS` | `5` | Intentos por código antes de anularlo. |
-| `BOVS_DEMO_REENVIO_SEG` | `60` | Espera mínima para reenviar el código. |
-| `BOVS_DEMO_PAIS` | `Venezuela` | País del fundo demo. |
+| `SOVCA_DEMO_ACTIVO` | `true` | Muestra el botón y habilita las sesiones demo. |
+| `SOVCA_DEMO_DB` | `sovca_demo` | Base de pruebas. |
+| `SOVCA_DEMO_DB_ORIGEN` | `sovca_qas` | Base que se clona (solo estructura + catálogos). |
+| `SOVCA_DEMO_HOST` / `_PUERTO` / `_USUARIO` / `_CLAVE` | `127.0.0.1` / `5432` / `postgres` / `postgres` | Conexión. |
+| `SOVCA_DEMO_DIAS` | `15` | Vigencia de la cuenta. |
+| `SOVCA_DEMO_PLAN_ID` | `5` (DIAMANTE) | Plan del fundo demo. |
+| `SOVCA_DEMO_MAX_POR_IP` | `20` | Cuentas por IP cada 24 h (0 = sin límite). |
+| `SOVCA_DEMO_VERIF_MINUTOS` | `15` | Vigencia del código de verificación. |
+| `SOVCA_DEMO_VERIF_INTENTOS` | `5` | Intentos por código antes de anularlo. |
+| `SOVCA_DEMO_REENVIO_SEG` | `60` | Espera mínima para reenviar el código. |
+| `SOVCA_DEMO_PAIS` | `Venezuela` | País del fundo demo. |
 
-Para **apagar** la demostración: `BOVS_DEMO_ACTIVO = false`. El botón
+Para **apagar** la demostración: `SOVCA_DEMO_ACTIVO = false`. El botón
 desaparece del login y las sesiones marcadas como demo vuelven a resolver
 contra la base real, así que conviene además cerrar esas sesiones.
 
@@ -196,7 +196,7 @@ php scripts/demo_instalar.php --recrear
 Cron sugerido:
 
 ```cron
-0 4 * * *  cd /var/www/html/bovs && php scripts/demo_instalar.php --purgar >> /var/log/bovs_demo.log 2>&1
+0 4 * * *  cd /var/www/html/sovca && php scripts/demo_instalar.php --purgar >> /var/log/sovca_demo.log 2>&1
 ```
 
 ---
@@ -210,7 +210,7 @@ Cron sugerido:
   identificable (sirven como datos reales).
 - **Código de un solo uso**: 6 dígitos, 15 minutos, máximo 5 intentos,
   reenvío con espera de 60 s; se guarda solo el `sha256` del código.
-- **Límite por IP**: `BOVS_DEMO_MAX_POR_IP` cuentas cada 24 horas
+- **Límite por IP**: `SOVCA_DEMO_MAX_POR_IP` cuentas cada 24 horas
   (bitácora en la tabla `demo_registros` de la base demo).
 - **Contraseñas**: misma política y misma firma (`md5(sal + clave)`) que el
   resto del sistema.
@@ -267,7 +267,7 @@ Si el administrador decide **no importar** nada, con el botón de la papelera
 
 ### Cómo se copian los datos
 
-- Se copian **fila por fila** entre `bovs_demo` y la base real (mismo servidor,
+- Se copian **fila por fila** entre `sovca_demo` y la base real (mismo servidor,
   misma estructura).
 - `id` = id demo + **offset** de esa tabla en el destino → no choca con las
   filas de otros fundos.

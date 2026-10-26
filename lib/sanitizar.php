@@ -21,6 +21,35 @@ if (($requiere_verificacion || $suscripcion_vencida) && !in_array($accion_post, 
       exit;
 }
 
+/* ================================================================
+   MODO MANTENIMIENTO
+   ----------------------------------------------------------------
+   Segunda capa: bloquea las acciones AJAX/POST de los controladores
+   cuando la sesión es de un productor (2) o ayudante (3) y el
+   sistema está cerrado por mantenimiento. Se exceptúan las acciones
+   públicas (entrar, recuperar contraseña) para que el usuario pueda
+   volver a autenticarse cuando el mantenimiento termine.
+   ================================================================ */
+require_once __DIR__ . '/mantenimiento_helper.php';
+$rol_mantenimiento = (int)(isset($_SESSION['rolx']) ? $_SESSION['rolx'] : 0);
+if (!empty($_SESSION['idusuariox']) && bovs_mantenimiento_activo() && !bovs_mantenimiento_permite_rol($rol_mantenimiento)) {
+      $acciones_mantenimiento = array('login', 'logout', 'solicitar_reset', 'reenviar_codigo', 'aplicar_reset');
+      if (!in_array($accion_post, $acciones_mantenimiento, true)) {
+            bovs_mantenimiento_respuesta_json();
+      }
+}
+
+/* ================================================================
+   DURACIÓN DE LA SESIÓN
+   ----------------------------------------------------------------
+   Cada acción de un controlador cuenta como "transacción": se apunta
+   la hora y la ruta para medir cuánto tiempo estuvo conectado el
+   usuario. La propia consulta se limita a una escritura cada 20 s.
+   ================================================================ */
+require_once __DIR__ . '/conexiones_helper.php';
+$ruta_latido = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+@bovs_cx_latido($ruta_latido);
+
 function sanitize($input) {
 
       $textoLimpio = preg_replace('([^A-Za-z0-9])', '', $input);

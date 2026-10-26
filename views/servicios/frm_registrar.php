@@ -105,7 +105,7 @@ ValidaSession("../login");
 }
 
 /* Controles internos del módulo que ya no se muestran: el listado filtrable
-   hace la búsqueda por nombre, código BOVS o N° de arete. */
+   hace la búsqueda por nombre, código SOVCA o N° de arete. */
 .svc-oculto {
     display: none !important;
 }
@@ -224,7 +224,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -280,7 +280,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -330,7 +330,7 @@ ValidaSession("../login");
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>

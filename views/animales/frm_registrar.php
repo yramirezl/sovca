@@ -1,6 +1,44 @@
 <?php
 date_default_timezone_set('America/Caracas');
 
+/* ---------------------------------------------------------------------
+   Alta iniciada desde un NACIMIENTO (crear la ficha del ternero):
+   llega  ?%$%=<base64(id_reg_nac=..&sexo=..&fecha=..&peso=..)>
+   Al guardar, manimales_controller marca el nacimiento como "Fichado".
+   --------------------------------------------------------------------- */
+$bovs_id_reg_nac = 0;
+$bovs_pre_sexo   = '';
+$bovs_pre_fecha  = '';
+$bovs_pre_peso   = '';
+$bovs_pre_ternero = '';
+$bovs_pre_aptitud = '';
+$bovs_pre_raza = '';
+$bovs_pre_servicio = '';
+$bovs_pre_madre = '';
+$bovs_pre_madre_nombre = '';
+$bovs_pre_padre = '';
+$bovs_pre_padre_nombre = '';
+$bovs_param_raw  = isset($_GET['%$%']) ? $_GET['%$%'] : '';
+if ($bovs_param_raw !== '') {
+    $bovs_param_dec = base64_decode($bovs_param_raw);
+    if ($bovs_param_dec !== false && $bovs_param_dec !== '') {
+        $bovs_params = array();
+        parse_str(str_replace(',', '&', $bovs_param_dec), $bovs_params);
+        $bovs_id_reg_nac = isset($bovs_params['id_reg_nac']) ? (int)$bovs_params['id_reg_nac'] : 0;
+        $bovs_pre_sexo   = isset($bovs_params['sexo']) ? (string)$bovs_params['sexo'] : '';
+        $bovs_pre_fecha  = isset($bovs_params['fecha']) ? (string)$bovs_params['fecha'] : '';
+        $bovs_pre_peso   = isset($bovs_params['peso']) ? (string)$bovs_params['peso'] : '';
+        $bovs_pre_ternero = isset($bovs_params['ternero']) ? (string)$bovs_params['ternero'] : '';
+        $bovs_pre_aptitud = isset($bovs_params['aptitud']) ? (string)$bovs_params['aptitud'] : '';
+        $bovs_pre_raza = isset($bovs_params['raza']) ? (string)$bovs_params['raza'] : '';
+        $bovs_pre_servicio = isset($bovs_params['servicio']) ? (string)$bovs_params['servicio'] : '';
+        $bovs_pre_madre = isset($bovs_params['madre']) ? (string)$bovs_params['madre'] : '';
+        $bovs_pre_madre_nombre = isset($bovs_params['madre_nombre']) ? (string)$bovs_params['madre_nombre'] : '';
+        $bovs_pre_padre = isset($bovs_params['padre']) ? (string)$bovs_params['padre'] : '';
+        $bovs_pre_padre_nombre = isset($bovs_params['padre_nombre']) ? (string)$bovs_params['padre_nombre'] : '';
+    }
+}
+
 include("../../lib/validar_session.php");
 ValidaSession("../login");
 require_once '../../lib/estatus_animal_helper.php';
@@ -356,7 +394,7 @@ require_once '../../lib/estatus_animal_helper.php';
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -409,7 +447,7 @@ require_once '../../lib/estatus_animal_helper.php';
                             <div class="sel-animal__bar">
                                 <i class="fa fa-search"></i>
                                 <input type="text" class="sel-animal__filtro" data-sel="filtro"
-                                       placeholder="Buscar por nombre, código BOVS o N° de arete…"
+                                       placeholder="Buscar por nombre, código SOVCA o N° de arete…"
                                        autocomplete="off">
                                 <button type="button" class="sel-animal__recargar" data-sel="recargar" title="Actualizar el listado">
                                     <i class="fa fa-refresh"></i>
@@ -509,6 +547,8 @@ require_once '../../lib/estatus_animal_helper.php';
 
         <!-- ========== BOTONES DE ACCIÓN ========== -->
         <input type="hidden" id="action" value="add">
+        <input type="hidden" id="id_reg_nac" value="<?php echo (int)$bovs_id_reg_nac; ?>">
+        <input type="hidden" id="codigo_ternero" value="<?php echo htmlspecialchars($bovs_pre_ternero, ENT_QUOTES, 'UTF-8'); ?>">
         <div class="crud-form__actions">
             <button id="exit" type="button" class="btn btn-warning" style="display:none;">
                 <i class="fa fa-fw fa-reply"></i> Regresar
@@ -1040,6 +1080,9 @@ function Guardar_Ficha() {
             formData.append('procedencia', $("#procedencia").val());
             formData.append('observaciones', $("#observaciones").val());
             formData.append('servicio_animal', $("#servicio_animal").val());
+            /* Nacimiento de origen: el controlador marca la ficha como creada. */
+            formData.append('id_reg_nac', $("#id_reg_nac").val() || '');
+            formData.append('codigo_ternero', $("#codigo_ternero").val() || '');
 
             $.ajax({
                 url: "../../controllers/manimales_controller",
@@ -1873,6 +1916,97 @@ $(function () {
     $('#manual_madre_link').on('click', function (e) { e.preventDefault(); $('#manual_madre').show(); });
     $('#manual_padre_link').on('click', function (e) { e.preventDefault(); $('#manual_padre').show(); });
 
+});
+</script>
+
+<script type="text/javascript">
+/* ═══════════════════════════════════════════════════════════════════════
+   ALTA DESDE UN NACIMIENTO
+   -----------------------------------------------------------------------
+   El parto ya trae sexo, fecha, peso, aptitud, raza esperada, tipo de
+   servicio, madre y padre. Se precargan y se DESBLOQUEA el formulario.
+   Todos los campos quedan editables.
+   ═══════════════════════════════════════════════════════════════════════ */
+function bovsFijarSelect(id, valor, intentos) {
+    if (valor === '' || valor === null || valor === undefined || valor === '0') {
+        return;
+    }
+    if (!document.getElementById(id)) {
+        return;
+    }
+    if ($('#' + id + ' option[value="' + valor + '"]').length > 0) {
+        $('#' + id).val(valor);
+        return;
+    }
+    intentos = (intentos || 0) + 1;
+    if (intentos <= 40) {
+        setTimeout(function () { bovsFijarSelect(id, valor, intentos); }, 100);
+    }
+}
+
+var bovsCatIngresoFijada = false;
+function bovsDesbloquearAlta() {
+    var campos = ['raza_animal', 'sexo', 'estatus_animal', 'fech_nac', 'numero_arete',
+                  'peso_nac', 'alza', 'rena', 'fecha_ingreso', 'aptitud_animal',
+                  'categoria_ingreso', 'categoria_futura', 'servicio_animal',
+                  'rgd_madre', 'nombre_madre', 'rgd_padre', 'nombre_padre',
+                  'lote', 'procedencia', 'observaciones', 'InputFile'];
+
+    for (var i = 0; i < campos.length; i++) {
+        var el = document.getElementById(campos[i]);
+        if (el) {
+            el.disabled = false;
+        }
+    }
+}
+
+$(function () {
+    var preSexo        = '<?php echo htmlspecialchars($bovs_pre_sexo, ENT_QUOTES, 'UTF-8'); ?>';
+    var preFecha       = '<?php echo htmlspecialchars($bovs_pre_fecha, ENT_QUOTES, 'UTF-8'); ?>';
+    var prePeso        = '<?php echo htmlspecialchars($bovs_pre_peso, ENT_QUOTES, 'UTF-8'); ?>';
+    var preAptitud     = '<?php echo htmlspecialchars($bovs_pre_aptitud, ENT_QUOTES, 'UTF-8'); ?>';
+    var preRaza        = '<?php echo htmlspecialchars($bovs_pre_raza, ENT_QUOTES, 'UTF-8'); ?>';
+    var preServicio    = '<?php echo htmlspecialchars($bovs_pre_servicio, ENT_QUOTES, 'UTF-8'); ?>';
+    var preMadre       = '<?php echo htmlspecialchars($bovs_pre_madre, ENT_QUOTES, 'UTF-8'); ?>';
+    var preMadreNombre = '<?php echo htmlspecialchars($bovs_pre_madre_nombre, ENT_QUOTES, 'UTF-8'); ?>';
+    var prePadre       = '<?php echo htmlspecialchars($bovs_pre_padre, ENT_QUOTES, 'UTF-8'); ?>';
+    var prePadreNombre = '<?php echo htmlspecialchars($bovs_pre_padre_nombre, ENT_QUOTES, 'UTF-8'); ?>';
+    var desdeNacimiento = <?php echo ($bovs_id_reg_nac > 0) ? 'true' : 'false'; ?>;
+
+    if (!desdeNacimiento) {
+        return;
+    }
+
+    /* 1) Datos que ya vienen del parto */
+    if (preFecha !== '') { $('#fech_nac').val(preFecha); }
+    if (prePeso !== '')  { $('#peso_nac').val(prePeso); }
+    if (preSexo === '1' || preSexo === '2') { $('#sexo').val(preSexo); }
+
+    bovsFijarSelect('aptitud_animal', preAptitud);
+    bovsFijarSelect('raza_animal', preRaza);
+    bovsFijarSelect('servicio_animal', preServicio);
+
+    if (preMadre !== '') {
+        $('#rgd_madre').val(preMadre);
+        if (preMadreNombre !== '') { $('#nombre_madre').val(preMadreNombre); }
+        $('#manual_madre').show();   // deja visible el código para poder corregirlo
+    }
+    if (prePadre !== '') {
+        $('#rgd_padre').val(prePadre);
+        if (prePadreNombre !== '') { $('#nombre_padre').val(prePadreNombre); }
+        $('#manual_padre').show();   // deja visible el código para poder corregirlo
+    }
+
+    /* 2) Eventos que el formulario usa para recargar categorías/estatus y
+          habilitar los campos dependientes. */
+    $('#sexo').trigger('change');
+    $('#fech_nac').trigger('change');
+
+    /* 3) Se desbloquea TODO al terminar las cargas AJAX: el handler del sexo
+          vuelve a deshabilitar la categoría futura dentro de su .done, así
+          que hay que esperar a que terminen las peticiones. */
+    $(document).one('ajaxStop', bovsDesbloquearAlta);
+    setTimeout(bovsDesbloquearAlta, 2500);
 });
 </script>
 

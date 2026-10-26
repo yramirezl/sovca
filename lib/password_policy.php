@@ -2,7 +2,7 @@
 /**
  * lib/password_policy.php
  * ---------------------------------------------------------------------------
- * Reglas de contraseña de BOVS en un solo lugar.
+ * Reglas de contraseña de SOVCA en un solo lugar.
  *
  * Las mismas reglas que ya aplica "Cambiar contraseña"
  * (controllers/musuarios_controller.php, case 'changepassword'):
@@ -20,8 +20,8 @@
  */
 
 /** Carácter de "sal" con el que se firma la contraseña (md5(sal + clave)). */
-if (!defined('BOVS_PASSWORD_SALT')) {
-    define('BOVS_PASSWORD_SALT', '$DYhG93b0qyJfIxfs2guVoUubWwvniR2G0FgaC9mi$/');
+if (!defined('SOVCA_PASSWORD_SALT')) {
+    define('SOVCA_PASSWORD_SALT', '$DYhG93b0qyJfIxfs2guVoUubWwvniR2G0FgaC9mi$/');
 }
 
 if (!function_exists('bovs_password_errores')) {
@@ -74,6 +74,6 @@ if (!function_exists('bovs_password_hash')) {
      */
     function bovs_password_hash($password)
     {
-        return md5(BOVS_PASSWORD_SALT . (string) $password);
+        return md5(SOVCA_PASSWORD_SALT . (string) $password);
     }
 }

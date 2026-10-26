@@ -1,6 +1,30 @@
 {
-  "actual": "4.41",
+  "actual": "4.44",
   "versiones": [
+    {
+      "version": "4.44",
+      "fecha": "2026-10-25",
+      "notas": [
+        "Un parto admite hasta 5 crías (partos múltiples de ovejas y cabras).",
+        "Si el sistema entra en mantenimiento, la app avisa y conserva tus registros sin sincronizar; se suben solos cuando el mantenimiento termina.",
+        "Mientras haya un parto con varias crías, el estado indica cuántas tienen ficha ('1 de 2 fichadas').",
+        "La caja 'Periodo de lactancia' muestra el período de lactancia del fundo (no el de ordeño) y con él se calcula la fecha de secado."
+      ]
+    },
+    {
+      "version": "4.43",
+      "fecha": "2026-10-25",
+      "notas": [
+        "En Nacimientos se pueden registrar como máximo 2 terneros/as por parto. Al llegar a dos, el botón \"Agregar ternero/a\" se deshabilita y el sistema lo indica en pantalla; también lo valida el servidor."
+      ]
+    },
+    {
+      "version": "4.42",
+      "fecha": "2026-10-25",
+      "notas": [
+        "En Nacimientos, la pregunta \"Propósito\" ahora es \"Entrar en lactancia\" con respuesta Sí o No. Si responde Sí, la fecha de secado se calcula como fecha de parto + el período de lactancia configurado en el fundo."
+      ]
+    },
     {
       "version": "4.41",
       "fecha": "2026-10-25",

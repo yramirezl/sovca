@@ -27,7 +27,7 @@
  *
  * USO (siempre primero en simulación)
  * -----------------------------------
- *   cd /var/www/html/bovs
+ *   cd /var/www/html/sovca
  *   php scripts/corregir_ciclos_servicios.php                    # simulación
  *   php scripts/corregir_ciclos_servicios.php --fundo=59
  *   php scripts/corregir_ciclos_servicios.php --aplicar          # escribe

@@ -14,7 +14,7 @@ if (($mfundos_id!='')&&($mfundos_id!=' ')){
 $partes = explode("-", $cod_animal);
 $prefijo = $partes[0];
 $nro = 0;
-if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+if ($prefijo == 'SOVCA') {
   $nro = intval($partes[2]);
 } else {
   $nro = intval($cod_animal);

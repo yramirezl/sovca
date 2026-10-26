@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Wrapper del Reporte de Nacimientos
+   SOVCA | Wrapper del Reporte de Nacimientos
    ------------------------------------------------------------
    - Instancia pdfreg_nacimientos (versión optimizada).
    - Valida sesión y disponibilidad de datos.
@@ -8,6 +8,7 @@
    ============================================================ */
 
 require_once('pdfreg_nacimientos.php');
+require_once('../../lib/reporte_contexto_helper.php');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -16,9 +17,11 @@ if (session_status() === PHP_SESSION_NONE) {
 $obj        = new pdfreporte();
 $mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
 
-$name = isset($obj->nombre_archivo) && $obj->nombre_archivo !== ''
-    ? $obj->nombre_archivo
-    : 'Reporte_de_Nacimientos.pdf';
+/* Nomenclatura de salida: reporte + animal/lote/rango + fecha de generado */
+$ctx = bovs_reporte_contexto($mfundos_id);
+$obj->contexto_detalle = $ctx['detalle'];
+$obj->SetTitle(bovs_reporte_titulo('INFORME DE NACIMIENTOS', $ctx));
+$name = bovs_reporte_nombre_archivo('Reporte_de_Nacimientos', $ctx);
 
 if ($mfundos_id > 0) {
 

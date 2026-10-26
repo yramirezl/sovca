@@ -71,7 +71,11 @@ $crud = [
 
     'rowCallbackJs' => "
         var estado = (mData.fichado || '').trim();
-        if (estado === 'Sin Fichar') {
+        /* Con mellizos el estado viene como «1 de 2 fichadas»: se resalta
+           mientras falte alguna cría por fichar. */
+        var conteo = estado.match(/^(\\d+) de (\\d+) fichadas$/);
+        var pendiente = (estado === 'Sin Fichar') || (conteo && conteo[1] !== conteo[2]);
+        if (pendiente) {
             \$('td:eq(2)', nRow).css('color', '#dc2626').css('font-weight', '600');
         } else {
             \$('td:eq(2)', nRow).css('font-weight', 'bold');

@@ -1,11 +1,17 @@
 <?php
 require_once( 'pdfservicio_animal.php' );
+require_once( '../../lib/reporte_contexto_helper.php' );
 $obj = new pdfreporte();
 $reporte = '';
 $mfundos_id = 0;
 session_start();
 $mfundos_id = $_SESSION[ 'mfundos_id' ];
-$name='Servicio de Animale.pdf';
+
+/* Nomenclatura de salida: reporte + animal/lote/rango + fecha de generado */
+$ctx = bovs_reporte_contexto( $mfundos_id );
+$obj->contexto_detalle = $ctx[ 'detalle' ];
+$obj->SetTitle( bovs_reporte_titulo( 'REPORTE DE SERVICIO ANIMAL', $ctx ) );
+$name = bovs_reporte_nombre_archivo( 'Servicio_del_Animal', $ctx );
 
 if ( $mfundos_id>0 ) {
 

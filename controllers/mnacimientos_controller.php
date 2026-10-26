@@ -246,7 +246,7 @@ function calcularFechaSecadoNacimiento($fecha_parto, $produccion_leche, $proposi
   // Regla única compartida con el control de servicios y la sincronización
   // offline (lib/fecha_secado_helper.php): propósito 1 → PBL (destete),
   // propósito 2 → PPL (secado), con prioridad del período del fundo.
-  $calculo = bovs_calcular_secado_parto($fecha_parto, $proposito, $mfundos_id, $tipo_ganaderia);
+  $calculo = bovs_calcular_secado_parto($fecha_parto, 1, $mfundos_id, $tipo_ganaderia);
   if (!$calculo['ok']) {
     return array('ok' => false, 'mensaje' => $calculo['mensaje']);
   }
@@ -1125,7 +1125,7 @@ switch ($action) {
         $partes = explode("-", $rgb_animal);
         $prefijo = $partes[0];
         $nro = 0;
-        if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+        if ($prefijo == 'SOVCA') {
           $nro = intval($partes[2]);
         } else {
           $nro = intval($rgb_animal);
@@ -1291,7 +1291,7 @@ switch ($action) {
         $partes = explode("-", $rgb_animal);
         $prefijo = $partes[0];
         $nro = 0;
-        if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+        if ($prefijo == 'SOVCA') {
           $nro = intval($partes[2]);
         } else {
           $nro = intval($rgb_animal);
@@ -1381,6 +1381,16 @@ switch ($action) {
         'estatus_nacido' => $nacio,
         'aptitud' => $aptitud_animal
       ));
+    }
+
+    /* Un parto admite como máximo 2 crías (mellizos). Es el mismo tope que
+       aplica el formulario web y la app sin conexión. */
+    if (count($terneros) > 5) {
+      echo json_encode(array(
+        'resultado' => 'error',
+        'mensaje' => '<div class="alert alert-warning">Un nacimiento admite como máximo 5 terneros/as.</div>'
+      ));
+      break;
     }
 
     $ids_terneros = array();
@@ -1849,6 +1859,117 @@ switch ($action) {
 
         if ($reg_nac->save()) { // da el mensaje de guardado...
 
+          /* ============================================================
+             CRÍAS DEL PARTO (MELLIZOS)
+             ------------------------------------------------------------
+             El formulario envía el arreglo completo de crías. Se
+             actualizan las que traen id, se insertan las nuevas y se
+             desactivan las que el usuario quitó. El registro principal
+             (mregnacimientos) refleja siempre la primera cría.
+             ============================================================ */
+          if (isset($_POST['terneros'])) {
+
+            $crias_edit = json_decode((string)$_POST['terneros'], true);
+
+            if (is_array($crias_edit) && count($crias_edit) > 0) {
+
+              if (count($crias_edit) > 5) {
+                echo json_encode(array(
+                  'resultado' => 'error',
+                  'mensaje' => '<div class="alert alert-warning">Un nacimiento admite como máximo 5 terneros/as.</div>'
+                ));
+                break;
+              }
+
+              try {
+                $crias_existentes = Mterneroxnacimiento::find('all', array(
+                  'conditions' => array('mregnacimientos_id=? and mfundos_id=? and status=1', $id_reg_nac, $mfundos_id),
+                  'order' => 'nro_ternero, id'
+                ));
+              } catch (Throwable $e) {
+                $crias_existentes = array();
+              }
+
+              $crias_por_id = array();
+              foreach ($crias_existentes as $cria_ex) {
+                $crias_por_id[(int)$cria_ex->id] = $cria_ex;
+              }
+
+              $nro_cria = 0;
+              $crias_vistas = array();
+
+              foreach ($crias_edit as $cria_dato) {
+
+                if (!is_array($cria_dato)) {
+                  continue;
+                }
+
+                $nro_cria++;
+
+                $id_cria_fila = isset($cria_dato['id']) ? (int)$cria_dato['id'] : 0;
+                $id_cria      = isset($cria_dato['id_ternero']) ? trim((string)$cria_dato['id_ternero']) : '';
+                $sexo_cria    = isset($cria_dato['sexo']) ? (int)$cria_dato['sexo'] : 0;
+                $peso_cria    = isset($cria_dato['peso_nacimiento']) ? trim((string)$cria_dato['peso_nacimiento']) : '';
+                $nacio_cria   = isset($cria_dato['estatus_nacido']) ? (int)$cria_dato['estatus_nacido'] : 0;
+                $aptitud_cria = isset($cria_dato['aptitud']) ? (int)$cria_dato['aptitud'] : 0;
+
+                if ($id_cria_fila > 0 && isset($crias_por_id[$id_cria_fila])) {
+                  $fila_cria = $crias_por_id[$id_cria_fila];
+                  $crias_vistas[$id_cria_fila] = true;
+                } else {
+                  $fila_cria = new Mterneroxnacimiento();
+                  $fila_cria->mregnacimientos_id = $id_reg_nac;
+                  $fila_cria->mfundos_id         = $mfundos_id;
+                  $fila_cria->user_create        = $usuario_id;
+                  $fila_cria->created            = $hoy;
+                }
+
+                $fila_cria->nro_ternero     = $nro_cria;
+                $fila_cria->id_ternero      = $id_cria;
+                $fila_cria->sexo            = $sexo_cria;
+                $fila_cria->peso_nacimiento = $peso_cria;
+                $fila_cria->estatus_nacido  = $nacio_cria;
+                $fila_cria->aptitud         = $aptitud_cria;
+                $fila_cria->status          = 1;
+                $fila_cria->user_modify     = $usuario_id;
+                $fila_cria->updated         = $hoy;
+                $fila_cria->save();
+              }
+
+              /* Crías que el usuario quitó del formulario. */
+              foreach ($crias_por_id as $id_cria_ex => $cria_ex) {
+                if (!isset($crias_vistas[$id_cria_ex])) {
+                  $cria_ex->status      = 0;
+                  $cria_ex->user_modify = $usuario_id;
+                  $cria_ex->updated     = $hoy;
+                  $cria_ex->save();
+                }
+              }
+
+              /* La primera cría alimenta los campos planos del registro. */
+              try {
+                $cria_primera = Mterneroxnacimiento::find('all', array(
+                  'conditions' => array('mregnacimientos_id=? and mfundos_id=? and status=1', $id_reg_nac, $mfundos_id),
+                  'order' => 'nro_ternero, id',
+                  'limit' => 1
+                ));
+              } catch (Throwable $e) {
+                $cria_primera = array();
+              }
+
+              if ($cria_primera) {
+                $reg_nac->id_ternero      = (string)$cria_primera[0]->id_ternero;
+                $reg_nac->sexo            = ((int)$cria_primera[0]->sexo > 0) ? (int)$cria_primera[0]->sexo : $sexo;
+                $reg_nac->peso_nacimiento = trim((string)$cria_primera[0]->peso_nacimiento) !== ''
+                    ? $cria_primera[0]->peso_nacimiento : $peso_nacer;
+                $reg_nac->estatus_nacido  = ((int)$cria_primera[0]->estatus_nacido > 0) ? (int)$cria_primera[0]->estatus_nacido : $nacio;
+                $reg_nac->aptitud         = ((int)$cria_primera[0]->aptitud > 0) ? (int)$cria_primera[0]->aptitud : $aptitud_animal;
+                $reg_nac->user_modify     = $usuario_id;
+                $reg_nac->updated         = $hoy;
+                $reg_nac->save();
+              }
+            }
+          }
 
           $respuesta = array('resultado' => 'ok', 'mensaje' => '<div class="alert alert-success alert-dismissable">
                 <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
@@ -1919,7 +2040,7 @@ switch ($action) {
         $partes = explode("-", $rgb_animal);
         $prefijo = $partes[0];
         $nro = 0;
-        if ($prefijo == 'SOVCA' || $prefijo == 'BOVS') {
+        if ($prefijo == 'SOVCA') {
           $nro = intval($partes[2]);
         } else {
           $nro = intval($rgb_animal);
@@ -2098,6 +2219,132 @@ switch ($action) {
     break;
 
     ////////// Buscar el ID asignado al ternero
+
+
+  /* =====================================================================
+     CRÍAS DE UN NACIMIENTO (mellizos incluidos)
+     ---------------------------------------------------------------------
+     Devuelve una fila por ternero/a del parto, con sus datos y —si ya se
+     le creó la ficha— el animal resultante. Lo usan la ficha del
+     nacimiento (un botón «Crear ficha» por cría) y la edición.
+     ===================================================================== */
+  case 'listar_terneros_nacimiento':
+
+    if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+
+    $fundo_crias  = isset($_SESSION['mfundos_id']) ? (int)$_SESSION['mfundos_id'] : 0;
+    $id_nac_crias = isset($_POST['id_reg_nac']) ? (int)$_POST['id_reg_nac'] : 0;
+
+    $crias = array();
+
+    if ($fundo_crias > 0 && $id_nac_crias > 0) {
+
+      try {
+        $rs_crias = Mregnacimiento::find_by_sql(
+          "SELECT t.id                              AS id_cria,
+                  t.nro_ternero,
+                  COALESCE(t.id_ternero, '')          AS id_ternero,
+                  COALESCE(t.sexo, 0)                 AS sexo,
+                  COALESCE(t.estatus_nacido, 0)       AS estatus_nacido,
+                  COALESCE(t.peso_nacimiento, '')     AS peso_nacimiento,
+                  COALESCE(t.aptitud, 0)              AS aptitud,
+                  COALESCE(ap.nombre, '')             AS aptitud_nombre,
+                  a.id                                AS id_animal,
+                  COALESCE(a.codigo_rgb_id_animal, '') AS codigo_animal
+             FROM mternerosxnacimientos t
+        LEFT JOIN maptitudes ap ON ap.id = t.aptitud
+        LEFT JOIN manimales a
+               ON a.mfundos_id = t.mfundos_id
+              AND a.status = 1
+              AND UPPER(BTRIM(a.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+            WHERE t.mregnacimientos_id = " . $id_nac_crias . "
+              AND t.mfundos_id = " . $fundo_crias . "
+              AND t.status = 1
+            ORDER BY t.nro_ternero, t.id"
+        );
+      } catch (Throwable $e) {
+        $rs_crias = null;
+      }
+
+      if ($rs_crias) {
+        foreach ($rs_crias as $c) {
+          $sexo_c  = (int)$c->sexo;
+          $nacio_c = (int)$c->estatus_nacido;
+
+          $crias[] = array(
+            'id_cria'         => (int)$c->id_cria,
+            'nro_ternero'     => (int)$c->nro_ternero,
+            'id_ternero'      => (string)$c->id_ternero,
+            'sexo'            => $sexo_c,
+            'sexo_txt'        => $sexo_c === 1 ? 'Hembra' : ($sexo_c === 2 ? 'Macho' : ''),
+            'estatus_nacido'  => $nacio_c,
+            'estatus_txt'     => $nacio_c === 2 ? 'Muerto' : ($nacio_c === 1 ? 'Vivo' : ''),
+            'peso_nacimiento' => (string)$c->peso_nacimiento,
+            'aptitud'         => (int)$c->aptitud,
+            'aptitud_nombre'  => (string)$c->aptitud_nombre,
+            'id_animal'       => (int)$c->id_animal,
+            'codigo_animal'   => (string)$c->codigo_animal,
+            'fichado'         => ((int)$c->id_animal > 0) ? 1 : 0
+          );
+        }
+      }
+
+      /* Nacimientos antiguos sin detalle: se ofrece la cría del registro. */
+      if (count($crias) === 0) {
+        try {
+          $nac_c = Mregnacimiento::find('first', array(
+            'conditions' => array('id=? and mfundos_id=?', $id_nac_crias, $fundo_crias)
+          ));
+        } catch (Throwable $e) {
+          $nac_c = null;
+        }
+
+        if ($nac_c) {
+          $cod_c     = trim((string)$nac_c->id_ternero);
+          $id_animal = 0;
+          if ($cod_c !== '') {
+            try {
+              $q_a = Mregnacimiento::find_by_sql(
+                'SELECT id FROM manimales
+                  WHERE mfundos_id = ' . $fundo_crias . '
+                    AND status = 1
+                    AND ( UPPER(BTRIM(codigo_ternero)) = UPPER(\'' . str_replace("'", "''", $cod_c) . '\')
+                       OR UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(\'' . str_replace("'", "''", $cod_c) . '\') )
+                  LIMIT 1'
+              );
+              if ($q_a) { $id_animal = (int)$q_a[0]->id; }
+            } catch (Throwable $e) { $id_animal = 0; }
+          }
+
+          $sexo_c  = (int)$nac_c->sexo;
+          $nacio_c = (int)$nac_c->estatus_nacido;
+
+          $crias[] = array(
+            'id_cria'         => 0,
+            'nro_ternero'     => 1,
+            'id_ternero'      => $cod_c,
+            'sexo'            => $sexo_c,
+            'sexo_txt'        => $sexo_c === 1 ? 'Hembra' : ($sexo_c === 2 ? 'Macho' : ''),
+            'estatus_nacido'  => $nacio_c,
+            'estatus_txt'     => $nacio_c === 2 ? 'Muerto' : ($nacio_c === 1 ? 'Vivo' : ''),
+            'peso_nacimiento' => trim((string)$nac_c->peso_nacimiento),
+            'aptitud'         => (int)$nac_c->aptitud,
+            'aptitud_nombre'  => '',
+            'id_animal'       => $id_animal,
+            'codigo_animal'   => '',
+            'fichado'         => $id_animal > 0 ? 1 : 0
+          );
+        }
+      }
+    }
+
+    echo json_encode(array(
+      'resultado'  => 'ok',
+      'id_reg_nac' => $id_nac_crias,
+      'total'      => count($crias),
+      'terneros'   => $crias
+    ));
+    break;
 
     case 'search_ternero':
       session_start();

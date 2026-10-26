@@ -201,7 +201,7 @@ ValidaSession("../login");
 
 
                                             <div class="form-group-sm">
-                                                <label for="ID.BOVS.Desde">Código BOVS Desde </label>
+                                                <label for="ID.SOVCA.Desde">Código SOVCA Desde </label>
                                                 <input class="form-control bbb" id="cod_bovs_inicio" type="text"
                                                     placeholder="Desde" onpaste="return false"
                                                     onkeypress="return esnumero_h(event);">
@@ -216,7 +216,7 @@ ValidaSession("../login");
 
 
                                             <div class="form-group-sm">
-                                                <label for="ID.BOVS.hasta">Código BOVS Hasta </label>
+                                                <label for="ID.SOVCA.hasta">Código SOVCA Hasta </label>
                                                 <input class="form-control bbb" id="cod_bovs_final" type="text"
                                                     placeholder="Hasta" onpaste="return false"
                                                     onkeypress="return esnumero_h(event);">
@@ -238,7 +238,7 @@ ValidaSession("../login");
                                             <label for="nro_arete">Nro Arete/Micro.Chips</label>
                                             <input type="checkbox" id="nro_arete">
                                             <label></label>
-                                            <label for="codigo_bovs">Código BOVS</label>
+                                            <label for="codigo_bovs">Código SOVCA</label>
                                             <input type="checkbox" id="codigo_bovs">
                                         </div>
 
@@ -1123,7 +1123,7 @@ ValidaSession("../login");
             });
         } else if (mensaje == 5) {
             $.alert({
-                title: '!Debe Indicar el Código BOVS o Nro. de Arete de la Madre!',
+                title: '!Debe Indicar el Código SOVCA o Nro. de Arete de la Madre!',
                 content: false,
                 confirmButton: true,
                 closeIcon: false,
@@ -1298,8 +1298,8 @@ ValidaSession("../login");
         $('#cod_bovs_inicio').hide();
         $('#cod_bovs_final').hide();
 
-        $('label[for="ID.BOVS.Desde"]').hide();
-        $('label[for="ID.BOVS.hasta"]').hide();
+        $('label[for="ID.SOVCA.Desde"]').hide();
+        $('label[for="ID.SOVCA.hasta"]').hide();
 
         $('#fecha_inicio').hide();
         $('#fecha_final').hide();
@@ -1381,8 +1381,8 @@ ValidaSession("../login");
         $('#cod_bovs_inicio').show();
         $('#cod_bovs_final').show();
 
-        $('label[for="ID.BOVS.Desde"]').show();
-        $('label[for="ID.BOVS.hasta"]').show();
+        $('label[for="ID.SOVCA.Desde"]').show();
+        $('label[for="ID.SOVCA.hasta"]').show();
 
     }
 
@@ -1414,8 +1414,8 @@ ValidaSession("../login");
         $('#cod_bovs_inicio').hide();
         $('#cod_bovs_final').hide();
 
-        $('label[for="ID.BOVS.Desde"]').hide();
-        $('label[for="ID.BOVS.hasta"]').hide();
+        $('label[for="ID.SOVCA.Desde"]').hide();
+        $('label[for="ID.SOVCA.hasta"]').hide();
 
     }
     $("#cod_bovs").click(function() {
@@ -1869,7 +1869,7 @@ ValidaSession("../login");
         document.getElementById('crear_reporte').disabled = true;
         if (valor_cod == '' || buscar_cod < 1) {
             document.getElementById('ms_id_cod_bovs').style.display = 'block';
-            document.getElementById('ms_id_cod_bovs').innerHTML = 'Seleccione Código BOVS o Nro. Arete e ingrese un valor';
+            document.getElementById('ms_id_cod_bovs').innerHTML = 'Seleccione Código SOVCA o Nro. Arete e ingrese un valor';
             return;
         }
 

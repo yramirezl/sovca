@@ -1,0 +1,5 @@
+# Estado en tiempo de ejecución del modo mantenimiento: NO se versiona.
+# El archivo lo crea scripts/mantenimiento.php --instalar o el panel.
+*
+!.gitignore
+!index.php

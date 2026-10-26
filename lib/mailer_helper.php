@@ -65,13 +65,10 @@ if (!function_exists('bovs_mail_config')) {
 
         // Variables de entorno (útiles en el servidor y en pruebas)
         $pass = getenv('SOVCA_SMTP_PASS');
-        if ($pass === false || $pass === '') {
-            $pass = getenv('BOVS_SMTP_PASS');
-        }
         if ($pass !== false && $pass !== '') {
             $base['password'] = $pass;
         }
-        if (getenv('BOVS_MAIL_ARCHIVO') === '1') {
+        if (getenv('SOVCA_MAIL_ARCHIVO') === '1') {
             $base['guardar_en_archivo'] = true;
         }
 

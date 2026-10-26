@@ -9,7 +9,7 @@
  *   OVINA     → oveja / ovejas        · carnero / carneros
  *   CAPRINA   → cabra / cabras        · macho cabrío / machos cabríos
  *   TODAS o sin fundo → hembra / machos (término neutro: no se puede afirmar
- *                       la especie, así que no se dice "vaca" como en BOVS)
+ *                       la especie, así que no se usa un término bovino)
  *
  * Uso:
  *   bovs_especie_hembra()                 → 'oveja'
@@ -18,9 +18,9 @@
  *   bovs_especie_hembra(true, 'upper')    → 'OVEJAS'  (CABRAS)
  *   bovs_especie_macho(true, 'title')     → 'Carneros'
  *
- * Se conserva el prefijo `bovs_` a propósito: es el mismo nombre que usa el
- * código de origen, de modo que los parches de las vistas se pueden comparar
- * línea a línea con BOVS (SOVCA ya usa nombres así, p. ej. css/tema-bovs.css).
+ * Se conserva el prefijo `bovs_` en los helpers heredados: es un nombre
+ * interno del código portado y no implica ninguna dependencia con otra
+ * instalación.
  * ---------------------------------------------------------------------------
  */
 

@@ -18,10 +18,11 @@
 // animal y el servidor para la fila principal de mregnacimientos.
 
 /**
- * La pregunta "¿Entrará a producción de leche?" ya no existe: el
- * propósito (1 = Lactancia, 2 = Producción de leche) es el que indica
- * que la cría entra a producción. Se sigue guardando en la columna
- * produccion_leche (smallint) para no romper los reportes existentes.
+ * "Entrar en lactancia": Sí se guarda como 2 (activa el cálculo de la
+ * fecha de secado con el período de lactancia del fundo) y No como 0.
+ * El 1 corresponde a registros viejos de "Lactancia" y se sigue
+ * aceptando como Sí. Se guarda en la columna produccion_leche (smallint)
+ * para no romper los reportes existentes.
  */
 function esPropositoProduccion(proposito) {
   return [1, 2].includes(Number(proposito));

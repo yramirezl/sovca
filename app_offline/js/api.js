@@ -70,6 +70,15 @@ async function llamarApi(archivo, cuerpo, token) {
       }));
     }
 
+    // 403 con código 'mantenimiento': el servidor está cerrado para los
+    // productores y ayudantes. No es un fallo de los registros: la app
+    // avisa y la sincronización se reintenta cuando termine.
+    if (respuesta.status === 403 && datos && datos.codigo === 'mantenimiento') {
+      window.dispatchEvent(new CustomEvent('bovs:mantenimiento', {
+        detail: { mensaje: (datos && datos.mensaje) || 'El sistema está en mantenimiento.' },
+      }));
+    }
+
     throw new ErrorApi(datos.mensaje || 'Error del servidor.', respuesta.status, datos);
   }
 

@@ -16,7 +16,7 @@
  *   · salir            : cierra la sesión demo y vuelve al login.
  *
  * La sesión demo se marca con $_SESSION['demo'] = 1; a partir de ahí
- * config/conexion.php resuelve TODAS las consultas contra bovs_demo.
+ * config/conexion.php resuelve TODAS las consultas contra sovca_demo.
  * =====================================================================
  */
 
@@ -50,13 +50,25 @@ function demo_responder($datos)
     exit;
 }
 
+/* MODO MANTENIMIENTO: mientras el sistema esté cerrado no se crean ni
+   se verifican cuentas demo. 'estado' y 'salir' siguen disponibles para
+   que la pantalla pueda informar la situación y cerrar la sesión. */
+require_once __DIR__ . '/../lib/mantenimiento_helper.php';
+if (in_array($action, array('crear_cuenta', 'verificar_codigo', 'reenviar_codigo'), true)
+    && bovs_mantenimiento_activo()) {
+    demo_responder(array(
+        'ok'            => false,
+        'mantenimiento' => true,
+        'msg'           => bovs_mantenimiento_mensaje(),
+    ));
+}
+
 switch ($action) {
 
     /* =================================================================
        CREAR LA CUENTA DEMO
        ================================================================= */
     case 'crear_cuenta':
-
         if (!bovs_demo_activo()) {
             demo_responder(array(
                 'ok'  => false,
@@ -179,7 +191,7 @@ switch ($action) {
             'ok'         => $disponible,
             'activo'     => bovs_demo_activo(),
             'disponible' => $disponible,
-            'dias'       => (int) BOVS_DEMO_DIAS,
+            'dias'       => (int) SOVCA_DEMO_DIAS,
             'msg'        => $disponible
                 ? 'Entorno de demostración disponible.'
                 : 'El entorno de demostración no está disponible. Avisa al administrador del sistema.'

@@ -1,12 +1,12 @@
 <?php
 /* ============================================================
-   BOVS | Reporte de Nacimientos (optimizado)
+   SOVCA | Reporte de Nacimientos (optimizado)
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
 
    Filtros:
    - fecha_inicio / fecha_final (también acepta fecha_hasta)
-   - cod_bovs + codigo_erete (1 = código BOVS, 2 = N° arete)
+   - cod_bovs + codigo_erete (1 = código SOVCA, 2 = N° arete)
 
    Optimización:
    - Una sola consulta con CTE para todos los nacimientos.
@@ -77,7 +77,7 @@ class pdfreporte extends fpdf
         $this->buscar_cod  = intval($par['codigo_erete']);
 
         if ($this->buscar_cod !== 1 && $this->buscar_cod !== 2) {
-            $this->buscar_cod = (stripos($this->cod_bovs, 'SOVCA-') === 0 || stripos($this->cod_bovs, 'BOVS-') === 0) ? 1 : 2;
+            $this->buscar_cod = (stripos($this->cod_bovs, 'SOVCA-') === 0) ? 1 : 2;
         }
 
         $this->mfundos_id = isset($_SESSION['mfundos_id']) ? intval($_SESSION['mfundos_id']) : 0;
@@ -453,13 +453,17 @@ class pdfreporte extends fpdf
         $this->SetFont('ARIAL', 'B', 9);
         $this->RowM(array(__pdf_txt($this->titulo_reporte)));
 
-        if ($this->subtitulo_reporte !== '') {
+        if ($this->subtitulo_reporte !== '' || !empty($this->contexto_detalle)) {
+            $subtitulo = !empty($this->contexto_detalle)
+                ? $this->contexto_detalle
+                : $this->subtitulo_reporte;
+
             $this->SetXY($x + 5, $this->GetY());
             $this->SetJump(4);
             $this->SetWidths(array(330));
             $this->SetAligns(array('C'));
             $this->SetFont('ARIAL', '', 7.5);
-            $this->RowM(array(__pdf_txt($this->subtitulo_reporte)));
+            $this->RowM(array(__pdf_txt($subtitulo)));
         }
     }
 

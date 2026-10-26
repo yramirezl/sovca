@@ -126,8 +126,8 @@ const REPORTES_CATALOG = [
  * no por coincidencia parcial. Los filtros de animal/hembra/macho se
  * llenan eligiendo de un buscador que ya deja el código exacto en el
  * campo (ver inicializarBuscadorAnimales en app.js); comparar con
- * .includes() hacía que "BOVS-02-01" trajera también "BOVS-02-016" o
- * "BOVS-02-011" (cualquier código que EMPIECE con el filtro), en vez
+ * .includes() hacía que "SOVCA-02-01" trajera también "SOVCA-02-016" o
+ * "SOVCA-02-011" (cualquier código que EMPIECE con el filtro), en vez
  * de traer solo los registros de ese animal exacto.
  */
 function coincideAnimalExacto(valorCampo, valorFiltro) {
@@ -1695,7 +1695,7 @@ const Reportes = {
       columnas: tabla.columnas,
       filas: tabla.filas,
       orientacion,
-      pie: 'BOVS Offline - generado en el equipo',
+      pie: 'SOVCA Offline - generado en el equipo',
     });
 
     await this.guardarCache({
@@ -2137,7 +2137,7 @@ const Reportes = {
             <table>
               <thead>
                 <tr>
-                  <th>Codigo BOVS</th>
+                  <th>Codigo SOVCA</th>
                   <th>Nro. arete</th>
                   <th>Nombre</th>
                   <th>Total nacimientos</th>
@@ -2244,7 +2244,7 @@ const Reportes = {
           <table>
             <thead>
               <tr>
-                <th>Codigo BOVS</th>
+                <th>Codigo SOVCA</th>
                 <th>Nro. arete madre</th>
                 <th>Fecha</th>
                 <th>Parto Nro.</th>
@@ -2692,7 +2692,7 @@ const Reportes = {
           <div>Generado: ${htmlEscapar(formatearFechaDDMMYYYY(new Date()))}</div>
         </div>
         ${cuerpo}
-        <div class="footer">BOVS Offline · Generado localmente</div>
+        <div class="footer">SOVCA Offline · Generado localmente</div>
       </body>
       </html>`;
   },

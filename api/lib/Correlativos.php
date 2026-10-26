@@ -15,7 +15,7 @@ require_once __DIR__ . '/../../models/RangoReservadoLog.php';
  * rangos_controller.php: la función atómica de PostgreSQL
  * reservar_rango_animal (SELECT FOR UPDATE), pidiendo acá un rango de
  * tamaño 1, y arma el código con el mismo prefijo que ya usa
- * rangos_controller.php ('BOVS-0<fundo>-0' + número con 2 dígitos).
+ * rangos_controller.php ('SOVCA-0<fundo>-0' + número con 2 dígitos).
  * También se registra en rangos_reservados_log, igual que una reserva
  * normal, para no perder trazabilidad de qué número se usó y por qué.
  */

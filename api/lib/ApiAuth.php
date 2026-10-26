@@ -4,6 +4,7 @@ namespace Api;
 
 require_once __DIR__ . '/../../models/ApiToken.php';
 require_once __DIR__ . '/../../models/Musuario.php';
+require_once __DIR__ . '/../../lib/mantenimiento_helper.php';
 
 /**
  * Autenticación por token para la API (en vez de sesión PHP, que no
@@ -134,7 +135,35 @@ class ApiAuth
             ApiResponse::error('Token inválido, expirado o ausente. Vuelve a iniciar sesión.', 401);
         }
 
+        // MODO MANTENIMIENTO: la sincronización de la PWA se detiene si el
+        // sistema está cerrado. Los administradores (1/4) sí siguen operando.
+        self::exigirMantenimientoPermitido((int) $usuario['usuario_id']);
+
         return $usuario;
+    }
+
+    /**
+     * Corta la petición con 403 si el sistema está en mantenimiento y la
+     * cuenta no pertenece a los perfiles permitidos (1 Administrador,
+     * 4 Super Usuario). Responde con el código 'mantenimiento' para que
+     * la PWA pueda distinguirlo de un error real de los registros.
+     */
+    public static function exigirMantenimientoPermitido(int $usuarioId): void
+    {
+        if (!\bovs_mantenimiento_activo()) {
+            return;
+        }
+
+        if (!\bovs_mantenimiento_permite_rol(self::rolDeUsuario($usuarioId))) {
+            ApiResponse::error(
+                \bovs_mantenimiento_mensaje() . ' La sincronización se reanudará cuando termine.',
+                403,
+                array(
+                    'codigo'        => 'mantenimiento',
+                    'mantenimiento' => true,
+                )
+            );
+        }
     }
 
     // =================================================================

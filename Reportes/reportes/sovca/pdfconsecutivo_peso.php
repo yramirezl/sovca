@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Reporte de Consecutivo de Peso
+   SOVCA | Reporte de Consecutivo de Peso
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
 
@@ -108,12 +108,12 @@ class pdfreporte extends fpdf
                                       . ' Hasta el ' . date('d-m-Y', strtotime($this->fecha_hasta));
         }
 
-        /* Filtro por código BOVS o N° de arete (un solo animal) */
+        /* Filtro por código SOVCA o N° de arete (un solo animal) */
         $cadena_codigo = "";
         if ($this->cod_bovs !== '') {
             $criterio  = str_replace("'", "''", str_replace(' ', '', $this->cod_bovs));
 
-            if (stripos($criterio, 'SOVCA') === 0 || stripos($criterio, 'BOVS') === 0) {
+            if (stripos($criterio, 'SOVCA') === 0) {
                 $cadena_codigo = " and p.codigo_rgb_id_animal = TRIM('" . $criterio . "') ";
             } else {
                 $cadena_codigo = " and TRIM(a.nro_arete) = TRIM('" . $criterio . "') ";
@@ -271,6 +271,15 @@ class pdfreporte extends fpdf
             $this->SetAligns(array('C'));
             $this->RowM(array(__pdf_txt('INFORME DE CONSECUTIVO DE PESO')));
         }
+
+        /* Nomenclatura de salida: animal / lote / rango */
+        if (!empty($this->contexto_detalle)) {
+            $this->SetFont('ARIAL', '', 7.5);
+            $this->SetJump(3.5);
+            $this->SetWidths(array(190));
+            $this->SetAligns(array('C'));
+            $this->RowM(array(__pdf_txt($this->contexto_detalle)));
+        }
     }
 
     function Footer()
@@ -309,7 +318,7 @@ class pdfreporte extends fpdf
         $contador = 0;
         $this->Pie_Pagina();
 
-        $this->SetXY(10, 40);
+        $this->SetXY(10, 42);
 
         foreach ($this->arrp as $data) {
 

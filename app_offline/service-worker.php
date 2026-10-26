@@ -32,7 +32,7 @@ foreach ($archivos as $archivoRel) {
 
 $version = $partes ? substr(sha1(implode('|', $partes)), 0, 12) : 'sin-archivos';
 ?>
-// Service worker dinámico para BOVS Offline.
+// Service worker dinámico para SOVCA Offline.
 // La versión del caché se calcula desde mtimes de archivos del shell,
 // así cada despliegue de frontend genera un caché nuevo automáticamente.
 

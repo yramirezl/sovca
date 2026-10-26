@@ -11,9 +11,9 @@
  *   php api/test/validar_sync_bidireccional.php
  *
  * Variables opcionales por entorno:
- *   BOVS_TEST_FUNDO=2     fundo de prueba (por defecto 2)
- *   BOVS_TEST_USUARIO=4   usuario con acceso a ese fundo
- *   BOVS_TEST_API=http://127.0.0.1/bovs/api/sync_controller.php
+ *   SOVCA_TEST_FUNDO=2     fundo de prueba (por defecto 2)
+ *   SOVCA_TEST_USUARIO=4   usuario con acceso a ese fundo
+ *   SOVCA_TEST_API=http://127.0.0.1/sovca/api/sync_controller.php
  *
  * El script CREA un token y un pesaje de prueba y los BORRA al final
  * (incluso si algo falla). Pensado para sovca_qas, no para producción.
@@ -29,7 +29,7 @@ require_once '../models/Musuario.php';
 const FUNDO_PRUEBA = 2;
 const USUARIO_PRUEBA = 4;
 const FUNDO_SIN_ACCESO = 49;
-const URL_API = 'http://127.0.0.1/bovs/api/sync_controller.php';
+const URL_API = 'http://127.0.0.1/sovca/api/sync_controller.php';
 
 $ok = 0;
 $fallos = 0;
@@ -94,7 +94,7 @@ $uuid = sprintf(
 
 $token = null;
 $idRegistro = null;
-$codigoAnimal = 'BOVS-02-011';
+$codigoAnimal = 'SOVCA-02-011';
 
 try {
     echo "\n=== 0. Preparación ===\n";

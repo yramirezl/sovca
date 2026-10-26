@@ -171,6 +171,9 @@ if ($__tipo_g === 1) {
     <!-- Quita los <p></p> de relleno de los contenedores de mensajes (barras rojas
          vacías). La franja que cierra cada bloque la dibuja css/crud-form.css -->
     <script type="text/javascript" src="../../js/crud-mensajes.js?v=3"></script>
+    <!-- ms_direccion() y alsalir(): las usan los onkeypress/onblur de varias
+         vistas y no estaban definidas (bloqueaban la escritura en Observaciones) -->
+    <script type="text/javascript" src="../../js/bovs-teclado.js?v=1"></script>
     <!-- Diálogos: afirmar en verde y denegar en rojo (jquery-confirm) -->
     <script type="text/javascript" src="../../js/bovs-confirm.js?v=1"></script>
     <!-- Resalta los datos obligatorios que faltan al guardar (campos ms_*) -->

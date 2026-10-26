@@ -52,7 +52,7 @@ $tieneFoto = !empty($imagen) && file_exists(__DIR__ . '/../../dist/img/fotos_usu
 
 <style>
 /* ============================================================
-   USER PANEL — SIDEBAR (BOVS)
+   USER PANEL — SIDEBAR (SOVCA)
    ============================================================ */
 .sidebar .user-panel.user-panel-bovs {
     position: relative;

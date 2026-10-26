@@ -56,11 +56,11 @@ if (!function_exists('bovs_oficial_pdo')) {
         }
 
         $pdo = new PDO(
-            'pgsql:host=' . BOVS_OFICIAL_HOST
-                . ';port=' . BOVS_OFICIAL_PUERTO
-                . ';dbname=' . BOVS_OFICIAL_DB,
-            BOVS_OFICIAL_USUARIO,
-            BOVS_OFICIAL_CLAVE,
+            'pgsql:host=' . SOVCA_OFICIAL_HOST
+                . ';port=' . SOVCA_OFICIAL_PUERTO
+                . ';dbname=' . SOVCA_OFICIAL_DB,
+            SOVCA_OFICIAL_USUARIO,
+            SOVCA_OFICIAL_CLAVE,
             array(
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -698,7 +698,7 @@ if (!function_exists('bovs_import_crear_cuenta')) {
             if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            error_log('[BOVS import demo] Error al crear cuenta: ' . $e->getMessage());
+            error_log('[SOVCA import demo] Error al crear cuenta: ' . $e->getMessage());
 
             if ($e instanceof PDOException && (string) $e->getCode() === '23505') {
                 return array('ok' => false, 'msg' => 'Ese usuario o correo ya existe. Elige otros datos.');
@@ -997,7 +997,7 @@ SQL
             if ($pdoOfi->inTransaction()) {
                 $pdoOfi->rollBack();
             }
-            error_log('[BOVS import demo] Error al importar: ' . $e->getMessage());
+            error_log('[SOVCA import demo] Error al importar: ' . $e->getMessage());
             return array('ok' => false, 'msg' => 'Error al importar los datos: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
         }
 
@@ -1064,7 +1064,7 @@ if (!function_exists('bovs_import_marcar_migrada')) {
 
             return true;
         } catch (Throwable $e) {
-            error_log('[BOVS import demo] No se pudo marcar la demo como migrada: ' . $e->getMessage());
+            error_log('[SOVCA import demo] No se pudo marcar la demo como migrada: ' . $e->getMessage());
             return false;
         }
     }

@@ -2,9 +2,8 @@
 
 Sistema de Gestión Ganadera **Ovina y Caprina**.
 
-Proyecto basado en el código actualizado de BOVS, adecuado para operar contra la base
-`sovca_qas`, con catálogos de razas ovinas y caprinas y códigos de animal con prefijo
-`SOVCA-`.
+Opera contra la base `sovca_qas`, con catálogos de razas ovinas y caprinas y
+códigos de animal con prefijo `SOVCA-`.
 
 ## Documentación
 

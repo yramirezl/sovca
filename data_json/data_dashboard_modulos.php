@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Devuelve qué módulos tienen datos en el fundo actual
+   SOVCA | Devuelve qué módulos tienen datos en el fundo actual
    ------------------------------------------------------------
    Se usa para ocultar dinámicamente gráficas sin datos.
    ============================================================ */

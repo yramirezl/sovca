@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Reporte PDF de Movimiento de Rebaño
+   SOVCA | Reporte PDF de Movimiento de Rebaño
    ------------------------------------------------------------
    Compatible con PHP 7.4 y PHP 8.3.
    - Constructor dual

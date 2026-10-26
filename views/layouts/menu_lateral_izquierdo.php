@@ -188,6 +188,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
     echo '<li><a href="../dispositivos/"><i class="fa fa-mobile"></i> <span>Dispositivos Offline</span></a></li>';
     echo '<li><a href="../conexiones/"><i class="fa fa-flag"></i> <span>Conexiones</span></a></li>';
+    echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
 
     echo '</ul>';
@@ -216,6 +217,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../tipousuarios/"><i class="fa fa-link"></i> <span>Tipos de Usuario</span></a></li>';
     echo '<li><a href="../roles/"><i class="fa fa-flag"></i> <span>Roles</span></a></li>';
     echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
+    echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-envelope-o fa-lg"></i> <span>Mensajería</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
@@ -254,6 +256,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo ' <li class="treeview"><a href="#"><i class="fa fa-users fa-lg"></i> <span>Administrador</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
     echo '<li><a href="../usuarios/"><i class="fa fa-users"></i> <span>Usuarios</span></a></li>';
     echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
+    echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-bar-chart"></i> <span>Estadísticas</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';

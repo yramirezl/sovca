@@ -1,8 +1,8 @@
 /* ============================================================================
-   SELECTOR DE ANIMALES (BOVS)  — listado filtrable reutilizable
+   SELECTOR DE ANIMALES (SOVCA)  — listado filtrable reutilizable
    ----------------------------------------------------------------------------
    Muestra el listado de animales que cumplen la condición pedida y permite
-   filtrarlo por nombre, código BOVS o N° de arete. El filtrado es LOCAL (sin
+   filtrarlo por nombre, código SOVCA o N° de arete. El filtrado es LOCAL (sin
    consultas por cada tecla), así que responde de inmediato aunque el listado
    tenga cientos de animales.
 
@@ -475,7 +475,7 @@
                     ' data-codigo="' + escapar(fila.codigo) + '"' +
                     ' title="' + escapar(titulo) + '"' +
                     (disponible ? '' : ' data-ocupado="1"') + '>' +
-                    '<span class="sel-animal__codigo" title="Código BOVS">' + escapar(codigo) + '</span>' +
+                    '<span class="sel-animal__codigo" title="Código SOVCA">' + escapar(codigo) + '</span>' +
                     '<span class="sel-animal__arete">' +
                         '<strong>' + (sin_arete ? '—' : escapar(nro_arete)) + '</strong>' +
                     '</span>' +

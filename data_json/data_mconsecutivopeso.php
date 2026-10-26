@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-   BOVS | Consecutivo de Pesos — API del listado por animal
+   SOVCA | Consecutivo de Pesos — API del listado por animal
    ------------------------------------------------------------
    action=lista   (por defecto)
      ?pagina=1&tamano=25&q=texto
@@ -8,7 +8,7 @@
         actual, ganancia total y ganancia diaria promedio.
 
    action=detalle
-     ?codigo=BOVS-059-01&pagina=1&tamano=15
+     ?codigo=SOVCA-059-01&pagina=1&tamano=15
      -> pesajes paginados del animal (fecha DESC) + totales. Cada
         fila trae los días desde el pesaje anterior, la ganancia de
         peso (GDP) y la ganancia diaria (GDdP) calculadas con LAG()
