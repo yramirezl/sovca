@@ -22,9 +22,15 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../config/demo.php';
 require_once __DIR__ . '/../../lib/demo_helper.php';
 require_once __DIR__ . '/../../lib/captcha_helper.php';
+require_once __DIR__ . '/../../lib/mantenimiento_helper.php';
+
+/* MODO MANTENIMIENTO: la creación de cuentas demo se suspende mientras
+   el sistema está cerrado (el controlador también lo rechaza). */
+$mttoActivo  = bovs_mantenimiento_activo();
+$mttoMensaje = $mttoActivo ? bovs_mantenimiento_mensaje() : '';
 
 $demoActivo  = bovs_demo_activo();
-$demoListo   = $demoActivo && bovs_demo_bd_disponible();
+$demoListo   = $demoActivo && !$mttoActivo && bovs_demo_bd_disponible();
 $diasDemo    = (int) SOVCA_DEMO_DIAS;
 
 $cap       = bovs_captcha_generar();
@@ -658,7 +664,17 @@ $cap_token = $cap['token'];
         Completa tus datos: te enviaremos un código para verificar el correo.
       </p>
 
-      <?php if (!$demoActivo): ?>
+      <?php if ($mttoActivo): ?>
+        <div class="demo-msg demo-msg--error visible">
+          <i class="fa fa-wrench"></i>
+          <div>
+            <strong>Modo mantenimiento activo.</strong><br>
+            <?= htmlspecialchars($mttoMensaje, ENT_QUOTES, 'UTF-8') ?><br>
+            La creación de cuentas de demostración está <strong>suspendida</strong>
+            hasta que termine el mantenimiento.
+          </div>
+        </div>
+      <?php elseif (!$demoActivo): ?>
         <div class="demo-msg demo-msg--error visible">
           <i class="fa fa-ban"></i>
           <div>El acceso demostrativo está <strong>deshabilitado</strong> en este servidor.</div>
@@ -778,7 +794,7 @@ $cap_token = $cap['token'];
           </span>
         </label>
 
-        <button type="submit" id="btn-crear" class="btn-demo" <?= (!$demoActivo || !$demoListo) ? 'disabled' : '' ?>>
+        <button type="submit" id="btn-crear" class="btn-demo" <?= (!$demoListo || $mttoActivo) ? 'disabled' : '' ?>>
           <i class="fa fa-paper-plane"></i>
           Continuar · verificar correo
         </button>

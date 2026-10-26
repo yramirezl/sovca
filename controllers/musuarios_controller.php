@@ -2147,6 +2147,18 @@ switch ($action) {
 				//******************************************************************************
 
 			} else {
+				/* MODO MANTENIMIENTO: las cuentas demo son de productores
+				   (rol 2), así que tampoco pueden entrar mientras el sistema
+				   esté cerrado. */
+				require_once '../lib/mantenimiento_helper.php';
+				if (bovs_mantenimiento_activo()) {
+					if ($usuario !== '') {
+						$_SESSION['login_usuario_temp'] = $usuario;
+					}
+					header("Location: ../views/login?stat=mantenimiento");
+					exit();
+				}
+
 				/* ============================================================
 				   RESPALDO: CUENTAS DE DEMOSTRACIÓN
 				   ------------------------------------------------------------

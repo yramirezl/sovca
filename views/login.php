@@ -770,6 +770,58 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       flex-shrink: 0;
     }
 
+    /* ============================================================
+       BANNER MODO MANTENIMIENTO
+       Se muestra siempre que el interruptor está activo (no solo
+       después de un intento de acceso), para que el visitante sepa
+       de inmediato que la demo y el modo offline están suspendidos.
+       ============================================================ */
+    .mtto-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fdf2e9;
+      color: #8a3d0a;
+      border: 1px solid #f3c99a;
+      border-left: 4px solid #b45309;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.45;
+      position: relative;
+      z-index: 2;
+    }
+
+    .mtto-banner > i {
+      font-size: 16px;
+      color: #b45309;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .mtto-banner strong {
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .mtto-banner__hint {
+      display: block;
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #9a5a22;
+    }
+
+    .offline-status--mtto {
+      font-size: 11.5px;
+      color: #9a5a22;
+      font-weight: 600;
+    }
+
     .alert-danger {
       background: #fef2f2;
       color: #991b1b;
@@ -1213,6 +1265,20 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
           Acceso Seguro
         </div>
 
+        <?php if ($mttoActivo): ?>
+          <div class="mtto-banner" role="status">
+            <i class="fa fa-wrench"></i>
+            <div>
+              <strong>Modo mantenimiento activo</strong>
+              <?= htmlspecialchars($mttoMensaje, ENT_QUOTES, 'UTF-8') ?>
+              <span class="mtto-banner__hint">
+                Solo los administradores pueden iniciar sesión. El acceso demostrativo
+                y el modo offline están deshabilitados hasta que termine el mantenimiento.
+              </span>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <?php if (@$_GET['stat'] == 'failed'): ?>
           <div class="alert alert-danger alert-custom">
             <i class="fa fa-ban"></i>
@@ -1270,20 +1336,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               Ya puedes iniciar sesión con tu nueva contraseña.
             </div>
           </div>
-        <?php elseif (@$_GET['stat'] == 'mantenimiento'): ?>
+        <?php elseif (@$_GET['stat'] == 'mantenimiento' && !$mttoActivo): ?>
           <div class="alert alert-warning alert-custom">
             <i class="fa fa-wrench"></i>
             <div>
-              <?php if ($mttoActivo): ?>
-                <strong>Sistema en mantenimiento.</strong><br>
-                <?= htmlspecialchars($mttoMensaje, ENT_QUOTES, 'UTF-8') ?>
-              <?php else: ?>
-                <strong>El acceso estuvo restringido por mantenimiento.</strong><br>
-                La ventana de mantenimiento ya terminó. Intenta iniciar sesión nuevamente.
-              <?php endif; ?>
+              <strong>El acceso estuvo restringido por mantenimiento.</strong><br>
+              La ventana de mantenimiento ya terminó. Intenta iniciar sesión nuevamente.
             </div>
           </div>
-        <?php elseif (@$_GET['stat'] == 'demo_vencida'): ?>
+        <?php elseif (@$_GET['stat'] == 'demo_vencida' && !$mttoActivo): ?>
           <div class="alert alert-warning alert-custom">
             <i class="fa fa-hourglass-end"></i>
             <div>
@@ -1362,11 +1423,13 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
             </button>
           </div>
 
-          <?php if (defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO): ?>
+          <?php if (!$mttoActivo && defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO): ?>
             <!-- ============================================================
                  ACCESO DEMOSTRATIVO
                  Abre la pantalla donde el visitante crea su propia cuenta
                  sobre la base de pruebas (vigencia de 15 días).
+                 No se ofrece durante el mantenimiento: el servidor rechaza
+                 la creación de cuentas demo mientras el sistema está cerrado.
                  ============================================================ -->
             <div class="demo-cta">
               <a href="demo/" class="btn-demo-login">
@@ -1379,12 +1442,19 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
             </div>
           <?php endif; ?>
 
-          <div class="offline-status" id="offline-mode-status">Comprobando estado de conexión...</div>
-          <div class="offline-trigger" id="offline-mode-discrete">
-            <button type="button" id="offline-discrete-button" title="Activar este dispositivo para uso offline">
-              <i class="fa fa-cloud-download"></i>Modo offline
-            </button>
-          </div>
+          <?php if (!$mttoActivo): ?>
+            <div class="offline-status" id="offline-mode-status">Comprobando estado de conexión...</div>
+            <div class="offline-trigger" id="offline-mode-discrete">
+              <button type="button" id="offline-discrete-button" title="Activar este dispositivo para uso offline">
+                <i class="fa fa-cloud-download"></i>Modo offline
+              </button>
+            </div>
+          <?php else: ?>
+            <div class="offline-status offline-status--mtto" id="offline-mode-status">
+              <i class="fa fa-cloud"></i>
+              Modo offline no disponible durante el mantenimiento.
+            </div>
+          <?php endif; ?>
         </form>
 
         <!-- Footer con logo secundario -->
@@ -1397,6 +1467,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     </div>
   </div>
 
+  <?php if (!$mttoActivo): ?>
   <!-- Modal Offline -->
   <div id="offline-modal"
     style="display:none; position:fixed; left:0; right:0; top:0; bottom:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:1000; padding:16px; overflow-y:auto;">
@@ -1454,6 +1525,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       </form>
     </div>
   </div>
+  <?php endif; ?>
 
   <script src="../plugins/jQuery/jQuery-2.1.4.min.js" type="text/javascript"></script>
   <script src="../bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
@@ -1461,6 +1533,11 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
   <script>
     (function () {
       'use strict';
+
+      /* Mantenimiento: el servidor ya bloquea demo, offline y API, y aquí
+         se evita además registrar el service worker o mostrar los avisos
+         de conexión de la PWA. */
+      var MTTO_ACTIVO = <?= $mttoActivo ? 'true' : 'false' ?>;
 
       function $(id) { return document.getElementById(id); }
       var __toastTimer = {};
@@ -1649,8 +1726,10 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         }, 43200000);
 
         // ---------- OFFLINE ----------
-        actualizarModoOffline();
-        precargarOfflineShell();
+        if (!MTTO_ACTIVO) {
+          actualizarModoOffline();
+          precargarOfflineShell();
+        }
 
         var offlineDiscrete = $('offline-discrete-button');
         var offlineModal = $('offline-modal');
@@ -1815,10 +1894,14 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         }
 
         window.addEventListener('online', function () {
+          if (MTTO_ACTIVO) return;
           actualizarModoOffline();
           precargarOfflineShell();
         });
-        window.addEventListener('offline', actualizarModoOffline);
+        window.addEventListener('offline', function () {
+          if (MTTO_ACTIVO) return;
+          actualizarModoOffline();
+        });
       });
 
       function actualizarModoOffline() {
