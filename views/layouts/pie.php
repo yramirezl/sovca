@@ -183,6 +183,9 @@ if ($__tipo_g === 1) {
     <!-- Ajusta el alto del carrusel al hueco real de la ventana, para que el
          pie de página se vea desde la primera carga sin desplazar. -->
     <script type="text/javascript" src="../../js/ajuste-pantalla.js?v=1"></script>
+    <!-- Saludo, fecha y carrusel del hero. Es inerte si la pantalla no usa
+         ese marcado (el carrusel actual de SOVCA va por su cuenta). -->
+    <script type="text/javascript" src="../../js/bovs-inicio.js?v=1" defer></script>
     <!-- Aviso de cierre remoto de sesión (lo pide el administrador desde
          «Conexiones»): muestra la cuenta atrás de 60 s antes de cerrar. -->
     <script type="text/javascript" src="../../js/bovs-sesion.js?v=1"></script>
