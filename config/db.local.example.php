@@ -46,3 +46,15 @@ if (!defined('SOVCA_DB_USER')) {
 if (!defined('SOVCA_DB_PASS')) {
     define('SOVCA_DB_PASS', 'CAMBIAR_ESTA_CLAVE');
 }
+
+/* ---------------------------------------------------------------------
+   MODO DEMOSTRACIÓN (opcional)
+   ---------------------------------------------------------------------
+   config/demo.php carga este archivo ANTES de definir sus constantes, así
+   que aquí se puede apagar el acceso demo o darle credenciales propias:
+
+       define('SOVCA_DEMO_ACTIVO', false);
+       define('SOVCA_DEMO_CLAVE', 'la-clave-de-postgres');
+
+   Así no hay que editar archivos versionados en el servidor.
+   --------------------------------------------------------------------- */

@@ -25,9 +25,18 @@
  * (vuelven a la base real), por eso conviene además cerrar sesión.
  *
  * Este archivo NO contiene la configuración de la base principal:
- * esa vive en config/conexion.php y no se toca.
+ * esa vive en config/db.php y no se toca.
+ *
+ * Las constantes de aquí abajo se pueden sobrescribir desde
+ * config/db.local.php (que no se versiona): para eso db.php se carga
+ * PRIMERO. Ejemplo en el servidor:
+ *
+ *     define('SOVCA_DEMO_ACTIVO', false);
+ *     define('SOVCA_DEMO_CLAVE', 'la-clave-de-postgres');
  * =====================================================================
  */
+
+require_once __DIR__ . '/db.php';
 
 /* ¿Se muestra el acceso a la demostración? */
 if (!defined('SOVCA_DEMO_ACTIVO')) {
@@ -52,7 +61,6 @@ if (!defined('SOVCA_DEMO_CLAVE')) {
 }
 
 /* Base "origen" que se clona (solo estructura + catálogos). */
-require_once __DIR__ . '/db.php';
 if (!defined('SOVCA_DEMO_DB_ORIGEN')) {
     define('SOVCA_DEMO_DB_ORIGEN', SOVCA_DB_NAME);
 }

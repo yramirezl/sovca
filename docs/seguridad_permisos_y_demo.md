@@ -178,16 +178,25 @@ Elegí una de las dos:
 
 ## A) No usar la demo en producción (recomendado)
 
+Sin tocar archivos versionados, agregando dos líneas a `config/db.local.php`
+(que `demo.php` carga antes de definir sus constantes):
+
+```php
+define('SOVCA_DEMO_ACTIVO', false);
+```
+
 ```bash
 cd /var/www/html/sovca
-sed -i "s/SOVCA_DEMO_ACTIVO', true/SOVCA_DEMO_ACTIVO', false/" config/demo.php
-php -l config/demo.php
-grep -n "SOVCA_DEMO_ACTIVO" config/demo.php
+php -r 'chdir("controllers"); require "../config/demo.php";
+echo "demo: " . (SOVCA_DEMO_ACTIVO ? "ACTIVO" : "apagado") . "\n";'
 ```
 
 Con eso desaparece el acceso demo del login y no hace falta la base. Es la
 opción recomendada en producción: el modo demo existe para mostrar el sistema a
 un interesado, no para el día a día.
+
+Si preferís tocarlo en el archivo versionado, es la misma línea en
+`config/demo.php`.
 
 ## B) Usarla
 
@@ -201,8 +210,11 @@ cd /var/www/html/sovca
 sed -i "s/SOVCA_DEMO_CLAVE', 'postgres'/SOVCA_DEMO_CLAVE', 'LA-CLAVE-DE-POSTGRES'/" config/demo.php
 php -l config/demo.php
 
-# Ruta absoluta: el script solo se encuentra si estás en la raíz del proyecto
-sudo -u postgres php /var/www/html/sovca/scripts/demo_instalar.php
+# Como root. NO uses 'sudo -u postgres php': con los permisos 750 root:www-data
+# el usuario del sistema 'postgres' no puede leer el código y PHP responde
+# "Could not open input file". Las credenciales de la base las toma de
+# config/demo.php, no del usuario del sistema.
+php /var/www/html/sovca/scripts/demo_instalar.php
 
 # Ahora sí, permisos para el rol de la aplicación en la base nueva
 SOVCA_APP_PASS="$(cat /root/sovca_app.txt)" bash scripts/crear_usuario_sovca_app.sh
