@@ -178,10 +178,43 @@ function demo_bd_existe(PDO $pdo, $nombre)
    crearla. Es el único paso que necesita superusuario y se hace UNA vez. */
 function demo_ayuda_crear($destino)
 {
+    /* Si el rol de la SESIÓN demo no es el de la aplicación, el problema no
+       es la base: hay define() de más en config/db.local.php. Dar el
+       createdb aquí solo confundiría (-O con el rol equivocado). */
+    if (SOVCA_DEMO_USUARIO !== SOVCA_DB_USER) {
+        demo_error('OJO: la sesión demo usaría ' . SOVCA_DEMO_USUARIO
+            . ' pero la aplicación usa ' . SOVCA_DB_USER . '.');
+        demo_error('Eso solo puede venir de config/db.local.php: quita de ahí cualquier');
+        demo_error('define() de SOVCA_DEMO_* que no sea SOVCA_DEMO_ACTIVO y vuelve a intentar.');
+        return;
+    }
+
     demo_error('Crea la base una sola vez como superusuario:');
-    demo_error('  sudo -u postgres createdb -O ' . SOVCA_DEMO_USUARIO
-        . ' -E UTF8 --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 -T template0 ' . $destino);
+    demo_error('  sudo -u postgres createdb -O ' . SOVCA_DEMO_USUARIO . ' -E UTF8'
+        . ' --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 -T template0 ' . $destino);
     demo_error('y vuelve a ejecutar este instalador (ya no pedirá nada más).');
+}
+
+/* ---------------------------------------------------------------------
+   CONFIGURACIÓN DETECTADA
+   ---------------------------------------------------------------------
+   Se imprime siempre (salvo en --purgar, que corre por cron): es lo
+   primero que hay que mirar si algo falla. Si la sesión y la instalación
+   no usan el MISMO rol de la aplicación, hay un define() de más en
+   config/db.local.php.
+   --------------------------------------------------------------------- */
+if (!$purgar) {
+    demo_salida('CONFIGURACIÓN');
+    demo_salida('  Sesión demo : ' . SOVCA_DEMO_USUARIO . '@' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . '/' . SOVCA_DEMO_DB);
+    demo_salida('  Instalación : ' . SOVCA_DEMO_ADMIN_USUARIO . '@' . SOVCA_DEMO_ADMIN_HOST . ':' . SOVCA_DEMO_ADMIN_PUERTO);
+    demo_salida('  Origen      : ' . SOVCA_DEMO_DB_ORIGEN);
+    if (SOVCA_DEMO_USUARIO !== SOVCA_DB_USER) {
+        demo_salida('  AVISO: la sesión demo usaría ' . SOVCA_DEMO_USUARIO
+            . ' pero la aplicación usa ' . SOVCA_DB_USER . '.');
+        demo_salida('         Eso solo puede venir de config/db.local.php: no debería haber');
+        demo_salida('         ningún define() de SOVCA_DEMO_* salvo SOVCA_DEMO_ACTIVO.');
+    }
+    demo_salida('');
 }
 
 /* ---------------------------------------------------------------------
@@ -247,9 +280,13 @@ if ($existeDestino && $recrear) {
 
 if (!$existeDestino) {
     if (!$pdoAdmin || !$puedeCrear) {
-        demo_error('La base ' . $destino . ' no existe y el rol ' . $adminUsuario . ' no puede crearla.');
         if ($errorAdmin !== '') {
-            demo_error('(Conexión a "postgres": ' . $errorAdmin . ')');
+            demo_error('No se pudo conectar como ' . $adminUsuario . ' (' . $adminHost . ':' . $adminPuerto . '):');
+            demo_error('  ' . $errorAdmin);
+            demo_error('Con ese rol tampoco se puede abrir ' . $destino
+                . ', así que no se sabe si existe. Revisa usuario/clave en config/db.local.php.');
+        } else {
+            demo_error('La base ' . $destino . ' no existe y el rol ' . $adminUsuario . ' no puede crearla.');
         }
         demo_ayuda_crear($destino);
         exit(1);
