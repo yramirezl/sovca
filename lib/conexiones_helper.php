@@ -187,3 +187,148 @@ if (!function_exists('bovs_cx_cerrar_sesion')) {
         return $ok;
     }
 }
+
+/* =====================================================================
+ * CIERRE REMOTO DE LA SESIÓN
+ * ---------------------------------------------------------------------
+ * El administrador puede pedir desde «Conexiones» que una sesión se cierre.
+ * El usuario NO se expulsa de golpe: recibe un aviso con cuenta atrás de
+ * 60 segundos («su sesión ha expirado… guarde su cambio») y al llegar a
+ * cero el sistema lo saca. Si el navegador está cerrado o el cliente no
+ * responde, validar_session.php fuerza el cierre al vencer el plazo.
+ * ===================================================================== */
+
+if (!defined('BOVS_CX_CIERRE_SEG')) {
+    /** Segundos de gracia que tiene el usuario para guardar. */
+    define('BOVS_CX_CIERRE_SEG', 60);
+}
+
+if (!function_exists('bovs_cx_cierre_estado_sesion')) {
+    /**
+     * Estado de la sesión actual (o de una fila concreta de conexiones_historial).
+     *
+     * @param int $historial_id 0 = la sesión actual.
+     * @return array{id:int, abierta:bool, cerrada:bool, cierre:bool, restante:int, por:string}
+     */
+    function bovs_cx_cierre_estado_sesion($historial_id = 0)
+    {
+        $vacio = array(
+            'id' => 0, 'abierta' => false, 'cerrada' => false,
+            'cierre' => false, 'restante' => 0, 'por' => '',
+        );
+        /* En consola no hay sesión web: solo se continúa si el llamador fijó
+           la fila del historial (pruebas). */
+        if (PHP_SAPI === 'cli' && empty($_SESSION['cx_historial_id'])) {
+            return $vacio;
+        }
+
+        $id = (int) $historial_id;
+        if ($id <= 0) {
+            $id = bovs_cx_resolver_sesion();
+        }
+        if ($id <= 0) {
+            return $vacio;
+        }
+
+        $filas = bovs_cx_q(
+            'SELECT id, cerrada, cierre_solicitado_at, cierre_solicitado_por,
+                    CASE WHEN cierre_solicitado_at IS NULL THEN NULL
+                         ELSE GREATEST(0, ' . (int) BOVS_CX_CIERRE_SEG . '
+                              - EXTRACT(EPOCH FROM (now() - cierre_solicitado_at))::int)
+                    END AS restante
+               FROM conexiones_historial
+              WHERE id = ?
+              LIMIT 1',
+            array($id)
+        );
+        if (empty($filas[0])) {
+            return $vacio;
+        }
+
+        $f         = $filas[0];
+        $cerrada   = in_array($f['cerrada'], array(true, 't', '1', 1), true);
+        $conCierre = ($f['cierre_solicitado_at'] !== null && $f['cierre_solicitado_at'] !== '');
+
+        return array(
+            'id'       => (int) $f['id'],
+            'abierta'  => !$cerrada,
+            'cerrada'  => $cerrada,
+            'cierre'   => ($conCierre && !$cerrada),
+            'restante' => $conCierre ? (int) $f['restante'] : 0,
+            'por'      => (string) $f['cierre_solicitado_por'],
+        );
+    }
+}
+
+if (!function_exists('bovs_cx_cierre_solicitar')) {
+    /**
+     * Pide el cierre remoto de una sesión abierta.
+     * @return bool
+     */
+    function bovs_cx_cierre_solicitar($historial_id, $por = 'admin')
+    {
+        $id = (int) $historial_id;
+        if ($id <= 0) {
+            return false;
+        }
+        return bovs_cx_x(
+            'UPDATE conexiones_historial
+                SET cierre_solicitado_at = now(),
+                    cierre_solicitado_por = ?
+              WHERE id = ?
+                AND cerrada = false',
+            array(substr((string) $por, 0, 60), $id)
+        );
+    }
+}
+
+if (!function_exists('bovs_cx_cierre_solicitar_usuario')) {
+    /**
+     * Pide el cierre de TODAS las sesiones abiertas de un usuario
+     * (varios navegadores o dispositivos a la vez).
+     * @return bool
+     */
+    function bovs_cx_cierre_solicitar_usuario($usuario_id, $por = 'admin')
+    {
+        $uid = (int) $usuario_id;
+        if ($uid <= 0) {
+            return false;
+        }
+        return bovs_cx_x(
+            'UPDATE conexiones_historial
+                SET cierre_solicitado_at = now(),
+                    cierre_solicitado_por = ?
+              WHERE musuarios_id = ?
+                AND cerrada = false',
+            array(substr((string) $por, 0, 60), $uid)
+        );
+    }
+}
+
+if (!function_exists('bovs_cx_cierre_cancelar')) {
+    /** Deshace un cierre remoto pendiente (la sesión sigue abierta). */
+    function bovs_cx_cierre_cancelar($historial_id)
+    {
+        $id = (int) $historial_id;
+        if ($id <= 0) {
+            return false;
+        }
+        return bovs_cx_x(
+            'UPDATE conexiones_historial
+                SET cierre_solicitado_at = NULL,
+                    cierre_solicitado_por = NULL
+              WHERE id = ?
+                AND cerrada = false',
+            array($id)
+        );
+    }
+}
+
+if (!function_exists('bovs_cx_cierre_vencido')) {
+    /** true si la sesión actual tenía cierre pedido y ya venció el plazo. */
+    function bovs_cx_cierre_vencido()
+    {
+        $estado = bovs_cx_cierre_estado_sesion();
+        return ($estado['cierre'] && $estado['restante'] <= 0);
+    }
+}

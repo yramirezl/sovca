@@ -45,8 +45,21 @@ function ValidaSession($ruta){
 	$rutaLatido = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
 	bovs_cx_latido($rutaLatido);
 
-	//----------------------------------------------------------------
-	// MODO SOPORTE: cierre automático al cumplirse el tiempo límite.
+        //----------------------------------------------------------------
+        // CIERRE REMOTO DE LA SESIÓN
+        // El administrador puede pedir desde «Conexiones» que esta sesión se
+        // cierre. El usuario recibe primero un aviso con cuenta atrás (60 s)
+        // para que guarde lo que esté haciendo; aquí se cumple el cierre cuando
+        // el plazo vence, aunque el navegador esté cerrado o bloqueado.
+        //----------------------------------------------------------------
+        if (function_exists('bovs_cx_cierre_vencido') && bovs_cx_cierre_vencido()) {
+                bovs_cx_cerrar_sesion('admin');
+                session_unset();
+                session_destroy();
+                $separador = strpos($ruta, '?') === false ? '?' : '&';
+                header('Location: ' . $ruta . $separador . 'stat=session_closed');
+                exit();
+        }
 	// Un administrador (rol 1/4) que entró temporalmente a un fundo
 	// debe salir solo; aquí se garantiza aunque el navegador haya
 	// estado cerrado y el temporizador del cliente no se ejecute.

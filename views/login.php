@@ -1311,6 +1311,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               Contacta al administrador para renovarla.
             </div>
           </div>
+        <?php elseif (@$_GET['stat'] == 'session_closed'): ?>
+          <div class="alert alert-warning alert-custom">
+            <i class="fa fa-clock-o"></i>
+            <div>
+              <strong>Su sesión ha expirado.</strong><br>
+              El administrador cerró la sesión de forma remota. Si tenía un cambio
+              importante, vuelva a entrar e introdúzcalo de nuevo.
+            </div>
+          </div>
         <?php elseif (@$_GET['stat'] == 'subscription_refresh'): ?>
           <div class="alert alert-info alert-custom">
             <i class="fa fa-info-circle"></i>

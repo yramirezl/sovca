@@ -183,5 +183,8 @@ if ($__tipo_g === 1) {
     <!-- Ajusta el alto del carrusel al hueco real de la ventana, para que el
          pie de página se vea desde la primera carga sin desplazar. -->
     <script type="text/javascript" src="../../js/ajuste-pantalla.js?v=1"></script>
+    <!-- Aviso de cierre remoto de sesión (lo pide el administrador desde
+         «Conexiones»): muestra la cuenta atrás de 60 s antes de cerrar. -->
+    <script type="text/javascript" src="../../js/bovs-sesion.js?v=1"></script>
   </body>
 </html>

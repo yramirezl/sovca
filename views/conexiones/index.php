@@ -49,7 +49,7 @@ VerificarAdmin($_SESSION['rolx']);
 
 /* ---------- KPIs ---------- */
 .cnx-kpis {
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px; margin-bottom: 14px;
 }
 .cnx-kpi {
@@ -185,7 +185,27 @@ VerificarAdmin($_SESSION['rolx']);
     .cnx-hero__acciones { width: 100%; }
     .cnx-select, .cnx-btn-ref { flex: 1 1 auto; }
 }
+/* ---- Cierre remoto de sesión ---- */
+.cnx-btn-cerrar {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid #f3c9c5; background: #fdecea; color: #b3261e;
+    border-radius: 8px; padding: 4px 9px; font-size: 11.5px; font-weight: 800;
+    cursor: pointer; white-space: nowrap; margin-left: 6px;
+}
+.cnx-btn-cerrar:hover { background: #fbd7d3; color: #8f1d17; }
+.cnx-btn-cerrar--cancel {
+    border-color: #d9e3dc; background: #eef1f3; color: #3d4b44;
+}
+.cnx-btn-cerrar--cancel:hover { background: #e2e7ea; color: #233e2d; }
+.cnx-cierre-curso {
+    display: inline-block; font-size: 11px; color: #b26a00; font-weight: 700;
+    margin-left: 6px;
+}
 </style>
+
+<!-- Diálogos de confirmación (cierre remoto de sesión, avisos de error) -->
+<link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
+<script type="text/javascript" src="../../plugins/confirma/jquery-confirm.min.js"></script>
 
 <div class="cnx-wrap">
 
@@ -194,7 +214,7 @@ VerificarAdmin($_SESSION['rolx']);
         <div class="cnx-hero__icon"><i class="fa fa-plug"></i></div>
         <div class="cnx-hero__text">
             <h1>Conexiones</h1>
-            <p>Quién entra al sistema, desde dónde y con qué frecuencia.</p>
+            <p>Quién entra al sistema, desde dónde, con qué frecuencia y cuánto tiempo permanece conectado.</p>
         </div>
         <div class="cnx-hero__acciones">
             <label for="cnx-periodo">Periodo</label>
@@ -228,6 +248,11 @@ VerificarAdmin($_SESSION['rolx']);
             <span class="kpi-lbl">Promedio por usuario</span>
             <span class="kpi-det">Accesos en el periodo</span>
         </div>
+        <div class="cnx-kpi is-info">
+            <span class="kpi-num" id="kpi-duracion">—</span>
+            <span class="kpi-lbl">Duración promedio</span>
+            <span class="kpi-det" id="kpi-duracion-det">&nbsp;</span>
+        </div>
         <div class="cnx-kpi is-alerta">
             <span class="kpi-num" id="kpi-ultima">—</span>
             <span class="kpi-lbl">Última conexión</span>
@@ -246,6 +271,7 @@ VerificarAdmin($_SESSION['rolx']);
         <span class="cnx-nota">
             <i class="fa fa-info-circle"></i>
             «Frecuencia» es cada cuántos días entra el usuario, medido entre su primer y su último día activo del periodo.
+            «Duración» es el tiempo entre el login y la última transacción registrada de esa sesión.
             Haz clic en <strong>un usuario</strong> para ver todo su historial.
         </span>
     </div>
@@ -261,7 +287,9 @@ VerificarAdmin($_SESSION['rolx']);
                     <th>Conexiones</th>
                     <th>Días activos</th>
                     <th>Frecuencia</th>
+                    <th>Duración</th>
                     <th>Estado</th>
+                    <th>Sesión</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -273,11 +301,14 @@ VerificarAdmin($_SESSION['rolx']);
         <table id="cnx-tabla-historial" class="table cnx-tabla">
             <thead>
                 <tr>
-                    <th>Fecha y hora</th>
+                    <th>Inicio</th>
                     <th>Usuario</th>
                     <th>Ubicación</th>
                     <th>IP</th>
                     <th>Dispositivo</th>
+                    <th>Última transacción</th>
+                    <th>Duración</th>
+                    <th>Estado</th>
                     <th>Origen</th>
                 </tr>
             </thead>
@@ -313,10 +344,13 @@ VerificarAdmin($_SESSION['rolx']);
                 <table id="cnx-tabla-usuario" class="table cnx-tabla" style="width:100%">
                     <thead>
                         <tr>
-                            <th>Fecha y hora</th>
+                            <th>Inicio</th>
                             <th>Ubicación</th>
                             <th>IP</th>
                             <th>Dispositivo</th>
+                            <th>Última transacción</th>
+                            <th>Duración</th>
+                            <th>Estado</th>
                             <th>Origen</th>
                         </tr>
                     </thead>
@@ -403,6 +437,35 @@ VerificarAdmin($_SESSION['rolx']);
         return '<span class="cnx-chip ' + clase + '">' + esc(e) + '</span>';
     }
 
+    /* Duración en texto: "45 s", "12 min", "1 h 8 min", "2 d 3 h". */
+    function duracionTxt(seg) {
+        if (seg === null || typeof seg === 'undefined' || seg === '' || isNaN(Number(seg))) {
+            return '—';
+        }
+        var s = Math.max(0, Math.floor(Number(seg)));
+        if (s < 60) { return s + ' s'; }
+        var m = Math.floor(s / 60);
+        if (m < 60) { return m + ' min'; }
+        var h = Math.floor(m / 60);
+        var r = m % 60;
+        if (h < 24) { return h + ' h' + (r ? ' ' + r + ' min' : ''); }
+        var d = Math.floor(h / 24);
+        h = h % 24;
+        return d + ' d' + (h ? ' ' + h + ' h' : '');
+    }
+
+    /* Chip del estado de la SESIÓN (no del usuario). */
+    function chipSesion(estado) {
+        var mapa = {
+            activa:    ['cnx-chip--activo', 'En línea'],
+            cerrada:   ['cnx-chip--reciente', 'Cerrada'],
+            expirada:  ['cnx-chip--ocasional', 'Expirada'],
+            sin_datos: ['cnx-chip--sin', 'Sin seguimiento']
+        };
+        var m = mapa[String(estado || '')] || mapa.sin_datos;
+        return '<span class="cnx-chip ' + m[0] + '">' + m[1] + '</span>';
+    }
+
     function idiomaTabla(vacio) {
         return {
             search: '',
@@ -431,7 +494,9 @@ VerificarAdmin($_SESSION['rolx']);
                 { targets: [3], width: '95px' },
                 { targets: [4], width: '95px' },
                 { targets: [5], width: '100px' },
-                { targets: [6], width: '105px' }
+                { targets: [6], width: '130px' },
+                { targets: [7], width: '105px' },
+                { targets: [8], width: '150px' }
             ],
             language: idiomaTabla('Ningún usuario registró accesos en este periodo'),
             columns: [
@@ -448,11 +513,14 @@ VerificarAdmin($_SESSION['rolx']);
                 },
                 {
                     data: 'ultima',
-                    render: function (d, type) {
+                    render: function (d, type, row) {
                         if (type !== 'display') { return d || ''; }
                         if (!d) { return '<span class="cnx-sin-ubi">nunca</span>'; }
+                        var act = (row.ultima_actividad && row.ultima_actividad !== d)
+                            ? '<span title="Última transacción registrada">act. ' + esc(hace(row.ultima_actividad)) + '</span>'
+                            : '';
                         return '<div class="cnx-fecha"><strong>' + esc(fechaLegible(d)) + '</strong>'
-                             + '<span>' + esc(hace(d)) + '</span></div>';
+                             + '<span>' + esc(hace(d)) + '</span>' + act + '</div>';
                     }
                 },
                 {
@@ -499,10 +567,51 @@ VerificarAdmin($_SESSION['rolx']);
                     }
                 },
                 {
+                    data: 'duracion_prom',
+                    className: 'text-center',
+                    render: function (d, type, row) {
+                        if (type !== 'display') {
+                            return (d === null || typeof d === 'undefined') ? -1 : Number(d);
+                        }
+                        if (Number(row.total) === 0) { return '<span class="cnx-sin-ubi">—</span>'; }
+                        if (d === null || typeof d === 'undefined') {
+                            return '<span class="cnx-sin-ubi" title="Sesiones anteriores al seguimiento de duración">sin seguimiento</span>';
+                        }
+                        var ultima = row.ultima_duracion_txt
+                            ? '<span style="font-size:11px;color:#8a95a1">últ. ' + esc(row.ultima_duracion_txt) + '</span>'
+                            : '';
+                        return '<div class="cnx-fecha"><strong>' + esc(row.duracion_prom_txt || duracionTxt(d)) + '</strong>'
+                             + ultima + '</div>';
+                    }
+                },
+                {
                     data: 'estado',
                     render: function (d, type) {
                         if (type !== 'display') { return d; }
                         return chipEstado(d);
+                    }
+                },
+                {
+                    /* SESIÓN: si está en línea se puede cerrar de forma remota
+                       (con aviso de 60 s al usuario, no de golpe). */
+                    data: 'sesion_estado',
+                    orderable: false,
+                    render: function (d, type, row) {
+                        if (type !== 'display') { return d; }
+                        var chip = chipSesion(d);
+                        if (d !== 'activa' || !row.sesion_historial_id) {
+                            return chip;
+                        }
+                        var id = esc(row.sesion_historial_id);
+                        if (row.sesion_cierre_at) {
+                            return chip + ' <span class="cnx-cierre-curso" title="El usuario ya está viendo el aviso de cierre">'
+                                 + '<i class="fa fa-hourglass-half"></i> cierre en curso</span>'
+                                 + ' <button type="button" class="cnx-btn-cerrar cnx-btn-cerrar--cancel" '
+                                 + 'data-sesion="' + id + '" title="Cancelar el cierre">Cancelar</button>';
+                        }
+                        return chip + ' <button type="button" class="cnx-btn-cerrar" data-sesion="' + id + '"'
+                             + ' data-usuario="' + esc(row.username) + '" title="Avisar al usuario y cerrar su sesión en 60 s">'
+                             + '<i class="fa fa-power-off"></i> Cerrar sesión</button>';
                     }
                 }
             ]
@@ -519,10 +628,13 @@ VerificarAdmin($_SESSION['rolx']);
             columnDefs: [
                 { targets: [0], width: '160px' },
                 { targets: [1], width: '180px' },
-                { targets: [2], width: '180px' },
-                { targets: [3], width: '130px' },
-                { targets: [4], width: '140px' },
-                { targets: [5], width: '90px' }
+                { targets: [2], width: '170px' },
+                { targets: [3], width: '125px' },
+                { targets: [4], width: '130px' },
+                { targets: [5], width: '155px' },
+                { targets: [6], width: '95px' },
+                { targets: [7], width: '100px' },
+                { targets: [8], width: '85px' }
             ],
             language: idiomaTabla('No hay conexiones registradas en este periodo'),
             columns: [
@@ -574,6 +686,43 @@ VerificarAdmin($_SESSION['rolx']);
                     }
                 },
                 {
+                    data: 'ultima_actividad',
+                    render: function (d, type, row) {
+                        if (type !== 'display') { return d || ''; }
+                        if (!d) { return '<span class="cnx-sin-ubi">sin seguimiento</span>'; }
+                        var ruta = row.ultima_ruta ? ' title="' + esc(row.ultima_ruta) + '"' : '';
+                        return '<div class="cnx-fecha"' + ruta + '><strong>' + esc(fechaLegible(d)) + '</strong>'
+                             + '<span>' + esc(hace(d)) + '</span></div>';
+                    }
+                },
+                {
+                    data: 'duracion_seg',
+                    className: 'text-center',
+                    render: function (d, type, row) {
+                        if (type !== 'display') {
+                            return (d === null || typeof d === 'undefined') ? -1 : Number(d);
+                        }
+                        if (d === null || typeof d === 'undefined') {
+                            return '<span class="cnx-sin-ubi">—</span>';
+                        }
+                        var extra = (row.estado === 'activa')
+                            ? '<span style="font-size:11px;color:#1b6b33">en curso</span>'
+                            : '';
+                        return '<div class="cnx-fecha"><strong>' + esc(row.duracion_txt || duracionTxt(d)) + '</strong>' + extra + '</div>';
+                    }
+                },
+                {
+                    data: 'estado',
+                    render: function (d, type, row) {
+                        if (type !== 'display') { return d || ''; }
+                        var chip = chipSesion(d);
+                        if (row.cerrada_por) {
+                            chip += ' <span style="font-size:10.5px;color:#8a95a1">' + esc(row.cerrada_por) + '</span>';
+                        }
+                        return chip;
+                    }
+                },
+                {
                     data: 'origen',
                     render: function (d, type) {
                         if (type !== 'display') { return d || ''; }
@@ -597,10 +746,13 @@ VerificarAdmin($_SESSION['rolx']);
             autoWidth: false,
             columnDefs: [
                 { targets: [0], width: '150px' },
-                { targets: [1], width: '210px' },
-                { targets: [2], width: '130px' },
-                { targets: [3], width: '150px' },
-                { targets: [4], width: '85px' }
+                { targets: [1], width: '200px' },
+                { targets: [2], width: '125px' },
+                { targets: [3], width: '140px' },
+                { targets: [4], width: '150px' },
+                { targets: [5], width: '90px' },
+                { targets: [6], width: '95px' },
+                { targets: [7], width: '80px' }
             ],
             language: idioma,
             columns: [
@@ -642,6 +794,36 @@ VerificarAdmin($_SESSION['rolx']);
                     }
                 },
                 {
+                    data: 'ultima_actividad',
+                    render: function (d, type, row) {
+                        if (type !== 'display') { return d || ''; }
+                        if (!d) { return '<span class="cnx-sin-ubi">sin seguimiento</span>'; }
+                        var ruta = row.ultima_ruta ? ' title="' + esc(row.ultima_ruta) + '"' : '';
+                        return '<div class="cnx-fecha"' + ruta + '><strong>' + esc(fechaLegible(d)) + '</strong>'
+                             + '<span>' + esc(hace(d)) + '</span></div>';
+                    }
+                },
+                {
+                    data: 'duracion_seg',
+                    className: 'text-center',
+                    render: function (d, type, row) {
+                        if (type !== 'display') {
+                            return (d === null || typeof d === 'undefined') ? -1 : Number(d);
+                        }
+                        if (d === null || typeof d === 'undefined') {
+                            return '<span class="cnx-sin-ubi">—</span>';
+                        }
+                        return '<div class="cnx-fecha"><strong>' + esc(row.duracion_txt || duracionTxt(d)) + '</strong></div>';
+                    }
+                },
+                {
+                    data: 'estado',
+                    render: function (d, type) {
+                        if (type !== 'display') { return d || ''; }
+                        return chipSesion(d);
+                    }
+                },
+                {
                     data: 'origen',
                     render: function (d, type) {
                         if (type !== 'display') { return d || ''; }
@@ -672,6 +854,7 @@ VerificarAdmin($_SESSION['rolx']);
         var dias = {}, ips = {}, ubis = {};
         var nDias = 0, nIps = 0, nUbis = 0;
         var primera = null, ultima = null;
+        var durSuma = 0, durN = 0, enLinea = 0, ultimaActividad = null;
 
         for (var i = 0; i < filas.length; i++) {
             var f = filas[i];
@@ -685,6 +868,14 @@ VerificarAdmin($_SESSION['rolx']);
             if (fecha) {
                 if (!primera || fecha < primera) { primera = fecha; }
                 if (!ultima  || fecha > ultima)  { ultima  = fecha; }
+            }
+            if (f.duracion_seg !== null && typeof f.duracion_seg !== 'undefined' && !isNaN(Number(f.duracion_seg))) {
+                durSuma += Number(f.duracion_seg);
+                durN++;
+            }
+            if (f.estado === 'activa') { enLinea++; }
+            if (f.ultima_actividad && (!ultimaActividad || f.ultima_actividad > ultimaActividad)) {
+                ultimaActividad = f.ultima_actividad;
             }
         }
 
@@ -717,7 +908,11 @@ VerificarAdmin($_SESSION['rolx']);
             ultima: ultima,
             frecuencia: frecuencia,
             diasSinEntrar: diasSinEntrar,
-            estado: estado
+            estado: estado,
+            duracionProm: durN > 0 ? Math.round(durSuma / durN) : null,
+            duracionN: durN,
+            ultimaActividad: ultimaActividad,
+            enLinea: enLinea
         };
     }
 
@@ -750,6 +945,13 @@ VerificarAdmin($_SESSION['rolx']);
         html += datoUsr('fa-clock-o', 'Última conexión',
                         st.ultima ? esc(fechaLegible(st.ultima)) : '—',
                         st.ultima ? esc(hace(st.ultima)) : '');
+        html += datoUsr('fa-hourglass-end', 'Duración promedio',
+                        st.duracionProm === null ? '—' : esc(duracionTxt(st.duracionProm)),
+                        st.duracionN > 0 ? (num(st.duracionN) + ' sesión(es) medida(s)') : 'sin seguimiento');
+        html += datoUsr('fa-bolt', 'Última transacción',
+                        st.ultimaActividad ? esc(fechaLegible(st.ultimaActividad)) : '—',
+                        st.ultimaActividad ? esc(hace(st.ultimaActividad)) : '');
+        html += datoUsr('fa-circle', 'Sesiones en línea', num(st.enLinea));
         html += datoUsr('fa-map-marker', 'Ubicaciones distintas', num(st.ubicaciones));
         html += datoUsr('fa-desktop', 'IPs distintas', num(st.ips));
 
@@ -843,6 +1045,18 @@ VerificarAdmin($_SESSION['rolx']);
         var promedio = conActividad > 0 ? (totalConexiones / conActividad) : 0;
         jQuery('#kpi-promedio').text(promedio > 0 ? promedio.toFixed(1).replace('.', ',') : '0');
 
+        /* Duración promedio de las sesiones del periodo. */
+        var durSuma = 0, durN = 0;
+        for (var j = 0; j < historial.length; j++) {
+            var seg = historial[j].duracion_seg;
+            if (seg !== null && typeof seg !== 'undefined' && !isNaN(Number(seg))) {
+                durSuma += Number(seg);
+                durN++;
+            }
+        }
+        jQuery('#kpi-duracion').text(durN > 0 ? duracionTxt(Math.round(durSuma / durN)) : '—');
+        jQuery('#kpi-duracion-det').text(durN > 0 ? (num(durN) + ' sesiones medidas') : 'sin datos aún');
+
         if (ultima) {
             jQuery('#kpi-ultima').text(fechaCorta(ultima));
             jQuery('#kpi-ultima-det').text(ultimoUsuario + ' · ' + hace(ultima));
@@ -935,6 +1149,60 @@ VerificarAdmin($_SESSION['rolx']);
 
         jQuery('#cnx-periodo').on('change', function () { cargar(); });
         jQuery('#cnx-refrescar').on('click', function () { cargar(); });
+
+        /* ---------------- CIERRE REMOTO DE SESIÓN ----------------
+           No expulsa al usuario de golpe: se le pide el cierre y él recibe
+           un aviso con cuenta atrás de 60 s para guardar lo que esté
+           haciendo (js/bovs-sesion.js). */
+        jQuery('#cnx-tabla-resumen tbody').on('click', '.cnx-btn-cerrar', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var $b       = jQuery(this);
+            var id       = $b.attr('data-sesion');
+            var esCancel = $b.hasClass('cnx-btn-cerrar--cancel');
+            var usr      = $b.attr('data-usuario') || 'el usuario';
+
+            if (!id) { return; }
+
+            jQuery.confirm({
+                title: esCancel ? '¿Cancelar el cierre de sesión?' : '¿Cerrar la sesión de ' + usr + '?',
+                content: esCancel
+                    ? 'La sesión de <b>' + esc(usr) + '</b> seguirá abierta y el aviso desaparecerá.'
+                    : 'El usuario recibirá un aviso: <b>«Su sesión ha expirado…»</b> con una cuenta atrás de '
+                      + '<b>60 segundos</b> para que guarde lo que esté haciendo. Al terminar, el sistema lo saca.'
+                      + '<br><br><small>No se pierde nada de lo que ya haya guardado.</small>',
+                confirmButton: esCancel ? 'Sí, cancelar' : 'Sí, cerrar sesión',
+                cancelButton: 'Volver',
+                confirmButtonClass: esCancel ? 'btn-default' : 'btn-danger',
+                cancelButtonClass: 'btn-default',
+                confirm: function () {
+                    jQuery.post('../../controllers/mconexiones_controller', {
+                        action: esCancel ? 'cancelar_cierre' : 'solicitar_cierre',
+                        historial_id: id
+                    }, function (r) {
+                        if (r && r.ok) {
+                            cargar();
+                        } else {
+                            jQuery.confirm({
+                                title: 'No se pudo completar',
+                                content: esc((r && r.msg) || 'Intenta de nuevo.'),
+                                confirmButton: 'Entendido',
+                                cancelButton: false
+                            });
+                        }
+                    }, 'json').fail(function () {
+                        jQuery.confirm({
+                            title: 'Error de conexión',
+                            content: 'No se pudo contactar con el servidor.',
+                            confirmButton: 'Entendido',
+                            cancelButton: false
+                        });
+                    });
+                    return false;
+                }
+            });
+        });
 
         cargar();
     });
