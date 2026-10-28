@@ -95,6 +95,19 @@ echo "Clave de sovca_app: $CLAVE_APP"
 SOVCA_APP_PASS="$CLAVE_APP" bash scripts/crear_usuario_sovca_app.sh
 ```
 
+El script se conecta como superusuario por el **socket local**
+(`sudo -u postgres psql`, autenticación `peer`) y no necesita contraseña. Si en
+el servidor preferís TCP, pasadle la clave:
+
+```bash
+PGPASSWORD_ADMIN='la-clave-de-postgres' SOVCA_APP_PASS="$CLAVE_APP" \
+    bash scripts/crear_usuario_sovca_app.sh
+```
+
+> Si aparece `password authentication failed for user "postgres"`, el script
+> está intentando TCP sin la clave correcta: o se le pasa `PGPASSWORD_ADMIN`,
+> o se ejecuta como root para que use el socket local.
+
 Salida esperada:
 
 ```

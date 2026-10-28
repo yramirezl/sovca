@@ -24,15 +24,23 @@ APP_PASS="${SOVCA_APP_PASS:-sovca_app}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-5432}"
 PGADMIN="${PGADMIN:-postgres}"
-PGPASSWORD_ADMIN="${PGPASSWORD_ADMIN:-postgres}"
+PGPASSWORD_ADMIN="${PGPASSWORD_ADMIN:-}"
 
 if [ -z "$APP_PASS" ]; then
     echo "Falta la clave. Usá: SOVCA_APP_PASS='...' bash $0" >&2
     exit 1
 fi
 
-export PGPASSWORD="$PGPASSWORD_ADMIN"
-PSQL=(psql -h "$PGHOST" -p "$PGPORT" -U "$PGADMIN" -v ON_ERROR_STOP=1)
+# Cómo conectarse como superusuario:
+#   · con PGPASSWORD_ADMIN (o ~/.pgpass) → TCP a PGHOST:PGPORT
+#   · sin ella                            → socket local como usuario postgres
+#     (peer auth; funciona con `sudo -u postgres psql` sin contraseña)
+if [ -n "$PGPASSWORD_ADMIN" ]; then
+    export PGPASSWORD="$PGPASSWORD_ADMIN"
+    PSQL=(psql -h "$PGHOST" -p "$PGPORT" -U "$PGADMIN" -v ON_ERROR_STOP=1)
+else
+    PSQL=(sudo -u postgres psql -v ON_ERROR_STOP=1)
+fi
 
 echo "· Verificando rol $APP_USER..."
 ROLE_EXISTS="$("${PSQL[@]}" -d postgres -Atc "SELECT 1 FROM pg_roles WHERE rolname = '$APP_USER'")"
