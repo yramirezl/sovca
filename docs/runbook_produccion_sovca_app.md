@@ -152,6 +152,39 @@ sudo chmod 640 config/db.local.php
 > `config/db.local.php` está en `.gitignore`. Existe para que el pull nunca
 > pise las credenciales del servidor.
 
+### Red de seguridad: volver a la conexión anterior en 3 líneas
+
+Antes del pull la aplicación se conecta como `postgres` al puerto `5432`.
+Guardá esa credencial en un sitio seguro: es el **rollback de conexión** y no
+requiere tocar código ni deshacer migraciones.
+
+```bash
+mkdir -p /root/sovca-respaldo && chmod 700 /root/sovca-respaldo
+cat > /root/sovca-respaldo/conexion-anterior.txt <<'EOF'
+usuario : postgres
+base    : sovca
+host    : 127.0.0.1
+puerto  : 5432
+EOF
+chmod 600 /root/sovca-respaldo/conexion-anterior.txt
+```
+
+Si tras el despliegue la aplicación no conecta y no hay tiempo de diagnosticar,
+basta con dejar `config/db.local.php` apuntando al usuario anterior:
+
+```php
+define('SOVCA_DB_PORT', '5432');
+define('SOVCA_DB_USER', 'postgres');
+define('SOVCA_DB_PASS', 'la-clave-anterior');
+```
+
+```bash
+sudo systemctl reload "$PHP_SVC"
+```
+
+El sitio vuelve a funcionar sin revertir el código.
+
+
 ---
 
 ## Paso 3 · PgBouncer
