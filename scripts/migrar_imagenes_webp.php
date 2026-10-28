@@ -105,32 +105,8 @@ if (!function_exists('imagecreatefromstring') || !function_exists('imagewebp')) 
     exit(1);
 }
 
-/**
- * Lee el DSN pgsql://usuario:clave@host:puerto/base desde config/conexion.php.
- */
-function bovs_leer_conexion($archivo)
-{
-    $txt = @file_get_contents($archivo);
-    if ($txt === false) {
-        return null;
-    }
-    if (preg_match('~pgsql://([^:]+):([^@]*)@([^:/]+)(?::(\d+))?/([A-Za-z0-9_\-]+)~', $txt, $m)) {
-        return array(
-            'user' => $m[1],
-            'pass' => $m[2],
-            'host' => $m[3],
-            'port' => ($m[4] !== '' ? $m[4] : '5432'),
-            'db'   => $m[5],
-        );
-    }
-    return null;
-}
-
-$cfg = bovs_leer_conexion($ROOT . '/config/conexion.php');
-if ($cfg === null) {
-    $cfg = array('user' => 'postgres', 'pass' => 'postgres', 'host' => '127.0.0.1', 'port' => '5432', 'db' => 'sovca_qas');
-    fwrite(STDERR, "AVISO: no se pudo leer config/conexion.php; se usan valores por defecto.\n");
-}
+require_once $ROOT . '/config/db.php';
+$cfg = sovca_db_config();
 foreach (array('host', 'port', 'db', 'user', 'pass') as $k) {
     if (isset($opts[$k]) && $opts[$k] !== true) {
         $cfg[$k] = (string) $opts[$k];

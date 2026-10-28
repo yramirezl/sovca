@@ -1953,6 +1953,184 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       }
     })();
   </script>
+  <!-- ============================================================
+       AVISO DE INSTALACIÓN (PWA)
+       Se muestra solo en móvil, solo si la app no está instalada y
+       solo si el usuario no lo ha descartado hace poco.
+       · Android/Chrome/Edge: usa el aviso nativo del navegador.
+       · iPhone/iPad: no existe aviso nativo → instrucciones.
+       ============================================================ -->
+  <style>
+    .pwa-instalar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 99999;
+      display: none;
+      padding: 12px 14px;
+      background: #ffffff;
+      border-top: 1px solid #d9e4dc;
+      box-shadow: 0 -6px 20px rgba(0, 0, 0, .14);
+      font-family: 'Poppins', Arial, sans-serif;
+    }
+    .pwa-instalar.is-visible { display: block; }
+    .pwa-instalar__caja {
+      display: flex; align-items: center; gap: 12px;
+      max-width: 620px; margin: 0 auto;
+    }
+    .pwa-instalar__icono { width: 44px; height: 44px; border-radius: 10px; flex: 0 0 auto; }
+    .pwa-instalar__texto { flex: 1 1 auto; min-width: 0; }
+    .pwa-instalar__titulo { font-size: 14px; font-weight: 600; color: #0b4a2b; line-height: 1.25; }
+    .pwa-instalar__sub { font-size: 12px; color: #6b7280; line-height: 1.3; margin-top: 2px; }
+    .pwa-instalar__acciones { display: flex; gap: 8px; flex: 0 0 auto; }
+    .pwa-instalar__btn {
+      border: 0; border-radius: 8px; padding: 9px 14px;
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      font-family: inherit;
+    }
+    .pwa-instalar__btn--ok { background: #006532; color: #fff; }
+    .pwa-instalar__btn--ok:disabled { opacity: .6; }
+    .pwa-instalar__btn--no { background: #eef2ef; color: #4b5563; }
+    @media (max-width: 430px) {
+      .pwa-instalar__sub { display: none; }
+      .pwa-instalar__btn { padding: 9px 11px; font-size: 12px; }
+    }
+  </style>
+
+  <div id="pwa-instalar" class="pwa-instalar" role="dialog" aria-live="polite" aria-label="Instalar aplicación">
+    <div class="pwa-instalar__caja">
+      <img class="pwa-instalar__icono" src="../app_offline/icons/icon-192.png" alt="">
+      <div class="pwa-instalar__texto">
+        <div class="pwa-instalar__titulo" id="pwa-instalar-titulo">Instala SOVCA en tu dispositivo</div>
+        <div class="pwa-instalar__sub" id="pwa-instalar-sub">Ábrela desde el ícono, como cualquier otra aplicación.</div>
+      </div>
+      <div class="pwa-instalar__acciones">
+        <button type="button" class="pwa-instalar__btn pwa-instalar__btn--ok" id="pwa-instalar-ok">Instalar</button>
+        <button type="button" class="pwa-instalar__btn pwa-instalar__btn--no" id="pwa-instalar-no">Ahora no</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var NOMBRE_APP   = 'SOVCA';
+    var CLAVE_OMITIR = 'sovca_pwa_omitir';
+    var DIAS_OMITIR  = 7;
+
+    var banner    = document.getElementById('pwa-instalar');
+    var btnOk     = document.getElementById('pwa-instalar-ok');
+    var btnNo     = document.getElementById('pwa-instalar-no');
+    var titulo    = document.getElementById('pwa-instalar-titulo');
+    var subtitulo = document.getElementById('pwa-instalar-sub');
+    if (!banner) { return; }
+
+    var promptDiferido = null;
+
+    /* ¿Ya se está usando como aplicación instalada? */
+    function abiertaComoApp() {
+      try {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.matchMedia('(display-mode: minimal-ui)').matches ||
+               window.navigator.standalone === true;
+      } catch (e) { return false; }
+    }
+
+    /* Solo en móviles: en escritorio no tiene sentido el aviso. */
+    function esMovil() {
+      var ua = navigator.userAgent || '';
+      if (/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua)) { return true; }
+      try {
+        return window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 900;
+      } catch (e) { return false; }
+    }
+
+    function esIOS() {
+      var ua = navigator.userAgent || '';
+      return /iPad|iPhone|iPod/.test(ua) ||
+             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function omitidoReciente() {
+      try {
+        var t = parseInt(localStorage.getItem(CLAVE_OMITIR), 10);
+        if (!t) { return false; }
+        return (Date.now() - t) < (DIAS_OMITIR * 24 * 60 * 60 * 1000);
+      } catch (e) { return false; }
+    }
+
+    function mostrar(conInstrucciones) {
+      if (abiertaComoApp() || !esMovil() || omitidoReciente()) { return; }
+      if (conInstrucciones) {
+        titulo.textContent    = 'Instala ' + NOMBRE_APP + ' en tu iPhone/iPad';
+        subtitulo.textContent = 'Toca Compartir y elige "Añadir a pantalla de inicio".';
+        btnOk.textContent     = 'Ver cómo';
+      }
+      banner.classList.add('is-visible');
+    }
+
+    function ocultar() { banner.classList.remove('is-visible'); }
+
+    /* Android / Chrome / Edge / Samsung Internet */
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      promptDiferido = e;
+      mostrar(false);
+    });
+
+    window.addEventListener('appinstalled', function () {
+      promptDiferido = null;
+      try { localStorage.removeItem(CLAVE_OMITIR); } catch (e) {}
+      ocultar();
+    });
+
+    btnNo.addEventListener('click', function () {
+      try { localStorage.setItem(CLAVE_OMITIR, String(Date.now())); } catch (e) {}
+      ocultar();
+    });
+
+    btnOk.addEventListener('click', function () {
+      if (promptDiferido) {
+        btnOk.disabled = true;
+        var p = promptDiferido;
+        promptDiferido = null;
+        try {
+          p.prompt();
+          if (p.userChoice && p.userChoice.then) {
+            p.userChoice.then(function () { btnOk.disabled = false; ocultar(); })
+                          .catch(function () { btnOk.disabled = false; ocultar(); });
+          } else {
+            btnOk.disabled = false; ocultar();
+          }
+        } catch (e) {
+          btnOk.disabled = false; ocultar();
+        }
+        return;
+      }
+
+      alert('Para instalar ' + NOMBRE_APP + ':\n\n' +
+            '1. Toca el botón Compartir (cuadrado con flecha) en el navegador.\n' +
+            '2. Elige "Añadir a pantalla de inicio".\n' +
+            '3. Confirma con "Añadir".\n\n' +
+            'Listo: ' + NOMBRE_APP + ' quedará como una aplicación más.');
+    });
+
+    /* iPhone/iPad no dispara beforeinstallprompt */
+    if (esIOS() && !abiertaComoApp() && !omitidoReciente()) {
+      mostrar(true);
+    }
+
+    /* Service worker del portal: es lo que hace la web instalable.
+       El scope queda en la carpeta de la app (/sovca/). */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('../sw.js').catch(function (e) {
+          console.warn('Service worker del portal no registrado:', e);
+        });
+      });
+    }
+  })();
+  </script>
 </body>
 
 </html>

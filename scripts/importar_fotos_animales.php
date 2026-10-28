@@ -94,32 +94,8 @@ if ($USAR_WEBP) {
 
 // ─────────────────────────────  Conexión  ─────────────────────────────
 
-/**
- * Lee el DSN pgsql://usuario:clave@host:puerto/base desde config/conexion.php.
- */
-function bovs_leer_conexion($archivo)
-{
-    $txt = @file_get_contents($archivo);
-    if ($txt === false) {
-        return null;
-    }
-    if (preg_match('~pgsql://([^:]+):([^@]*)@([^:/]+)(?::(\d+))?/([A-Za-z0-9_\-]+)~', $txt, $m)) {
-        return array(
-            'user' => $m[1],
-            'pass' => $m[2],
-            'host' => $m[3],
-            'port' => ($m[4] !== '' ? $m[4] : '5432'),
-            'db'   => $m[5],
-        );
-    }
-    return null;
-}
-
-$cfg = bovs_leer_conexion($ROOT . '/config/conexion.php');
-if ($cfg === null) {
-    $cfg = array('user' => 'postgres', 'pass' => 'postgres', 'host' => '127.0.0.1', 'port' => '5432', 'db' => 'sovca_qas');
-    fwrite(STDERR, "AVISO: no se pudo leer config/conexion.php; se usan valores por defecto.\n");
-}
+require_once $ROOT . '/config/db.php';
+$cfg = sovca_db_config();
 foreach (array('host', 'port', 'db', 'user', 'pass') as $k) {
     if (isset($opts[$k]) && $opts[$k] !== true) {
         $cfg[$k] = (string) $opts[$k];
@@ -306,6 +282,129 @@ if ($CSV !== null) {
 }
 
 // ─────────────────────────────  Importación  ─────────────────────────────
+
+// ───────────────────  Enlace de archivos huérfanos (opt-in)  ───────────────────
+// Los archivos que están en la carpeta y no los usa ninguna fila suelen ser
+// fotos de animales cuya columna `imagen` quedó vacía. Esta rutina las enlaza
+// SOLO en ese caso: nunca sobrescribe una foto existente.
+
+if (isset($opts['enlazar-huerfanos'])) {
+    echo "\n──────────────────────────────────────────────────────────────\n";
+    echo " Enlace de archivos huérfanos a animales sin foto\n";
+    echo " Carpeta: {$DESTINO}\n";
+    echo ' Modo: ' . ($APLICAR ? "APLICAR (se actualiza manimales.imagen)\n" : "SIMULACIÓN (usar --aplicar para ejecutar)\n");
+    echo "──────────────────────────────────────────────────────────────\n";
+
+    if (!is_dir($DESTINO)) {
+        fwrite(STDERR, "ERROR: no existe la carpeta {$DESTINO}\n");
+        exit(1);
+    }
+
+    $sqlFilas = "SELECT id, codigo_rgb_id_animal AS cod, imagen FROM manimales";
+    if ($FUNDO > 0) {
+        $sqlFilas .= " WHERE mfundos_id = " . (int) $FUNDO;
+    }
+    $filas = $pdo->query($sqlFilas)->fetchAll(PDO::FETCH_ASSOC);
+
+    $porCod = array();       // código normalizado => fila (solo si es único)
+    $repetidos = array();
+    $referenciadas = array(); // nombres de archivo ya usados por alguna fila
+    foreach ($filas as $f) {
+        $cod = clave_nombre($f['cod']);
+        if ($cod !== '') {
+            if (isset($porCod[$cod])) {
+                $repetidos[$cod] = true;
+            } else {
+                $porCod[$cod] = $f;
+            }
+        }
+        $img = clave_nombre($f['imagen']);
+        if ($img !== '') {
+            $referenciadas[$img] = true;
+        }
+    }
+    foreach (array_keys($repetidos) as $cod) {
+        unset($porCod[$cod]); // código compartido: no se enlaza a ciegas
+    }
+
+    $archivos = array_values(array_diff(scandir($DESTINO), array('.', '..')));
+    $grupos = array();
+    $sinCodigo = 0;
+    foreach ($archivos as $a) {
+        if (extension_de($a) === null) {
+            continue;
+        }
+        if (isset($referenciadas[clave_nombre($a)])) {
+            continue; // el archivo ya lo usa una fila
+        }
+        if (!preg_match('/^(SOVCA-\d+-\d+)/i', $a, $m)) {
+            $sinCodigo++;
+            continue;
+        }
+        $cod = clave_nombre($m[1]);
+        if (!isset($porCod[$cod])) {
+            $sinCodigo++;
+            continue;
+        }
+        $grupos[$cod][] = $a;
+    }
+
+    $enlaces = array();
+    $ambiguos = array();
+    $yaTiene = 0;
+    foreach ($grupos as $cod => $lista) {
+        $f = $porCod[$cod];
+        if (trim((string) $f['imagen']) !== '') {
+            $yaTiene++;
+            continue;
+        }
+        sort($lista);
+        $elegido = null;
+        foreach ($lista as $a) {
+            if (clave_nombre(base_sin_extension($a)) === $cod) {
+                $elegido = $a; // <CODIGO>.<ext>: la variante canónica
+                break;
+            }
+        }
+        if ($elegido === null) {
+            $elegido = $lista[0];
+        }
+        if (count($lista) > 1) {
+            $ambiguos[$elegido] = $lista;
+        }
+        $enlaces[] = array('id' => (int) $f['id'], 'cod' => $f['cod'], 'archivo' => $elegido);
+    }
+
+    echo 'Animales sin foto enlazables: ' . count($enlaces) . "\n";
+    echo "  · con más de un archivo candidato: " . count($ambiguos) . " (se usa el más específico)\n";
+    echo "  · archivo huérfano de un animal que ya tiene foto: {$yaTiene}\n";
+    echo "  · sin animal con ese código: {$sinCodigo}\n\n";
+
+    foreach ($enlaces as $e) {
+        $extra = isset($ambiguos[$e['archivo']])
+            ? '  [otros: ' . implode(', ', array_slice($ambiguos[$e['archivo']], 0, 3)) . ']'
+            : '';
+        echo "  {$e['archivo']}  ->  id {$e['id']} ({$e['cod']}){$extra}\n";
+    }
+
+    if ($APLICAR && $enlaces) {
+        $upd = $pdo->prepare(
+            "UPDATE manimales SET imagen = ?, version = COALESCE(version, 0) + 1, updated = NOW()
+             WHERE id = ? AND (imagen IS NULL OR btrim(imagen) = '')"
+        );
+        $hechos = 0;
+        $pdo->beginTransaction();
+        foreach ($enlaces as $e) {
+            $upd->execute(array($e['archivo'], $e['id']));
+            $hechos += $upd->rowCount();
+        }
+        $pdo->commit();
+        echo "\nActualizadas {$hechos} filas de manimales (imagen + version + updated).\n";
+    } elseif (!$APLICAR) {
+        echo "\n(Simulación: no se escribió nada. Añadí --aplicar para ejecutar.)\n";
+    }
+    exit(0);
+}
 
 if ($ORIGEN === null) {
     echo "\n(No se indicó --origen: solo inventario.)\n";

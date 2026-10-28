@@ -35,6 +35,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     exit;
 }
 
+/* Marca el contexto ANTES de cargar config/conexion.php: ese archivo no
+   inicia sesión PHP cuando corre como API (la PWA se autentica con token). */
+if (!defined('SOVCA_API')) {
+    define('SOVCA_API', true);
+}
+
 require_once '../config/conexion.php';
 
 require_once __DIR__ . '/../lib/ApiResponse.php';

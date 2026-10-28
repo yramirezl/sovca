@@ -2,6 +2,9 @@
 require_once '../php-activerecord/ActiveRecord.php';
 date_default_timezone_set('America/Caracas');
 
+// Configuración única de PostgreSQL (credenciales y nombres de base).
+require_once __DIR__ . '/db.php';
+
 // Configuración del modo demostración (base de pruebas aparte).
 require_once __DIR__ . '/demo.php';
 
@@ -9,7 +12,15 @@ require_once __DIR__ . '/demo.php';
 ActiveRecord\Config::initialize(function($cfg)
 {
     $cfg->set_model_directory('../models/');
-    session_start();
+
+    /* La sesión solo se abre en el flujo web.
+       · /api define SOVCA_API: la PWA usa token, no sesión. Abrir sesión
+         ahí crea un archivo por request y serializa las llamadas
+         concurrentes del mismo cliente por el bloqueo del archivo.
+       · En CLI (cron, migraciones, diagnósticos) la sesión no aporta nada. */
+    if (!defined('SOVCA_API') && PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     $session_demo = isset($_SESSION['demo']) ? $_SESSION['demo'] : 0;  
 
     $accion_solicitada = isset($_POST['action']) ? (string)$_POST['action'] : '';
@@ -56,7 +67,7 @@ ActiveRecord\Config::initialize(function($cfg)
     /* ================================================================
        BASE DE DATOS SEGÚN EL TIPO DE SESIÓN
        ----------------------------------------------------------------
-       · Sesión normal  → base real (sovca_qas).
+       · Sesión normal  → base real (config/db.php → SOVCA_DB_NAME).
        · Sesión demo    → base de pruebas (sovca_demo), que tiene la
                           misma estructura y solo los catálogos.
        El cambio se decide SOLO por $_SESSION['demo'], que únicamente
@@ -64,12 +75,11 @@ ActiveRecord\Config::initialize(function($cfg)
        Si el modo demo está apagado en config/demo.php, una sesión que
        hubiera quedado marcada vuelve a la base real.
        ================================================================ */
-    $cadena_conexion = 'pgsql://postgres:postgres@127.0.0.1/sovca';
+    $cadena_conexion = sovca_db_dsn_ar(SOVCA_DB_NAME);
 
     $es_sesion_demo = ((int)$session_demo === 1) && defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO;
     if ($es_sesion_demo) {
-        $cadena_conexion = 'pgsql://' . SOVCA_DEMO_USUARIO . ':' . SOVCA_DEMO_CLAVE
-            . '@' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . '/' . SOVCA_DEMO_DB;
+        $cadena_conexion = sovca_db_dsn_ar(defined('SOVCA_DB_DEMO_NAME') ? SOVCA_DB_DEMO_NAME : SOVCA_DEMO_DB);
     }
 
     $cfg->set_connections(array('development' => $cadena_conexion)); 

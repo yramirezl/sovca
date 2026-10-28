@@ -1,0 +1,7 @@
+# ============================================================
+# SOVCA | Archivos que no deben subirse al repositorio
+# ============================================================
+
+# Configuración local de la base de datos de cada servidor.
+# En el servidor se crea desde config/db.local.example.php.
+config/db.local.php

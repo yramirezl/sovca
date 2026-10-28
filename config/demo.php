@@ -52,8 +52,9 @@ if (!defined('SOVCA_DEMO_CLAVE')) {
 }
 
 /* Base "origen" que se clona (solo estructura + catálogos). */
+require_once __DIR__ . '/db.php';
 if (!defined('SOVCA_DEMO_DB_ORIGEN')) {
-    define('SOVCA_DEMO_DB_ORIGEN', 'sovca_qas');
+    define('SOVCA_DEMO_DB_ORIGEN', SOVCA_DB_NAME);
 }
 
 /* ---------------------------------------------------------------------
@@ -62,22 +63,22 @@ if (!defined('SOVCA_DEMO_DB_ORIGEN')) {
    La usa el módulo "Importar cuenta demo" del administrador para crear
    la cuenta definitiva y copiar allí los procesos del usuario demo.
    Debe ser la MISMA base que usa config/conexion.php para la sesión
-   normal (por defecto sovca_qas).
+   normal (config/db.php → SOVCA_DB_NAME).
    --------------------------------------------------------------------- */
 if (!defined('SOVCA_OFICIAL_HOST')) {
-    define('SOVCA_OFICIAL_HOST', '127.0.0.1');
+    define('SOVCA_OFICIAL_HOST', SOVCA_DB_HOST);
 }
 if (!defined('SOVCA_OFICIAL_PUERTO')) {
-    define('SOVCA_OFICIAL_PUERTO', '5432');
+    define('SOVCA_OFICIAL_PUERTO', SOVCA_DB_PORT);
 }
 if (!defined('SOVCA_OFICIAL_DB')) {
-    define('SOVCA_OFICIAL_DB', 'sovca_qas');
+    define('SOVCA_OFICIAL_DB', SOVCA_DB_NAME);
 }
 if (!defined('SOVCA_OFICIAL_USUARIO')) {
-    define('SOVCA_OFICIAL_USUARIO', 'postgres');
+    define('SOVCA_OFICIAL_USUARIO', SOVCA_DB_USER);
 }
 if (!defined('SOVCA_OFICIAL_CLAVE')) {
-    define('SOVCA_OFICIAL_CLAVE', 'postgres');
+    define('SOVCA_OFICIAL_CLAVE', SOVCA_DB_PASS);
 }
 
 /* ---------------------------------------------------------------------
