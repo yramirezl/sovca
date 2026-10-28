@@ -19,7 +19,14 @@ date_default_timezone_set('America/Caracas');
 @$record = ($_POST['record']);
 // recientes
 @$rena = ($_POST['rena']);
-@$lote = ($_POST['lote']);
+/* manimales.mlotes_id es integer NOT NULL (0 = sin lote). Si el usuario no
+   elige lote el select manda '' y PostgreSQL rechaza el INSERT con
+   "invalid input syntax for type integer", que el front mostraba como
+   "el servidor no respondió". Es el caso de los donadores, que a veces no
+   están en ningún lote. */
+@$lote = (isset($_POST['lote']) && $_POST['lote'] !== '' && (int) $_POST['lote'] > 0)
+    ? (int) $_POST['lote']
+    : 0;
 @$alza = ($_POST['alza']);
 //
 @$nombre_animal = strtoupper($_POST['nombre_animal']);
@@ -591,7 +598,23 @@ switch ($action) {
 
                 $reg_animal->created = $hoy;
 
-                if ($reg_animal->save()) {
+                $bovs_guardado = false;
+                try {
+                    $bovs_guardado = (bool) $reg_animal->save();
+                } catch (Throwable $e) {
+                    /* Sin esto cualquier dato incompatible con el esquema
+                       devolvía un 500 y el front solo decía "el servidor no
+                       respondió". Mejor decir qué pasó. */
+                    echo '<div class="alert alert-danger alert-dismissable">
+                        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+                        <input type="hidden" id="tocon" value="0">
+                        <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
+                        No se pudo guardar el animal: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '
+                      </div>';
+                    break;
+                }
+
+                if ($bovs_guardado) {
                     // da el mensaje de guardado...
 
                     // Imagen: se guarda una vez creado el animal, nombrada con su código

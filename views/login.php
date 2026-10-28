@@ -1857,7 +1857,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               progressText.textContent = 'Registrando el instalador offline...';
 
               if ('serviceWorker' in navigator) {
-                await navigator.serviceWorker.register('../app_offline/service-worker.js', { scope: '/app_offline/' });
+                await navigator.serviceWorker.register('../app_offline/service-worker.js', { scope: '../app_offline/' });
                 progressBar.style.width = '55%';
                 progressText.textContent = 'Descargando la app (cacheando shell)...';
                 await fetch('../app_offline/index.html').catch(function () { });
@@ -1917,7 +1917,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         try {
           var reg = await navigator.serviceWorker.register(
             '../app_offline/service-worker.js',
-            { scope: '/app_offline/' }
+            { scope: '../app_offline/' }
           );
           if (reg.active || reg.waiting || reg.installing) {
             fetch('../app_offline/index.html').catch(function () { });

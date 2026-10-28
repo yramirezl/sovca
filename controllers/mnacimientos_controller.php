@@ -28,13 +28,21 @@ date_default_timezone_set('America/Caracas');
 @$aptitud_animal = ($_POST["aptitud_animal"]);
 
 @$fecha_parto = ($_POST["fecha_parto"]);
-@$nro_parto = ($_POST["nro_parto"]);
+/* nro_parto y proposito son smallint NOT NULL. Si el campo llega vacío, el
+   cast del ORM revienta con TypeError ("Unsupported operand types: string +
+   int") dentro de Column::castIntegerSafely; el navegador recibe un 500 y no
+   muestra ningún mensaje. Se normalizan aquí. */
+@$nro_parto = (isset($_POST["nro_parto"]) && (int) $_POST["nro_parto"] > 0)
+    ? (int) $_POST["nro_parto"]
+    : 0;
 @$nacio = ($_POST["nacio"]);
 @$peso_nacer = ($_POST["peso_nacer"]);
 @$fecha_secado = ($_POST["fecha_secado"]);
 @$observaciones = ($_POST["observaciones"]);
 @$sexo = ($_POST["sexo"]);
-@$proposito = ($_POST["proposito"]);
+@$proposito = (isset($_POST["proposito"]) && (int) $_POST["proposito"] > 0)
+    ? (int) $_POST["proposito"]
+    : 0;
 
 // La pregunta "¿Entrará a producción de leche?" ya no existe en el
 // formulario: el PROPÓSITO (1 = Lactancia, 2 = Producción de leche) es
@@ -1629,8 +1637,24 @@ switch ($action) {
           $reg_nac->codigo_rgb_id_animal_hembra = $cod_animal_h;
           $reg_nac->codigo_rgb_id_animal_macho = $cod_animal_m;
           if ($tipo_servicio != 1) $reg_nac->codigo_rgb_id_animal_dona = $cod_animal_dona;
+        } else {
+          /* Sin servicio gestante el vínculo debe quedar en NULL. Si no se
+             asigna, el INSERT lo omite y PostgreSQL aplica el DEFAULT de la
+             columna: si ese default fuera 0, la FK
+             mregnacimientos_mregservicios_id_fkey rechaza el parto porque 0
+             no existe en mregservicios. */
+          $reg_nac->mregservicios_id = null;
         }
-        if ($reg_nac->save()) {
+
+        $sovca_nac_ok  = false;
+        $sovca_nac_err = '';
+        try {
+          $sovca_nac_ok = (bool) $reg_nac->save();
+        } catch (Throwable $e) {
+          $sovca_nac_err = $e->getMessage();
+        }
+
+        if ($sovca_nac_ok) {
           $detalle_guardado = true;
           foreach ($terneros as $indice => $ternero) {
             $reg_ternero = new Mterneroxnacimiento();
@@ -1653,7 +1677,8 @@ switch ($action) {
 
           if (!$detalle_guardado) {
             $conexion->rollback();
-            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudieron guardar los datos de todos los terneros. No se registró el parto.</div>');
+            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudieron guardar los datos de todos los terneros. No se registró el parto.'
+              . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars($sovca_nac_err, ENT_QUOTES, 'UTF-8') . '</small>' : '') . '</div>');
           } else {
             $reg_nac_fundo = new Mnacimientoxfundo();
             $reg_nac_fundo->mregnacimientos_id = (int)$reg_nac->id;
@@ -1711,8 +1736,9 @@ switch ($action) {
           <i class="icon fa fa-ban"></i>
           Alerta!
           </h4>
-          Error al registrar los datos.
-          </div>');
+          Error al registrar los datos.'
+          . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars($sovca_nac_err, ENT_QUOTES, 'UTF-8') . '</small>' : '')
+          . '</div>');
         }
         // echo json_encode($respuesta);
       }
@@ -1857,7 +1883,15 @@ switch ($action) {
         $reg_nac->updated = $hoy;
 
 
-        if ($reg_nac->save()) { // da el mensaje de guardado...
+        $sovca_nac_ok  = false;
+        $sovca_nac_err = '';
+        try {
+          $sovca_nac_ok = (bool) $reg_nac->save();
+        } catch (Throwable $e) {
+          $sovca_nac_err = $e->getMessage();
+        }
+
+        if ($sovca_nac_ok) { // da el mensaje de guardado...
 
           /* ============================================================
              CRÍAS DEL PARTO (MELLIZOS)
@@ -1986,8 +2020,9 @@ switch ($action) {
               <i class="icon fa fa-ban"></i>
               Alerta!
               </h4>
-              Error al registrar los datos.
-              </div>');
+              Error al registrar los datos.'
+              . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars($sovca_nac_err, ENT_QUOTES, 'UTF-8') . '</small>' : '')
+              . '</div>');
         }
 
 

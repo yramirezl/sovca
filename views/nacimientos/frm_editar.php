@@ -1249,8 +1249,18 @@ $('#save').click(function() {
                         ? JSON.stringify(obtenerCriasEdicion())
                         : ''
                 }).done(function(data) {
-                    var parsedJson = $.parseJSON(data);
-                    $(".message").html(parsedJson.mensaje);
+                    /* Parseo tolerante: un error fatal de PHP (HTML) no debe
+                       dejar la pantalla sin mensaje. */
+                    var parsedJson;
+                    try {
+                        parsedJson = (typeof data === 'string') ? $.parseJSON(data) : data;
+                    } catch (e) {
+                        $(".message").html('<div class="alert alert-danger">El servidor no devolvió una respuesta válida.' +
+                            '<br><small>Detalle: ' + String(data).substring(0, 300) + '</small></div>');
+                        return;
+                    }
+                    parsedJson = parsedJson || {};
+                    $(".message").html(parsedJson.mensaje || '');
                     switch (parsedJson.deslizador) {
                         case "1":
                             $('.base').unslider('animate:0'); tick = 0;
@@ -1271,7 +1281,11 @@ $('#save').click(function() {
                         $('.base').unslider('animate:0');
                         setTimeout(function() { $(location).attr('href', './'); }, 3000);
                     }
-                }, "json");
+                }, "json").fail(function(xhr) {
+                    $(".message").html('<div class="alert alert-danger">Error de comunicación con el servidor (HTTP ' +
+                        xhr.status + ').<br><small>Detalle: ' +
+                        String(xhr.responseText || '').substring(0, 300) + '</small></div>');
+                });
             },
             cancel: function() {}
         });

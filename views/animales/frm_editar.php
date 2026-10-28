@@ -556,7 +556,8 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
     $.post("../../controllers/mlotes_controller", {
         action: "get_lote"
     }).done(function (data) {
-        $("#lote").html(data);
+        /* El lote es opcional: "Sin lote" (0) es una respuesta válida. */
+        $("#lote").html('<option value="0">Sin lote</option>' + data);
 
     });
     $.post("../../controllers/maptitudes_controller", {

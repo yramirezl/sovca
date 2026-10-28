@@ -505,7 +505,11 @@ require_once '../../lib/estatus_animal_helper.php';
                 <div class="crud-form__card-body">
 
                     <div class="crud-form__field">
-                        <label for="lote">Lote *</label>
+                        <label for="lote">Lote
+                            <a data-toggle="tooltip" title="Un animal puede no estar en ningún lote: los donadores, por ejemplo. En ese caso déjelo en «Sin lote».">
+                                <i class="fa fa-question-circle" style="color:#9aa7b2;font-size:12px;"></i>
+                            </a>
+                        </label>
                         <select name="lote" id="lote" class="form-control bbb" tabindex="2">
                             <option></option>
                         </select>
@@ -652,7 +656,9 @@ $.post("../../controllers/mrazas_controller", {
 $.post("../../controllers/mlotes_controller", {
     action: "get_lote"
 }).done(function(data) {
-    $("#lote").html(data);
+    /* El lote es opcional: "Sin lote" (0) es una respuesta válida.
+       manimales.mlotes_id admite 0 y el controlador lo normaliza. */
+    $("#lote").html('<option value="0">Sin lote</option>' + data);
 });
 $.post("../../controllers/maptitudes_controller", {
     action: "get_aptitud"
