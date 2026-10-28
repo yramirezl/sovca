@@ -81,13 +81,34 @@ ls /var/www/html/sovca.nuevo/dist/img/fotos_animales | head -3
 ```bash
 cd /var/www/html/sovca.nuevo
 
-CLAVE_APP=$(openssl rand -base64 24)
-mkdir -p "$BK" && printf '%s\n' "$CLAVE_APP" > "$BK/sovca_app.txt"
+# Variables del paso 1 (si abriste otra terminal, redefinilas)
+BK=$(ls -d /root/sovca-* | tail -1)
+echo "Respaldo: $BK"
+
+# Clave en hexadecimal: sin '/', '+', '=' ni comillas, para que se pueda pegar
+# en psql, en config/db.local.php y en cualquier script sin escaparla.
+CLAVE_APP=$(openssl rand -hex 24)
+printf '%s\n' "$CLAVE_APP" > "$BK/sovca_app.txt"
 chmod 600 "$BK/sovca_app.txt"
 echo "Clave de sovca_app: $CLAVE_APP"
 
 SOVCA_APP_PASS="$CLAVE_APP" bash scripts/crear_usuario_sovca_app.sh
 ```
+
+Salida esperada:
+
+```
+· Verificando rol sovca_app...
+  no existe: se crea
+· Aplicando permisos en sovca
+GRANT
+GRANT
+...
+Listo. Rol sovca_app creado/actualizado.
+```
+
+Si en lugar de eso dice `· sovca no existe: se omite`, el script está
+apuntando a otro PostgreSQL: revisá `PGHOST`, `PGPORT` y `PGADMIN`.
 
 El script hace lo mismo que se hizo con `bovs_app`:
 
@@ -105,6 +126,16 @@ Verificación directa al `5432` (sin PgBouncer todavía):
 PGPASSWORD="$CLAVE_APP" psql -h 127.0.0.1 -p 5432 -U sovca_app -d sovca \
     -c "SELECT current_user, count(*) AS animales FROM manimales;"
 ```
+
+Esperado: `sovca_app | 216` (o el total real de animales).
+
+Si responde `password authentication failed`, la clave no llegó al script:
+comprobá que `SOVCA_APP_PASS` no esté vacía y volvé a ejecutarlo (es
+idempotente, actualiza la clave del rol).
+
+Si responde `permission denied for table manimales`, ejecutá de nuevo
+`scripts/crear_usuario_sovca_app.sh`: ese error significa que el rol se creó
+pero los `GRANT` no se aplicaron.
 
 ---
 
