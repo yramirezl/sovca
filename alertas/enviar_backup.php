@@ -14,17 +14,10 @@ class Enviar_Correo{
      $mensaje='Fue Enviado el Respaldo de la Base de Datos de Manera exitosa'.'<br><br> <br>';
 
     $mail = new PHPMailer();
-    $mail->IsSMTP(); // telling the class to use SMTP
-    $mail->Host          = "mail.ruted.net";
-    $mail->SMTPSecure = 'ssl';
-    $mail->SMTPAuth      = true;                  // enable SMTP authentication
-    //$mail->SMTPKeepAlive = true;                  // SMTP connection will not close after each email sent           
-    $mail->Port          = 465;                    // set the SMTP port for the GMAIL server
-    $mail->Username      = 'global@ruted.net'; //$remitente; // SMTP account username
-    $mail->Password      = 'Null'; //$clave_email;        // SMTP account password
+    // Servidor, remitente y clave salen de config/mail.php
+    // (o de la variable de entorno SOVCA_SMTP_PASS). No repetir aquí.
+    bovs_mail_configurar_phpmailer($mail);
     $mail->AddAttachment($Path_db,$archivo_db);
-    $mail->SetFrom('global@ruted.net', 'SOVCA · Gestión Ovina y Caprina');
-    $mail->AddReplyTo('global@ruted.net', 'SOVCA · Soporte');
     if (function_exists('bovs_mail_cabeceras')) {
       bovs_mail_cabeceras($mail, 'notificacion');
     }

@@ -196,15 +196,9 @@ class Enviar_Correo
   function enviar_inactividad($correo, $datos)
   {
     $mail = new PHPMailer();
-    $mail->IsSMTP();
-    $mail->Host          = "mail.ruted.net";
-    $mail->SMTPSecure    = 'ssl';
-    $mail->SMTPAuth      = true;
-    $mail->Port          = 465;
-    $mail->Username      = 'global@ruted.net';
-    $mail->Password      = ''; // $clave_email; // colocar la clave al desplegar
-    $mail->SetFrom('global@ruted.net', 'SOVCA · Gestión Ovina y Caprina');
-    $mail->AddReplyTo('global@ruted.net', 'SOVCA · Soporte');
+    // Servidor, remitente y clave salen de config/mail.php
+    // (o de la variable de entorno SOVCA_SMTP_PASS). No repetir aquí.
+    bovs_mail_configurar_phpmailer($mail);
     $mail->CharSet       = 'UTF-8';
 
     if (function_exists('bovs_mail_cabeceras')) {
@@ -261,15 +255,9 @@ class Enviar_Correo
     }
 
     $mail = new PHPMailer();
-    $mail->IsSMTP();
-    $mail->Host          = "mail.ruted.net";
-    $mail->SMTPSecure    = 'ssl';
-    $mail->SMTPAuth      = true;
-    $mail->Port          = 465;
-    $mail->Username      = 'global@ruted.net';
-    $mail->Password      = ''; // $clave_email; // colocar la clave al desplegar
-    $mail->SetFrom('global@ruted.net', 'SOVCA · Gestión Ovina y Caprina');
-    $mail->AddReplyTo('global@ruted.net', 'SOVCA · Soporte');
+    // Servidor, remitente y clave salen de config/mail.php
+    // (o de la variable de entorno SOVCA_SMTP_PASS). No repetir aquí.
+    bovs_mail_configurar_phpmailer($mail);
     $mail->CharSet       = 'UTF-8';
     if (function_exists('bovs_mail_cabeceras')) {
       bovs_mail_cabeceras($mail, 'notificacion');

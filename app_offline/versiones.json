@@ -1,6 +1,15 @@
 {
-  "actual": "4.44",
+  "actual": "4.45",
   "versiones": [
+    {
+      "version": "4.45",
+      "fecha": "2026-10-28",
+      "notas": [
+        "Icono propio en la pantalla de inicio: la cabeza de carnero del logo de SOVCA.",
+        "El navegador ofrece instalar la app al abrir el login desde el móvil.",
+        "Los correos del sistema se envian con la configuracion unica del servidor."
+      ]
+    },
     {
       "version": "4.44",
       "fecha": "2026-10-25",

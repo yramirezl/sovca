@@ -43,6 +43,22 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
   <title><?php echo $constante["titulo_pag"] ?? 'SOVCA'; ?></title>
   <meta content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" name="viewport">
 
+  <!-- ============================================================
+       INSTALACIÓN COMO APLICACIÓN (PWA)
+       Permite que en el móvil el navegador ofrezca "Instalar app"
+       y que, desde ese momento, se abra desde un ícono y no desde
+       la URL. El manifest se genera en ../manifest.php
+       ============================================================ -->
+  <link rel="manifest" href="../manifest.php">
+  <link rel="icon" type="image/png" sizes="192x192" href="../app_offline/icons/icon-192.png">
+  <meta name="theme-color" content="#006532">
+  <meta name="application-name" content="SOVCA">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SOVCA">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="../app_offline/icons/apple-touch-icon.png">
+
   <link href="../bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
   <link href="../dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
   <link href="../plugins/iCheck/square/blue.css" rel="stylesheet" type="text/css" />

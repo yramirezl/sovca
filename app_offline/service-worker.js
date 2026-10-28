@@ -5,7 +5,7 @@
 // (../api/...) NUNCA se cachean aquí — esas las gestiona sync.js contra
 // IndexedDB, que es donde vive la verdad de los datos offline.
 
-const VERSION_CACHE = 'sovca-shell-v2'; // v1: primera versión SOVCA
+const VERSION_CACHE = 'sovca-shell-v3'; // v3: iconos propios de SOVCA (carnero)
 
 const ARCHIVOS_SHELL = [
   './',
@@ -39,6 +39,9 @@ const ARCHIVOS_SHELL = [
   './js/app.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (evento) => {

@@ -77,6 +77,54 @@ if (!function_exists('bovs_mail_config')) {
     }
 }
 
+if (!function_exists('bovs_mail_configurar_phpmailer')) {
+    /**
+     * Aplica la configuración común del correo a una instancia de PHPMailer.
+     *
+     * Existe para que los envíos de alertas/ (alertas, backup, inactividad,
+     * promociones) NO repitan servidor, usuario ni contraseña en cada
+     * archivo. La clave del buzón vive en un solo sitio —config/mail.php o
+     * la variable de entorno SOVCA_SMTP_PASS— y esos archivos pueden
+     * actualizarse desde el repositorio sin conflictos.
+     *
+     * @param  PHPMailer $mail Instancia ya creada con new PHPMailer()
+     * @return array           Configuración aplicada
+     */
+    function bovs_mail_configurar_phpmailer($mail)
+    {
+        $cfg = bovs_mail_config();
+
+        if (!is_object($mail)) {
+            return $cfg;
+        }
+
+        $mail->IsSMTP();
+        $mail->Host       = $cfg['host'];
+        $mail->Port       = (int) $cfg['port'];
+        $mail->SMTPSecure = $cfg['secure'];
+        $mail->SMTPAuth   = true;
+
+        $mail->Username = $cfg['username'];
+        $mail->Password = $cfg['password'];
+
+        /* OJO CON EL ORDEN: SetFrom() de este PHPMailer agrega el remitente
+           como Reply-To si la lista está vacía. Por eso el Reply-To se define
+           ANTES, para que se respete el nombre configurado. */
+        if (!empty($cfg['reply_to']) && method_exists($mail, 'AddReplyTo')) {
+            $mail->AddReplyTo($cfg['reply_to'], $cfg['reply_to_name']);
+        }
+
+        if (method_exists($mail, 'SetFrom')) {
+            $mail->SetFrom($cfg['from_email'], $cfg['from_name']);
+        } else {
+            $mail->From     = $cfg['from_email'];
+            $mail->FromName = $cfg['from_name'];
+        }
+
+        return $cfg;
+    }
+}
+
 if (!function_exists('bovs_url_base')) {
     /**
      * Dirección pública del sistema SIN barra final.
@@ -188,7 +236,7 @@ if (!function_exists('bovs_mail_plantilla')) {
           <tr>
             <td style="background:#234e35;padding:24px 30px;text-align:center;color:#ffffff;">
               <div style="font-size:19px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SOVCA</div>
-              <div style="font-size:11.5px;opacity:.9;margin-top:5px;letter-spacing:1px;text-transform:uppercase;">Gestión Ovina y Caprina</div>
+              <div style="font-size:11.5px;opacity:.9;margin-top:5px;letter-spacing:1px;text-transform:uppercase;">Gestión Ganadera</div>
             </td>
           </tr>
           <tr>
@@ -221,7 +269,6 @@ if (!function_exists('bovs_mail_cabeceras')) {
      *   · Sender / Return-Path alineado con el dominio del From (SPF)
      *   · Hostname del dominio remitente (HELO y Message-ID)
      *   · Message-ID propio con dominio real
-     *   · X-Mailer neutro (no la versión vieja de PHPMailer)
      *   · Auto-Submitted / X-Auto-Response-Suppress (correo automático)
      *   · List-Unsubscribe para que exista una vía de baja
      *
@@ -362,7 +409,7 @@ if (!function_exists('bovs_mail_enviar')) {
             }
             $mail->AddAddress($para);
 
-            // SPF, Message-ID, HELO, X-Mailer y vía de baja
+            // SPF, Message-ID, HELO y vía de baja
             bovs_mail_cabeceras($mail, $tipo);
 
             // Firma DKIM si se dispone de la clave privada del dominio.
