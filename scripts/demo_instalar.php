@@ -102,12 +102,14 @@ function demo_ejecutar($comando, &$salida = null)
 }
 
 /* ---------------------------------------------------------------------
-   CONEXIÓN ADMINISTRATIVA (base "postgres")
+   CONEXIÓN ADMINISTRATIVA
    ---------------------------------------------------------------------
-   Crear la base y restaurar el volcado necesita un rol con CREATEDB;
-   la aplicación NO lo tiene. Se usan SOVCA_DEMO_ADMIN_* y nunca las
-   credenciales de ejecución (SOVCA_DEMO_USUARIO), que son las que
-   utiliza la sesión demo del sitio.
+   Conectarse a la base "postgres" solo hace falta para CREAR o BORRAR
+   sovca_demo, y para eso el rol necesita CREATEDB (la aplicación no lo
+   tiene). Si esa conexión falla, el instalador NO se detiene: lo normal
+   es que la base demo ya exista (creada una vez con
+   `sudo -u postgres createdb -O sovca_app ...`) y todo lo demás se hace
+   dentro de ella con el rol de la aplicación.
    --------------------------------------------------------------------- */
 $adminUsuario = SOVCA_DEMO_ADMIN_USUARIO;
 $adminClave   = SOVCA_DEMO_ADMIN_CLAVE;
@@ -123,26 +125,7 @@ function demo_dsn_admin($base)
         . ';dbname=' . $base;
 }
 
-try {
-    $pdoAdmin = new PDO(
-        demo_dsn_admin('postgres'),
-        $adminUsuario,
-        $adminClave,
-        array(
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        )
-    );
-} catch (Throwable $e) {
-    demo_error('No se pudo conectar al servidor PostgreSQL (' . $adminHost . ':' . $adminPuerto . ') como ' . $adminUsuario . ': ' . $e->getMessage());
-    demo_error('Define SOVCA_DEMO_ADMIN_USUARIO / SOVCA_DEMO_ADMIN_CLAVE en config/db.local.php con un rol que pueda crear bases de datos.');
-    exit(1);
-}
-
-/* Conexión a la base DEMO con el mismo rol administrador: es la que
-   crea las tablas del demo (demo_registros, demo_verificaciones). Los
-   permisos para el rol de la aplicación se conceden al final. */
-function demo_pdo_destino($base)
+function demo_pdo_admin($base)
 {
     return new PDO(
         demo_dsn_admin($base),
@@ -155,6 +138,35 @@ function demo_pdo_destino($base)
     );
 }
 
+/* ¿Se puede abrir esa base? Permite saber si la demo ya existe sin
+   necesitar permiso para consultar el catálogo de bases. */
+function demo_bd_conecta($base)
+{
+    try {
+        demo_pdo_admin($base)->query('SELECT 1');
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+$pdoAdmin    = null;
+$errorAdmin  = '';
+$puedeCrear  = false;
+$esSuper     = false;
+
+try {
+    $pdoAdmin = demo_pdo_admin('postgres');
+    $capacidades = $pdoAdmin
+        ->query('SELECT rolcreatedb, rolsuper FROM pg_roles WHERE rolname = current_user')
+        ->fetch();
+    $puedeCrear = (bool) ($capacidades && ($capacidades['rolcreatedb'] || $capacidades['rolsuper']));
+    $esSuper    = (bool) ($capacidades && $capacidades['rolsuper']);
+} catch (Throwable $e) {
+    $errorAdmin = $e->getMessage();
+    $pdoAdmin   = null;
+}
+
 function demo_bd_existe(PDO $pdo, $nombre)
 {
     $st = $pdo->prepare('SELECT 1 FROM pg_database WHERE datname = ?');
@@ -162,11 +174,22 @@ function demo_bd_existe(PDO $pdo, $nombre)
     return (bool) $st->fetchColumn();
 }
 
+/* Instrucción exacta para cuando la base no existe y el rol no puede
+   crearla. Es el único paso que necesita superusuario y se hace UNA vez. */
+function demo_ayuda_crear($destino)
+{
+    demo_error('Crea la base una sola vez como superusuario:');
+    demo_error('  sudo -u postgres createdb -O ' . SOVCA_DEMO_USUARIO
+        . ' -E UTF8 --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 -T template0 ' . $destino);
+    demo_error('y vuelve a ejecutar este instalador (ya no pedirá nada más).');
+}
+
 /* ---------------------------------------------------------------------
    MODO --purgar
    --------------------------------------------------------------------- */
 if ($purgar) {
-    if (!demo_bd_existe($pdoAdmin, $destino)) {
+    $hayDestino = $pdoAdmin ? demo_bd_existe($pdoAdmin, $destino) : demo_bd_conecta($destino);
+    if (!$hayDestino) {
         demo_error('La base ' . $destino . ' no existe. Ejecuta primero el instalador.');
         exit(1);
     }
@@ -198,14 +221,19 @@ $cmdDump = 'PGPASSWORD=' . escapeshellarg($adminClave) . ' ' . escapeshellarg($p
 /* ---------------------------------------------------------------------
    PASO 1 — BASE DESTINO
    --------------------------------------------------------------------- */
-if (!demo_bd_existe($pdoAdmin, $origen)) {
+if ($pdoAdmin && !demo_bd_existe($pdoAdmin, $origen)) {
     demo_error('La base de origen "' . $origen . '" no existe en el servidor.');
     exit(1);
 }
 
-$existeDestino = demo_bd_existe($pdoAdmin, $destino);
+$existeDestino = $pdoAdmin ? demo_bd_existe($pdoAdmin, $destino) : demo_bd_conecta($destino);
 
 if ($existeDestino && $recrear) {
+    if (!$puedeCrear) {
+        demo_error('Para --recrear hace falta un rol con CREATEDB. Bórrala a mano:');
+        demo_error('  sudo -u postgres dropdb ' . $destino);
+        exit(1);
+    }
     demo_salida('· Eliminando la base ' . $destino . ' (--recrear)...');
     try {
         $pdoAdmin->exec('DROP DATABASE IF EXISTS ' . demo_id_sql($destino) . ' WITH (FORCE)');
@@ -218,6 +246,15 @@ if ($existeDestino && $recrear) {
 }
 
 if (!$existeDestino) {
+    if (!$pdoAdmin || !$puedeCrear) {
+        demo_error('La base ' . $destino . ' no existe y el rol ' . $adminUsuario . ' no puede crearla.');
+        if ($errorAdmin !== '') {
+            demo_error('(Conexión a "postgres": ' . $errorAdmin . ')');
+        }
+        demo_ayuda_crear($destino);
+        exit(1);
+    }
+
     /* La demo debe heredar la COLACIÓN del origen, NO la del clúster:
        en Ubuntu 24.04 el clúster nace en C.UTF-8 y entonces los
        ORDER BY con acentos/ñ cambian respecto a la base real. */
@@ -246,7 +283,7 @@ if (!$existeDestino) {
 }
 
 try {
-    $pdoDestino = demo_pdo_destino($destino);
+    $pdoDestino = demo_pdo_admin($destino);
 } catch (Throwable $e) {
     demo_error('No se pudo abrir la base ' . $destino . ': ' . $e->getMessage());
     exit(1);
@@ -345,9 +382,14 @@ if (!$sinCatalgos) {
         $filtros .= ' -t ' . escapeshellarg($tabla);
     }
 
+    /* --disable-triggers exige superusuario. Se pide solo cuando el rol lo
+       es: con el rol de la aplicación la carga funciona igual, porque los
+       catálogos apenas tienen una FK real entre ellos. */
+    $flagsTriggers = $esSuper ? ' --disable-triggers' : '';
+
     $codigo = demo_ejecutar(
         $cmdDump . ' -d ' . escapeshellarg($origen)
-        . ' --data-only --no-owner --no-privileges --disable-triggers'
+        . ' --data-only --no-owner --no-privileges' . $flagsTriggers
         . $filtros
         . ' -f ' . escapeshellarg($tmpDatos),
         $salida
@@ -359,8 +401,6 @@ if (!$sinCatalgos) {
         exit(1);
     }
 
-    /* --disable-triggers necesita superusuario; si no lo es, se reintenta
-       el restore sin esa opción (los catálogos solo tienen una FK real). */
     $codigo = demo_ejecutar(
         $cmdPsql . ' -d ' . escapeshellarg($destino)
         . ' -v ON_ERROR_STOP=1 -q -f ' . escapeshellarg($tmpDatos),

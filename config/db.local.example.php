@@ -55,17 +55,19 @@ if (!defined('SOVCA_DB_PASS')) {
    La SESIÓN demo usa el rol de la aplicación (SOVCA_DB_USER, o sea
    sovca_app): ese rol solo puede leer y escribir, nunca crear bases.
 
-   La INSTALACIÓN de sovca_demo (php scripts/demo_instalar.php) sí
-   necesita un rol con CREATEDB. Se configura aquí, no en el código:
+   Crea la base una sola vez como superusuario y déjala a nombre de
+   sovca_app; el instalador ya no pide nada más:
+
+       sudo -u postgres createdb -O sovca_app -E UTF8 \
+            --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 \
+            -T template0 sovca_demo
+
+   Solo si querés que el instalador cree/borre la base por su cuenta
+   (o uses --recrear) hay que darle un rol con CREATEDB. La
+   administración va directo a PostgreSQL (5432), nunca por PgBouncer:
 
        define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
        define('SOVCA_DEMO_ADMIN_CLAVE', 'la-clave-de-postgres');
-
-   La administración va directo a PostgreSQL (puerto 5432 por defecto),
-   aunque SOVCA_DB_PORT sea 6432 por PgBouncer: el pooler no puede crear
-   bases. Si PostgreSQL escucha en otro puerto:
-
-       define('SOVCA_DEMO_ADMIN_PUERTO', '5433');
 
    Para apagar la demostración:
 

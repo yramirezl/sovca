@@ -22,9 +22,16 @@
  *
  * La sesión demo trabaja con el ROL DE LA APLICACIÓN (config/db.php →
  * SOVCA_DB_USER), igual que en BOVS: ese rol solo tiene permisos sobre
- * sovca y sovca_demo. Crear o borrar la base, en cambio, exige un rol
- * con CREATEDB, y por eso el instalador usa SOVCA_DEMO_ADMIN_*, que se
- * configura en el servidor desde config/db.local.php.
+ * sovca y sovca_demo. La base se crea UNA sola vez como superusuario y
+ * queda a nombre de ese rol:
+ *
+ *     sudo -u postgres createdb -O sovca_app -E UTF8 \
+ *          --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 \
+ *          -T template0 sovca_demo
+ *
+ * Con eso el instalador no necesita ninguna clave de administración.
+ * Las constantes SOVCA_DEMO_ADMIN_* de más abajo son opcionales y solo
+ * sirven para crear o borrar la base desde el propio instalador.
  *
  * Para apagar la demostración basta con SOVCA_DEMO_ACTIVO = false: el
  * botón desaparece del login y las sesiones demo dejan de resolverse
@@ -72,12 +79,12 @@ if (!defined('SOVCA_DEMO_CLAVE')) {
 }
 
 /* ---------------------------------------------------------------------
-   CREDENCIALES DE INSTALACIÓN (solo scripts/demo_instalar.php)
+   CREDENCIALES DE INSTALACIÓN (opcionales, solo scripts/demo_instalar.php)
    ---------------------------------------------------------------------
-   Crear la base, clonar la estructura y restaurar el volcado exige un
-   rol con CREATEDB (o superusuario), privilegio que la aplicación NO
-   debe tener. Por defecto se usan las credenciales de ejecución; en el
-   servidor se ponen las del administrador en config/db.local.php:
+   Normalmente NO hacen falta: si la base ya existe (creada con
+   `createdb -O sovca_app`) el instalador hace todo con el rol de la
+   aplicación. Solo se usan para que el propio instalador pueda CREAR o
+   BORRAR la base, y para eso el rol necesita CREATEDB:
 
        define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
        define('SOVCA_DEMO_ADMIN_CLAVE', '...');

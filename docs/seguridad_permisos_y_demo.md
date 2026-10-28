@@ -200,49 +200,52 @@ Si preferís tocarlo en el archivo versionado, es la misma línea en
 
 ## B) Usarla
 
-El instalador necesita **dos roles distintos**, y eso se configura en
-`config/db.local.php` (archivo no versionado que `config/demo.php` carga antes
-de definir sus constantes):
-
-| Uso | Constante | Rol típico |
-|---|---|---|
-| Sesión demo del sitio | `SOVCA_DEMO_USUARIO` / `SOVCA_DEMO_CLAVE` (salen de `config/db.php`) | `sovca_app` |
-| Crear la base y restaurar el volcado | `SOVCA_DEMO_ADMIN_USUARIO` / `SOVCA_DEMO_ADMIN_CLAVE` | `postgres` (o cualquier rol con `CREATEDB`) |
-
-La administración va **directo a PostgreSQL** (`SOVCA_DEMO_ADMIN_PUERTO`, 5432
-por defecto), no por PgBouncer: el pooler no puede crear bases y su
-`[databases]` no incluye `postgres`. Aunque `SOVCA_DB_PORT` sea 6432, el
-instalador usa 5432 salvo que cambies esa constante.
-
-La aplicación nunca usa las credenciales de administración: solo las lee el
-instalador, que las necesita para `CREATE DATABASE`, `pg_dump` y `psql`. Si no
-las defines, el instalador usa las de ejecución y fallará con
-`permission denied to create database`.
+La base `sovca_demo` se crea **una sola vez** como superusuario y a partir de
+ahí **todo se hace con el rol de la aplicación** (`sovca_app`), que queda como
+dueño. Así la clave de `postgres` no se guarda en ningún archivo y el
+instalador no necesita privilegios especiales.
 
 ```bash
 cd /var/www/html/sovca
 
-# 1) Credenciales de instalación (una sola vez en el servidor)
-cat >> config/db.local.php <<'EOF'
-define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
-define('SOVCA_DEMO_ADMIN_CLAVE', 'LA-CLAVE-DE-POSTGRES');
-EOF
-php -l config/db.local.php
+# 1) Crear la base (único paso que necesita superusuario).
+#    -O sovca_app la deja a nombre del rol de la aplicación, y por eso el
+#    instalador puede restaurar la estructura, los catálogos y las secuencias
+#    sin pedir nada más. La colación se fija a mano: si el clúster nació en
+#    C.UTF-8 los ORDER BY con acentos/ñ cambian respecto a la base real.
+sudo -u postgres createdb -O sovca_app -E UTF8 \
+     --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8 -T template0 sovca_demo
 
-# 2) Crear la base. Como root y sin 'sudo -u postgres php': con los permisos
-#    750 root:www-data el usuario del sistema 'postgres' no puede leer el
-#    código y PHP responde "Could not open input file". Las credenciales de la
-#    base vienen de config/db.local.php, no del usuario del sistema.
-php /var/www/html/sovca/scripts/demo_instalar.php
+# 2) Copiar estructura + catálogos. Como root, sin 'sudo -u postgres php':
+#    con los permisos 750 root:www-data el usuario del sistema 'postgres' no
+#    puede leer el código y PHP responde "Could not open input file".
+php scripts/demo_instalar.php
 ```
 
 > `Could not open input file: scripts/demo_instalar.php` significa que el
 > comando se lanzó desde otra carpeta. Usá siempre la ruta absoluta o hacé
 > `cd /var/www/html/sovca` primero.
 
-El instalador ya concede al rol de la aplicación (`SOVCA_DEMO_USUARIO`) los
-permisos sobre la base nueva y le cede la propiedad de `demo_registros` y
-`demo_verificaciones`, que `bovs_demo_preparar()` crea y altera en cada
+El instalador **no necesita la clave de `postgres`**: se conecta a la base
+`postgres` solo para saber si `sovca_demo` existe, detecta que `sovca_app` no
+tiene `CREATEDB` y sigue adelante con la base ya creada. Si la base no existe,
+se detiene y te muestra el `createdb` exacto que hay que ejecutar.
+
+Las constantes `SOVCA_DEMO_ADMIN_USUARIO` / `SOVCA_DEMO_ADMIN_CLAVE`
+(`config/demo.php`, sobreescribibles desde `config/db.local.php`) son
+**opcionales** y solo sirven para que el propio instalador pueda crear o
+borrar la base (`--recrear`). La administración va siempre directo a
+PostgreSQL (`SOVCA_DEMO_ADMIN_PUERTO`, 5432 por defecto), **nunca** por
+PgBouncer: el pooler no puede crear bases y su `[databases]` no incluye
+`postgres` (por eso `SASL authentication failed` en el puerto 6432 significa
+"estás hablando con el pooler").
+
+La sesión demo del sitio sí usa el rol de la aplicación y por eso puede ir por
+PgBouncer (`SOVCA_DB_PORT=6432`) una vez que la base esté en `[databases]`.
+
+El instalador también concede a `sovca_app` los permisos sobre la base nueva y
+le cede la propiedad de `demo_registros` y `demo_verificaciones`, que
+`bovs_demo_preparar()` crea y altera en cada
 petición. Por eso **ya no hace falta** volver a ejecutar
 `scripts/crear_usuario_sovca_app.sh` después de instalar o recrear la demo.
 
