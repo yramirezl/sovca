@@ -101,11 +101,11 @@ $cad0 = $valores[0];
 					</div>
 
 					<div class="crud-form__field" id="grp_max_fundos" style="display:none;">
-						<label for="max_fundos">Máximo de Fundos Permitidos</label>
-						<input type="number" id="max_fundos" class="form-control" min="1" max="100" value="1">
-						<small style="color:#888; display:block; margin-top:4px;">
-							Rango: 1 a 100. Útil para veterinarios que manejan varias fincas.
-						</small>
+                                            <label for="max_fundos">Fundos permitidos por el plan</label>
+                                            <input type="text" id="max_fundos" class="form-control" value="1" readonly
+                                                style="background:#f5f6f7; cursor:not-allowed;">
+                                            <small id="max_fundos_nota" style="color:#888; display:block; margin-top:4px;">
+                                                    El cupo de fundos lo define el plan seleccionado.
 					</div>
 
 					<div class="crud-form__field" id="grp_acceso_offline">
@@ -256,6 +256,19 @@ function asegurarOpcion(selector, valor, texto) {
 		$sel.append($('<option>').val(v).text(texto || ('Valor ' + v)));
 	}
 	$sel.val(v);
+}
+
+/* El cupo de fundos lo define el plan: cada opción del select trae
+   data-max-fundos (ver controllers/mplanes_controller.php). El campo es
+   informativo; el servidor lo vuelve a calcular al guardar. */
+function actualizarCupoFundos() {
+	var cupo = parseInt($('#t_plan option:selected').attr('data-max-fundos'), 10);
+	if (isNaN(cupo) || cupo < 1) { cupo = 1; }
+	var multi = $('#es_multifundo').is(':checked');
+	$('#max_fundos').val(multi ? cupo : 1);
+	$('#max_fundos_nota').text(multi
+		? 'El plan seleccionado permite ' + cupo + ' fundo(s) en esta cuenta.'
+		: 'La cuenta no es multifundo: solo puede tener 1 fundo.');
 }
 
 function aplicarCamposPorRol(valorRol) {
@@ -457,6 +470,8 @@ $(document).ready(function () {
 			$("#t_plan").html(data);
 			if (parsedJson.t_plan) {
 				$("#t_plan").val(String(parsedJson.t_plan));
+			/* Recalcular el cupo con el plan ya seleccionado. */
+			actualizarCupoFundos();
 			}
 		});
 
@@ -524,6 +539,7 @@ $("#rol").change(function () {
 $("#es_multifundo").on('change', function () {
 	if ($(this).is(':checked') && parseInt($('#rol').val(), 10) === 2) {
 		$('#grp_max_fundos').slideDown(150);
+		actualizarCupoFundos();
 	} else {
 		$(this).prop('checked', false);
 		$('#grp_max_fundos').slideUp(150);
@@ -538,6 +554,7 @@ $('#t_plan').on('change', function () {
 	if (parseInt($('#rol').val(), 10) === 2) {
 		var texto = ($('#t_plan option:selected').text() || '').toUpperCase();
 		$('#acceso_offline').prop('checked', texto.indexOf('DIAMANTE') > -1);
+		actualizarCupoFundos();
 	}
 });
 

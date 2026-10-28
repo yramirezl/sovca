@@ -7,6 +7,8 @@
  * porque PgsqlAdapter NO tiene query_and_fetch_all().
  */
 
+require_once __DIR__ . '/animales_conteo_helper.php';
+
 // ============================================================
 // WRAPPER: ejecuta SQL y devuelve array asociativo
 // ============================================================
@@ -79,7 +81,9 @@ if (!function_exists('mf_listar_fundos_usuario')) {
                    COALESCE(p.max_reg, 50) AS max_reg,
                    p.nombre AS plan_nombre,
                    (SELECT COUNT(*) FROM manimales a
-                     WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales
+                  WHERE a.mfundos_id = f.id
+                    AND a.status = 1 AND a.mestatus_id = 1
+                    AND a.estatus_animal IN (1, 2, 4)) AS total_animales
               FROM mfundosxusuarios fxu
         INNER JOIN mfundos f ON f.id = fxu.mfundos_id
          LEFT JOIN mplanes p ON p.id = f.mplanes_id
@@ -219,7 +223,13 @@ if (!function_exists('mf_cargar_fundo_en_sesion')) {
         $_SESSION['mplanes_id']       = (int)$f['mplanes_id'];
         $_SESSION['maximo_registros'] = (int)$f['max_reg'];
 
+        // Marca de vigencia del nombre (ver mf_sincronizar_fundo_sesion)
+        $_SESSION['fundo_nombre_id'] = (int)$f['id'];
+
         // Recalcular acceso a registro de animales
+        // SOVCA cuenta los animales vinculados al fundo en manimalxfundos
+        // (un animal puede pertenecer a varios fundos). El criterio de
+        // "animal activo" de BOVS se revisa aparte en la Fase 7.
         $c = _mf_q1("
             SELECT COUNT(id) AS total
               FROM manimalxfundos
@@ -232,6 +242,63 @@ if (!function_exists('mf_cargar_fundo_en_sesion')) {
         // automáticamente cuando vuelva a iniciar sesión.
         mf_guardar_ultimo_fundo($uid, $fid);
 
+        return true;
+    }
+}
+
+if (!function_exists('mf_sincronizar_fundo_sesion')) {
+    /**
+     * Garantiza que el NOMBRE del fundo guardado en sesión corresponda
+     * siempre al fundo activo ($_SESSION['mfundos_id']).
+     *
+     * Por qué: cuando alguien inicia sesión en el mismo navegador, PHP
+     * reutiliza el archivo de sesión y conserva los valores del usuario
+     * anterior. El login fija mfundos_id pero no siempre fundo_nombre, así
+     * que la barra superior podía pintar el fundo de la sesión previa y
+     * corregirse un instante después con el AJAX (parpadeo con otro fundo).
+     *
+     * Para no consultar la base en cada petición se guarda
+     * $_SESSION['fundo_nombre_id'] como marca de vigencia: solo se consulta
+     * cuando el nombre falta o no corresponde al fundo activo.
+     *
+     * No valida la pertenencia del fundo a propósito: el MODO SOPORTE deja
+     * a un administrador dentro de un fundo que no es suyo.
+     *
+     * @param bool $forzar  Recalcular siempre desde la base.
+     * @return bool
+     */
+    function mf_sincronizar_fundo_sesion($forzar = false) {
+        $fid = isset($_SESSION['mfundos_id']) ? (int)$_SESSION['mfundos_id'] : 0;
+
+        if ($fid <= 0) {
+            $_SESSION['fundo_nombre']    = '';
+            $_SESSION['fundo_nombre_id'] = 0;
+            return false;
+        }
+
+        if (!$forzar
+            && isset($_SESSION['fundo_nombre_id'])
+            && (int)$_SESSION['fundo_nombre_id'] === $fid
+            && isset($_SESSION['fundo_nombre'])
+            && trim((string)$_SESSION['fundo_nombre']) !== '') {
+            return true;
+        }
+
+        $f = _mf_q1("
+            SELECT f.id, f.nombre
+              FROM mfundos f
+             WHERE f.id = $fid AND f.status = 1
+             LIMIT 1
+        ");
+
+        if (!$f) {
+            $_SESSION['fundo_nombre']    = '';
+            $_SESSION['fundo_nombre_id'] = 0;
+            return false;
+        }
+
+        $_SESSION['fundo_nombre']    = trim((string)$f['nombre']);
+        $_SESSION['fundo_nombre_id'] = (int)$f['id'];
         return true;
     }
 }
@@ -349,6 +416,7 @@ if (!function_exists('mf_activar_supervisor')) {
         // Contexto del fundo (lo mismo que carga mf_cargar_fundo_en_sesion)
         $_SESSION['mfundos_id']       = (int)$f['id'];
         $_SESSION['fundo_nombre']     = trim((string)$f['nombre']);
+        $_SESSION['fundo_nombre_id']  = (int)$f['id'];
         $_SESSION['tipo_ganaderia']   = (int)$f['mtipoganaderias_id'];
         $_SESSION['mplanes_id']       = (int)$f['mplanes_id'];
         $_SESSION['maximo_registros'] = (int)$f['max_reg'];
@@ -430,6 +498,7 @@ if (!function_exists('mf_desactivar_supervisor')) {
         // Sin fundo previo: dejar la sesión como la de un administrador
         $_SESSION['mfundos_id']          = 0;
         $_SESSION['fundo_nombre']        = '';
+        $_SESSION['fundo_nombre_id']     = 0;
         $_SESSION['tipo_ganaderia']      = 0;
         $_SESSION['mplanes_id']          = 0;
         $_SESSION['maximo_registros']    = 0;
@@ -458,7 +527,9 @@ if (!function_exists('mf_listar_todos_los_fundos')) {
                    u.username AS propietario_username,
                    u.email AS propietario_email,
                    (SELECT COUNT(*) FROM manimales a
-                     WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales,
+                     WHERE a.mfundos_id = f.id
+                       AND a.status = 1 AND a.mestatus_id = 1
+                       AND a.estatus_animal IN (1, 2, 4)) AS total_animales,
                    (SELECT COUNT(*) FROM mfundosxusuarios fxu
                      WHERE fxu.mfundos_id = f.id AND fxu.status = 1) AS total_usuarios
               FROM mfundos f
@@ -485,6 +556,294 @@ if (!function_exists('mf_listar_todos_los_fundos')) {
 // lo único que cambia es QUIÉN tiene acceso al fundo (mfundosxusuarios) y,
 // opcionalmente, quién figura como propietario (mfundos.user_propietario).
 
+// ------------------------------------------------------------
+// PLANES
+// ------------------------------------------------------------
+// El plan vive en dos sitios y hay que mantenerlos de acuerdo:
+//   mfundos.mplanes_id   -> plan heredado del fundo (lo que se ve en los
+//                           listados cuando no hay suscripción).
+//   mplanesxfundo        -> suscripción real (usuario + fundo + plan + fechas).
+// Al unificar prevalece SIEMPRE el plan de mayor cobertura (max_reg).
+
+if (!function_exists('mf_plan_vigente_fundo')) {
+    /** Plan con el que hoy opera un fundo (suscripción y, si no hay, el heredado). */
+    function mf_plan_vigente_fundo($fundo_id) {
+        $fid = (int) $fundo_id;
+        if ($fid <= 0) { return 0; }
+        $r = _mf_q1("
+            SELECT COALESCE(v.mplanes_id, f.mplanes_id, 0) AS mplanes_id
+              FROM mfundos f
+         LEFT JOIN LATERAL (
+                    SELECT px.mplanes_id
+                      FROM mplanesxfundo px
+                     WHERE px.mfundos_id = f.id
+                       AND px.msuscripciones_id IS NOT NULL
+                  ORDER BY px.id DESC
+                     LIMIT 1
+              ) v ON true
+             WHERE f.id = $fid
+             LIMIT 1
+        ");
+        return $r ? (int) $r['mplanes_id'] : 0;
+    }
+}
+
+if (!function_exists('mf_plan_vigente_usuario')) {
+    /** Plan asignado en la ficha del usuario (musuarios.mplanes_id). */
+    function mf_plan_vigente_usuario($usuario_id) {
+        $uid = (int) $usuario_id;
+        if ($uid <= 0) { return 0; }
+        $r = _mf_q1("SELECT COALESCE(mplanes_id, 0) AS mplanes_id FROM musuarios WHERE id = $uid LIMIT 1");
+        return $r ? (int) $r['mplanes_id'] : 0;
+    }
+}
+
+if (!function_exists('mf_plan_mayor')) {
+    /**
+     * De una lista de planes devuelve el de mayor cobertura.
+     * Acepta ids sueltos o filas con la clave mplanes_id / id.
+     * El desempate es por id (los planes se crean de menor a mayor).
+     */
+    function mf_plan_mayor(array $planes) {
+        $ids = array();
+        foreach ($planes as $p) {
+            if (is_array($p)) {
+                $p = isset($p['mplanes_id']) ? $p['mplanes_id']
+                   : (isset($p['id']) ? $p['id'] : 0);
+            }
+            $p = (int) $p;
+            if ($p > 0) { $ids[$p] = true; }
+        }
+        $ids = array_keys($ids);
+        if (!$ids) { return 0; }
+
+        $r = _mf_q1("
+            SELECT id, nombre, max_reg
+              FROM mplanes
+             WHERE id IN (" . implode(',', $ids) . ")
+               AND status = 1
+          ORDER BY max_reg DESC, id DESC
+             LIMIT 1
+        ");
+        return $r ? (int) $r['id'] : 0;
+    }
+}
+
+if (!function_exists('mf_plan_detalle')) {
+    /** Nombre, cobertura y cupo de fundos de un plan, para reportes y pantallas. */
+    function mf_plan_detalle($plan_id) {
+        $vacio = array('id' => 0, 'nombre' => '', 'max_reg' => 0, 'max_fundos' => 1);
+        $pid = (int) $plan_id;
+        if ($pid <= 0) {
+            return $vacio;
+        }
+        $r = _mf_q1("SELECT id, nombre, max_reg, max_fundos FROM mplanes WHERE id = $pid LIMIT 1");
+        if (!$r) {
+            return $vacio;
+        }
+        return array(
+            'id'         => (int) $r['id'],
+            'nombre'     => $r['nombre'],
+            'max_reg'    => (int) $r['max_reg'],
+            'max_fundos' => ((int) $r['max_fundos'] > 0) ? (int) $r['max_fundos'] : 1,
+        );
+    }
+}
+
+if (!function_exists('mf_aplicar_plan_fundo')) {
+    /**
+     * Deja un fundo en un plan concreto para un usuario:
+     *   - actualiza el plan heredado del fundo (mfundos.mplanes_id)
+     *   - crea o actualiza su suscripción (mplanesxfundo), heredando el tipo
+     *     de suscripción y las fechas que ya tenía el fundo.
+     *
+     * @return bool
+     */
+    function mf_aplicar_plan_fundo($fundo_id, $usuario_id, $plan_id) {
+        $fid = (int) $fundo_id;
+        $uid = (int) $usuario_id;
+        $pid = (int) $plan_id;
+        if ($fid <= 0 || $uid <= 0 || $pid <= 0) { return false; }
+
+        $ok = (bool) _mf_exec("UPDATE mfundos SET mplanes_id = $pid WHERE id = $fid");
+
+        $susc = _mf_q1("SELECT id FROM mplanesxfundo
+                         WHERE musuarios_id = $uid AND mfundos_id = $fid
+                      ORDER BY id DESC LIMIT 1");
+        if ($susc) {
+            _mf_exec("UPDATE mplanesxfundo SET mplanes_id = $pid WHERE id = " . (int) $susc['id']);
+            return $ok;
+        }
+
+        // Se hereda el tipo de suscripción y la vigencia del propio fundo; si
+        // el fundo no tiene ninguna, se toma la del usuario destino.
+        $base = _mf_q1("SELECT msuscripciones_id, fecha_activa_suscripcion, fecha_caduca_suscripcion
+                          FROM mplanesxfundo
+                         WHERE mfundos_id = $fid
+                      ORDER BY id DESC LIMIT 1");
+        if (!$base) {
+            $base = _mf_q1("SELECT msuscripciones_id, fecha_activa_suscripcion, fecha_caduca_suscripcion
+                              FROM mplanesxfundo
+                             WHERE musuarios_id = $uid
+                          ORDER BY id DESC LIMIT 1");
+        }
+        $sid  = ($base && (int) $base['msuscripciones_id'] > 0) ? (int) $base['msuscripciones_id'] : 1;
+        $fini = ($base && $base['fecha_activa_suscripcion'])
+            ? "'" . addslashes((string) $base['fecha_activa_suscripcion']) . "'"
+            : 'NOW()';
+        $ffin = ($base && $base['fecha_caduca_suscripcion'])
+            ? "'" . addslashes((string) $base['fecha_caduca_suscripcion']) . "'"
+            : "NOW() + INTERVAL '30 days'";
+
+        _mf_exec("INSERT INTO mplanesxfundo
+                     (musuarios_id, mfundos_id, mplanes_id, msuscripciones_id,
+                      fecha_activa_suscripcion, fecha_caduca_suscripcion)
+                  VALUES ($uid, $fid, $pid, $sid, $fini, $ffin)");
+
+        return $ok;
+    }
+}
+
+if (!function_exists('mf_plan_max_fundos')) {
+    /**
+     * Cuántos fundos permite un plan (mplanes.max_fundos).
+     * Es el plan el que rige el cupo de la cuenta, no un número suelto.
+     */
+    function mf_plan_max_fundos($plan_id) {
+        $pid = (int) $plan_id;
+        if ($pid <= 0) { return 1; }
+        $r = _mf_q1("SELECT max_fundos FROM mplanes WHERE id = $pid LIMIT 1");
+        $n = $r ? (int) $r['max_fundos'] : 1;
+        return ($n > 0) ? $n : 1;
+    }
+}
+
+if (!function_exists('mf_cupo_fundos_usuario')) {
+    /**
+     * Cupo de fundos que le corresponde a una cuenta según su plan:
+     *   - cuenta normal (sin multifundo): 1 fundo
+     *   - cuenta multifundo: los fundos que permite su plan
+     */
+    function mf_cupo_fundos_usuario($usuario_id) {
+        $uid = (int) $usuario_id;
+        if ($uid <= 0) { return 1; }
+        $r = _mf_q1("SELECT es_multifundo, mplanes_id FROM musuarios WHERE id = $uid LIMIT 1");
+        if (!$r || (int) $r['es_multifundo'] !== 1) { return 1; }
+        return mf_plan_max_fundos((int) $r['mplanes_id']);
+    }
+}
+
+if (!function_exists('mf_validar_plan_usuario')) {
+    /**
+     * ¿Puede esta cuenta quedar en ese plan? Devuelve '' si se puede, o el
+     * mensaje que explica por qué no.
+     *
+     * Sirve tanto para SUBIR como para BAJAR de plan: bajar a un plan con
+     * menos fundos de los que la cuenta ya tiene dejaría la cuenta fuera de
+     * cupo, así que se bloquea y se le dice al administrador qué hacer.
+     */
+    function mf_validar_plan_usuario($usuario_id, $plan_id, $es_multifundo = null) {
+        $uid = (int) $usuario_id;
+        $pid = (int) $plan_id;
+        if ($uid <= 0 || $pid <= 0) { return ''; }
+
+        if ($es_multifundo === null) {
+            $r = _mf_q1("SELECT es_multifundo FROM musuarios WHERE id = $uid LIMIT 1");
+            $es_multifundo = $r ? (int) $r['es_multifundo'] : 0;
+        }
+
+        $cupo  = $es_multifundo ? mf_plan_max_fundos($pid) : 1;
+        $tiene = mf_contar_fundos_usuario($uid);
+        if ($tiene <= $cupo) { return ''; }
+
+        $plan = mf_plan_detalle($pid);
+        $sobran = $tiene - $cupo;
+        return 'El plan ' . $plan['nombre'] . ' permite ' . $cupo . ' fundo(s) y la cuenta tiene '
+             . $tiene . '. Quite el acceso a ' . $sobran . ' fundo(s) antes de cambiar a ese plan.';
+    }
+}
+
+if (!function_exists('mf_actualizar_plan_usuario')) {
+    /**
+     * Deja la cuenta en un plan y propaga el cambio a TODOS sus fundos, que es
+     * lo que hace que subir o bajar de plan funcione también después de haber
+     * unificado cuentas.
+     *
+     * Actualiza:
+     *   - musuarios.mplanes_id y musuarios.max_fundos (cupo del plan)
+     *   - mfundos.mplanes_id de cada fundo de la cuenta
+     *   - mplanesxfundo de cada fundo (plan, tipo de suscripción y fechas)
+     *
+     * @param int    $usuario_id
+     * @param int    $plan_id
+     * @param int    $suscripcion_id  Opcional: tipo de suscripción (msuscripciones).
+     * @param string $fecha_activa    Opcional: Y-m-d de activación.
+     * @return true|string            true si quedó, o el mensaje de error.
+     */
+    function mf_actualizar_plan_usuario($usuario_id, $plan_id, $suscripcion_id = 0, $fecha_activa = '') {
+        $uid = (int) $usuario_id;
+        $pid = (int) $plan_id;
+        if ($uid <= 0 || $pid <= 0) { return 'No se indicó el plan.'; }
+
+        $error = mf_validar_plan_usuario($uid, $pid);
+        if ($error !== '') { return $error; }
+
+        // Vigencia: si llega el tipo de suscripción y la fecha de activación,
+        // se recalcula la caducidad con los días que define msuscripciones.
+        $sid  = (int) $suscripcion_id;
+        $fini = trim((string) $fecha_activa);
+        $ffin = '';
+        if ($sid > 0 && $fini !== '') {
+            $s = _mf_q1("SELECT cantidad_dias FROM msuscripciones WHERE id = $sid AND status = 1 LIMIT 1");
+            if ($s && (int) $s['cantidad_dias'] > 0) {
+                $ffin = date('Y-m-d', strtotime($fini . ' +' . (int) $s['cantidad_dias'] . ' days'));
+            } else {
+                $sid = 0; // tipo inválido: no se toca la vigencia
+            }
+        } else {
+            $sid = 0;
+        }
+        $fini_esc = ($fini !== '') ? addslashes($fini) : '';
+        $ffin_esc = ($ffin !== '') ? addslashes($ffin) : '';
+
+        // El cupo de la ficha sale del plan.
+        $u = _mf_q1("SELECT es_multifundo FROM musuarios WHERE id = $uid LIMIT 1");
+        $cupo = ($u && (int) $u['es_multifundo'] === 1) ? mf_plan_max_fundos($pid) : 1;
+
+        _mf_exec("UPDATE musuarios SET mplanes_id = $pid, max_fundos = $cupo WHERE id = $uid");
+
+        foreach (mf_fundos_para_unificar($uid) as $f) {
+            $fid = (int) $f['mfundos_id'];
+            _mf_exec("UPDATE mfundos SET mplanes_id = $pid WHERE id = $fid");
+
+            $susc = _mf_q1("SELECT id FROM mplanesxfundo
+                             WHERE musuarios_id = $uid AND mfundos_id = $fid
+                          ORDER BY id DESC LIMIT 1");
+            if ($susc) {
+                $sets = "mplanes_id = $pid";
+                if ($sid > 0) {
+                    $sets .= ", msuscripciones_id = $sid";
+                    if ($fini_esc !== '') {
+                        $sets .= ", fecha_activa_suscripcion = '$fini_esc',
+                                   fecha_caduca_suscripcion = '$ffin_esc'";
+                    }
+                }
+                _mf_exec("UPDATE mplanesxfundo SET $sets WHERE id = " . (int) $susc['id']);
+            } else {
+                $ins_sid  = $sid > 0 ? $sid : 'NULL';
+                $ins_fini = $fini_esc !== '' ? "'$fini_esc'" : 'NOW()';
+                $ins_ffin = $ffin_esc !== '' ? "'$ffin_esc'" : 'NULL';
+                _mf_exec("INSERT INTO mplanesxfundo
+                             (musuarios_id, mfundos_id, mplanes_id, msuscripciones_id,
+                              fecha_activa_suscripcion, fecha_caduca_suscripcion)
+                          VALUES ($uid, $fid, $pid, $ins_sid, $ins_fini, $ins_ffin)");
+            }
+        }
+
+        return true;
+    }
+}
+
 if (!function_exists('mf_fundos_para_unificar')) {
     /** Fundos activos a los que el usuario tiene acceso (para unificar). */
     function mf_fundos_para_unificar($usuario_id) {
@@ -492,11 +851,24 @@ if (!function_exists('mf_fundos_para_unificar')) {
         return _mf_q("
             SELECT f.id AS mfundos_id, f.nombre, f.cid_rif, f.mtipoganaderias_id,
                    f.user_propietario,
+                   COALESCE(v.mplanes_id, f.mplanes_id) AS mplanes_id,
+                   p.nombre AS plan_nombre, p.max_reg,
                    u2.username AS propietario_username,
                    (SELECT COUNT(*) FROM manimales a
-                     WHERE a.mfundos_id = f.id AND a.status = 1) AS animales
+                     WHERE a.mfundos_id = f.id
+                       AND a.status = 1 AND a.mestatus_id = 1
+                       AND a.estatus_animal IN (1, 2, 4)) AS animales
               FROM mfundosxusuarios fxu
         INNER JOIN mfundos f ON f.id = fxu.mfundos_id AND f.status = 1
+         LEFT JOIN LATERAL (
+                    SELECT px.mplanes_id
+                      FROM mplanesxfundo px
+                     WHERE px.mfundos_id = f.id
+                       AND px.msuscripciones_id IS NOT NULL
+                  ORDER BY px.id DESC
+                     LIMIT 1
+              ) v ON true
+         LEFT JOIN mplanes p   ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
          LEFT JOIN musuarios u2 ON u2.id = f.user_propietario
              WHERE fxu.musuarios_id = $uid
                AND fxu.status = 1
@@ -594,6 +966,9 @@ if (!function_exists('mf_unificar_fundos')) {
             'desactivados'  => array(),
             'heredados'     => array(),
             'con_fundos'    => array(),
+            'huerfanos'     => array(),
+            'aviso_cupo'    => '',
+            'plan'          => array('id' => 0, 'nombre' => '', 'max_reg' => 0, 'max_fundos' => 1),
         );
 
         $u = _mf_q1("SELECT id, username FROM musuarios WHERE id = $destino AND status = 1 LIMIT 1");
@@ -663,14 +1038,53 @@ if (!function_exists('mf_unificar_fundos')) {
             return $res;
         }
 
-        // ---- 3) El destino pasa a ser multifundo ----
+        // ---- 3) PLAN: prevalece el de mayor cobertura ----
+        // Se compara el plan de cada fundo de la transacción con el de la
+        // ficha del usuario destino. El ganador se aplica a TODOS los fundos
+        // de la cuenta (los que llegan ahora y los que el destino ya tenía):
+        // los planes se ofertan por bloques (ORO con 2 fundos, DIAMANTE con
+        // más), así que dejar fundos en planes distintos rompe la cuenta y
+        // bloquea la edición del fundo que se quedó con el plan menor.
+        $planes_previos = array();
+        $fundos_cuenta  = array();
+
+        foreach ($res['fundos'] as $fd) {
+            $planes_previos[] = mf_plan_vigente_fundo((int) $fd['id']);
+        }
+        // Fundos que el destino ya administraba antes de esta operación.
+        foreach (mf_fundos_para_unificar($destino) as $ft) {
+            $fundos_cuenta[(int) $ft['mfundos_id']] = $ft['nombre'];
+            $planes_previos[] = mf_plan_vigente_fundo((int) $ft['mfundos_id']);
+        }
+        $planes_previos[] = mf_plan_vigente_usuario($destino);
+
+        $plan_mayor = mf_plan_mayor($planes_previos);
+        if ($plan_mayor > 0) {
+            foreach ($fundos_cuenta as $fid_plan => $nombre_plan) {
+                if (!mf_aplicar_plan_fundo((int) $fid_plan, $destino, $plan_mayor)) {
+                    $res['errores'][] = "No se pudo aplicar el plan al fundo '{$nombre_plan}'.";
+                }
+            }
+            _mf_exec("UPDATE musuarios SET mplanes_id = $plan_mayor WHERE id = $destino");
+            $res['plan']     = mf_plan_detalle($plan_mayor);
+            $res['fundos_plan'] = count($fundos_cuenta);
+        }
+
+        // ---- 4) El destino pasa a ser multifundo ----
         $total = mf_contar_fundos_usuario($destino);
         if ($total > 100) {
             $total = 100;
         }
+        // El cupo sale del plan; si la cuenta junta más fundos de los que el
+        // plan permite, se deja el total para no bloquear la operación (el
+        // aviso de más abajo indica que hay que subir de plan).
+        $cupo_final = $total;
+        if ($plan_mayor > 0) {
+            $cupo_final = max(mf_plan_max_fundos($plan_mayor), $total);
+        }
         if (!_mf_exec("UPDATE musuarios
                           SET es_multifundo = TRUE,
-                              max_fundos = GREATEST(COALESCE(max_fundos, 1), $total)
+                              max_fundos = $cupo_final
                         WHERE id = $destino")) {
             $res['errores'][] = 'No se pudo marcar al usuario destino como multifundo.';
         }
@@ -680,7 +1094,24 @@ if (!function_exists('mf_unificar_fundos')) {
             $res['max_fundos']    = (int) $u2['max_fundos'];
         }
 
-        // ---- 4) Los orígenes pierden acceso a los fundos movidos ----
+        // Si la cuenta queda con más fundos de los que permite su plan, se
+        // deja el cupo en el total (para no bloquear la operación) pero se
+        // avisa: es la señal de que hay que subir de plan.
+        if ($plan_mayor > 0) {
+            $cupo_plan = mf_plan_max_fundos($plan_mayor);
+            if ($total > $cupo_plan) {
+                $dplan = mf_plan_detalle($plan_mayor);
+                $res['aviso_cupo'] = 'La cuenta quedó con ' . $total . ' fundos y el plan '
+                    . $dplan['nombre'] . ' permite ' . $cupo_plan . '. Hay que subir de plan o quitar acceso a '
+                    . ($total - $cupo_plan) . ' fundo(s).';
+            }
+        }
+
+        // ---- 5) Los orígenes pierden acceso a los fundos movidos ----
+        // Regla de negocio: de la transacción solo queda UN usuario activo, el
+        // destino. Por eso el origen que se queda sin fundos se inhabilita
+        // SIEMPRE (no depende de la casilla) y, si la casilla "desactivar"
+        // está marcada, también se inhabilitan los que conserven otros fundos.
         foreach ($origenes as $ori) {
             $ori = (int) $ori;
             if ($ori <= 0 || $ori === $destino) {
@@ -691,7 +1122,18 @@ if (!function_exists('mf_unificar_fundos')) {
                            WHERE musuarios_id = $ori AND mfundos_id = " . (int) $fd['id']);
             }
             $restantes = mf_contar_fundos_usuario($ori);
-            if ($desactivar && $restantes === 0) {
+            if ($restantes > 0) {
+                // Se dejan anotados los fundos que quedarían sin usuario activo
+                // por si el administrador decide inhabilitar la cuenta igual.
+                foreach (mf_fundos_para_unificar($ori) as $fx) {
+                    $res['huerfanos'][] = array(
+                        'usuario' => $ori,
+                        'fundo'   => (int) $fx['mfundos_id'],
+                        'nombre'  => $fx['nombre'],
+                    );
+                }
+            }
+            if ($restantes === 0 || $desactivar) {
                 // Se guarda la "firma" (quién la hizo y cuándo) para que, si algún
                 // día se reactiva la cuenta, puedan volver sus usuarios ayudantes
                 // (ver lib/herencia_productor_helper.php).

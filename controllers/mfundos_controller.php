@@ -84,7 +84,19 @@ switch ($action) {
                   WHERE fxu2.mfundos_id = f.id AND fxu2.status = 1) AS total_usuarios
               FROM mfundosxusuarios fxu
         INNER JOIN mfundos f   ON f.id = fxu.mfundos_id
-         LEFT JOIN mplanes p   ON p.id = f.mplanes_id
+         LEFT JOIN LATERAL (
+                    -- Plan vigente tomado de la suscripción (mplanesxfundo);
+                    -- si el fundo no tiene una propia se usa la del
+                    -- propietario y, si tampoco, el plan heredado del fundo.
+                    SELECT px.mplanes_id
+                      FROM mplanesxfundo px
+                     WHERE (px.mfundos_id = f.id
+                            OR (px.mfundos_id IS NULL AND px.musuarios_id = f.user_propietario))
+                       AND px.msuscripciones_id IS NOT NULL
+                  ORDER BY px.id DESC
+                     LIMIT 1
+              ) v ON true
+         LEFT JOIN mplanes p   ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
              WHERE fxu.musuarios_id = $uid
                AND fxu.status = 1
                AND f.status = 1
@@ -233,12 +245,22 @@ switch ($action) {
         try {
             // Validar acceso del usuario al fundo
             $acceso = Mfundo::find_by_sql("
-                SELECT f.id, f.nombre, f.cid_rif, f.mtipoganaderias_id, f.mplanes_id,
+                SELECT f.id, f.nombre, f.cid_rif, f.mtipoganaderias_id,
+                       COALESCE(v.mplanes_id, f.mplanes_id) AS mplanes_id,
                        COALESCE(p.max_reg, 50) AS max_reg,
                        p.nombre AS plan_nombre
                   FROM mfundosxusuarios fxu
             INNER JOIN mfundos f ON f.id = fxu.mfundos_id
-             LEFT JOIN mplanes p ON p.id = f.mplanes_id
+             LEFT JOIN LATERAL (
+                        SELECT px.mplanes_id
+                          FROM mplanesxfundo px
+                         WHERE (px.mfundos_id = f.id
+                                OR (px.mfundos_id IS NULL AND px.musuarios_id = f.user_propietario))
+                           AND px.msuscripciones_id IS NOT NULL
+                      ORDER BY px.id DESC
+                         LIMIT 1
+                  ) v ON true
+             LEFT JOIN mplanes p ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
                  WHERE fxu.musuarios_id = $uid
                    AND fxu.mfundos_id = $fundo_id
                    AND fxu.status = 1
@@ -390,10 +412,14 @@ switch ($action) {
         }
 
         // Validar nombre / CID duplicado POR USUARIO
+        // El nombre solo bloquea si el CID/RIF también coincide: al unificar
+        // cuentas es normal juntar dos fincas homónimas (misma persona con
+        // ganadería de distinta especie o en otro sitio) y el identificador
+        // real es el CID/RIF.
         $nom_esc = addslashes($nombre_fundo);
         $cid_esc = addslashes($cid_fundo);
         $dup_nom = Mfundo::find_by_sql("SELECT id FROM mfundos 
-            WHERE nombre='$nom_esc' AND user_propietario=$uid_add AND status=1 LIMIT 1");
+            WHERE nombre='$nom_esc' AND cid_rif='$cid_esc' AND user_propietario=$uid_add AND status=1 LIMIT 1");
         $dup_cid = Mfundo::find_by_sql("SELECT id FROM mfundos 
             WHERE cid_rif='$cid_esc' AND user_propietario=$uid_add AND status=1 LIMIT 1");
 
@@ -401,7 +427,7 @@ switch ($action) {
             echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
                 <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                 <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
-                Ya tiene un fundo con el nombre <strong>[' . $nombre_fundo . ']</strong>.
+                Ya tiene un fundo con el nombre <strong>[' . $nombre_fundo . ']</strong> y el mismo CID/RIF.
                 </div>'));
             break;
         }
@@ -503,10 +529,13 @@ switch ($action) {
                 break;
             }
 
-            // Validar nombre duplicado (excluyendo el actual)
+            // Validar nombre duplicado (excluyendo el actual). Solo bloquea
+            // junto con el CID/RIF: dos fincas homónimas con distinto RIF son
+            // válidas dentro de una misma cuenta unificada.
             $nom_esc = addslashes($nombre_fundo);
             $dup_nom = Mfundo::find_by_sql("SELECT id FROM mfundos 
                 WHERE nombre='$nom_esc' 
+                  AND cid_rif='" . addslashes($cid_fundo) . "'
                   AND user_propietario=$uid 
                   AND id<>$id_fundo_int
                   AND status=1 LIMIT 1");
@@ -523,7 +552,7 @@ switch ($action) {
                 $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
                     <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                     <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
-                    Ya tiene otro fundo con el nombre <strong>[' . $nombre_fundo . ']</strong>.
+                    Ya tiene otro fundo con el nombre <strong>[' . $nombre_fundo . ']</strong> y el mismo CID/RIF.
                     </div>');
             } elseif (!empty($dup_cid)) {
                 $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
@@ -739,9 +768,20 @@ switch ($action) {
         $rows = _mf_q("
             SELECT f.id AS mfundos_id, f.nombre, f.cid_rif, f.mtipoganaderias_id,
                    f.user_propietario, u2.username AS propietario_username,
+                   COALESCE(v.mplanes_id, f.mplanes_id) AS mplanes_id,
+                   p.nombre AS plan_nombre, p.max_reg,
                    (SELECT COUNT(*) FROM manimales a
                      WHERE a.mfundos_id = f.id AND a.status = 1) AS animales
               FROM mfundos f
+         LEFT JOIN LATERAL (
+                    SELECT px.mplanes_id
+                      FROM mplanesxfundo px
+                     WHERE px.mfundos_id = f.id
+                       AND px.msuscripciones_id IS NOT NULL
+                  ORDER BY px.id DESC
+                     LIMIT 1
+              ) v ON true
+         LEFT JOIN mplanes p   ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
          LEFT JOIN musuarios u2 ON u2.id = f.user_propietario
              WHERE f.status = 1 $w
           ORDER BY f.nombre ASC
@@ -755,7 +795,8 @@ switch ($action) {
         @include_once __DIR__ . '/../lib/multifundo_helper.php';
         $prev = unificar_resumen(
             (int) (isset($_POST['destino']) ? $_POST['destino'] : 0),
-            unificar_parse_ids(isset($_POST['fundos']) ? $_POST['fundos'] : '')
+            unificar_parse_ids(isset($_POST['fundos']) ? $_POST['fundos'] : ''),
+            array('desactivar' => !empty($_POST['desactivar']))
         );
         if (isset($prev['error'])) {
             echo json_encode(array('ok' => false, 'msg' => $prev['error']));
@@ -774,7 +815,8 @@ switch ($action) {
         @include_once __DIR__ . '/../lib/multifundo_helper.php';
         $resumen = unificar_resumen(
             (int) (isset($_POST['destino']) ? $_POST['destino'] : 0),
-            unificar_parse_ids(isset($_POST['fundos']) ? $_POST['fundos'] : '')
+            unificar_parse_ids(isset($_POST['fundos']) ? $_POST['fundos'] : ''),
+            array('desactivar' => !empty($_POST['desactivar']))
         );
         if (isset($resumen['error'])) {
             echo json_encode(array('ok' => false, 'msg' => $resumen['error']));
@@ -852,6 +894,9 @@ function unificar_fundos_json($rows) {
                            : (((int) $f['mtipoganaderias_id'] === 2) ? 'CAPRINA' : 'OVINA Y CAPRINA'),
             'animales'    => (int) $f['animales'],
             'propietario' => $f['propietario_username'] ? $f['propietario_username'] : '',
+            'plan_id'     => isset($f['mplanes_id']) ? (int) $f['mplanes_id'] : 0,
+            'plan'        => isset($f['plan_nombre']) ? $f['plan_nombre'] : '',
+            'max_reg'     => isset($f['max_reg']) ? (int) $f['max_reg'] : 0,
         );
     }
     return $out;
@@ -860,10 +905,15 @@ function unificar_fundos_json($rows) {
 /**
  * Calcula qué cambiaría al unificar: fundos válidos y usuarios origen que
  * perderán el acceso (los que hoy tienen acceso activo a esos fundos).
+ *
+ * $opciones['desactivar'] refleja la casilla «inhabilitar las cuentas que
+ * queden sin fundos». El resumen informa además qué plan quedará vigente y
+ * qué cuentas van a quedar inactivas, para que el usuario lo confirme.
  */
-function unificar_resumen($destino, array $fundo_ids) {
-    $destino = (int) $destino;
-    $u = _mf_q1("SELECT id, username, name, email FROM musuarios WHERE id = $destino AND status = 1 LIMIT 1");
+function unificar_resumen($destino, array $fundo_ids, array $opciones = array()) {
+    $destino    = (int) $destino;
+    $desactivar = !empty($opciones['desactivar']);
+    $u = _mf_q1("SELECT id, username, name, email, mplanes_id FROM musuarios WHERE id = $destino AND status = 1 LIMIT 1");
     if (!$u) {
         return array('error' => 'El usuario destino no existe o está inactivo.');
     }
@@ -874,6 +924,7 @@ function unificar_resumen($destino, array $fundo_ids) {
     $fundos   = array();
     $origenes = array();
     $errores  = array();
+    $planes   = array((int) $u['mplanes_id']);
 
     foreach ($fundo_ids as $fid) {
         $fid = (int) $fid;
@@ -882,11 +933,17 @@ function unificar_resumen($destino, array $fundo_ids) {
             $errores[] = "El fundo $fid no existe o está inactivo.";
             continue;
         }
+        $plan_id  = function_exists('mf_plan_vigente_fundo') ? mf_plan_vigente_fundo($fid) : 0;
+        $plan     = function_exists('mf_plan_detalle') ? mf_plan_detalle($plan_id) : array('id' => 0, 'nombre' => '', 'max_reg' => 0);
+        $planes[] = $plan_id;
         $fundos[] = array(
             'id'        => $fid,
             'nombre'    => $f['nombre'],
             'ganaderia' => ((int) $f['mtipoganaderias_id'] === 1) ? 'OVINA'
                          : (((int) $f['mtipoganaderias_id'] === 2) ? 'CAPRINA' : 'OVINA Y CAPRINA'),
+            'plan_id'   => $plan['id'],
+            'plan'      => $plan['nombre'],
+            'max_reg'   => $plan['max_reg'],
         );
         $usrs = _mf_q("
             SELECT u.id, u.username, u.name
@@ -904,10 +961,60 @@ function unificar_resumen($destino, array $fundo_ids) {
                 'name'     => $x['name'],
             );
         }
+
+        /* El propietario también cuenta como origen aunque ya haya perdido el
+           acceso: si el fundo le quedó a nombre suyo, hay que transferirlo y
+           la cuenta debe quedar inhabilitada. Sin esto, volver a ejecutar la
+           unificación sobre un estado a medias no terminaba de arreglarlo. */
+        $prop = _mf_q("
+            SELECT u.id, u.username, u.name
+              FROM mfundos f
+        INNER JOIN musuarios u ON u.id = f.user_propietario
+             WHERE f.id = $fid
+               AND f.user_propietario IS NOT NULL
+               AND f.user_propietario <> $destino
+        ");
+        foreach ($prop as $x) {
+            if (!isset($origenes[(int) $x['id']])) {
+                $origenes[(int) $x['id']] = array(
+                    'id'       => (int) $x['id'],
+                    'username' => $x['username'],
+                    'name'     => $x['name'],
+                );
+            }
+        }
     }
 
     if (!$fundos) {
         return array('error' => 'Ninguno de los fundos seleccionados es válido.');
+    }
+
+    /* Plan resultante: el de mayor cobertura entre los fundos de la
+       transacción, los que el destino ya tenía y su propia ficha. Unificar
+       nunca debe degradar el plan de la cuenta. */
+    foreach (mf_fundos_para_unificar($destino) as $ft) {
+        $planes[] = function_exists('mf_plan_vigente_fundo') ? mf_plan_vigente_fundo((int) $ft['mfundos_id']) : 0;
+    }
+    $plan_mayor = function_exists('mf_plan_mayor') ? mf_plan_mayor($planes) : 0;
+    $detalle    = function_exists('mf_plan_detalle') ? mf_plan_detalle($plan_mayor) : array('id' => 0, 'nombre' => '', 'max_reg' => 0);
+
+    /* Qué pasa con cada cuenta origen: si le quedan fundos fuera de la
+       transacción y si la casilla «desactivar» la inhabilita igualmente. */
+    $huerfanos = array();
+    foreach ($origenes as $oid => $o) {
+        $restantes = array();
+        foreach (mf_fundos_para_unificar($oid) as $fx) {
+            if (!in_array((int) $fx['mfundos_id'], $fundo_ids, true)) {
+                $restantes[] = array('id' => (int) $fx['mfundos_id'], 'nombre' => $fx['nombre']);
+            }
+        }
+        $origenes[$oid]['fundos_restantes'] = count($restantes);
+        $origenes[$oid]['quedara_inactivo'] = (count($restantes) === 0 || $desactivar) ? 1 : 0;
+        if ($origenes[$oid]['quedara_inactivo'] && count($restantes) > 0) {
+            foreach ($restantes as $r) {
+                $huerfanos[] = array('usuario' => $o['username'], 'fundo' => $r['id'], 'nombre' => $r['nombre']);
+            }
+        }
     }
 
     return array(
@@ -919,6 +1026,8 @@ function unificar_resumen($destino, array $fundo_ids) {
         ),
         'fundos'    => $fundos,
         'origenes'  => array_values($origenes),
+        'plan'      => $detalle,
+        'huerfanos' => $huerfanos,
         'fundo_ids' => array_map(function ($f) { return (int) $f['id']; }, $fundos),
         'errores'   => $errores,
     );

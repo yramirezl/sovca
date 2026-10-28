@@ -103,10 +103,11 @@ VerificarAdmin($_SESSION['rolx']);
                     </div>
 
                     <div class="crud-form__field" id="grp_max_fundos" style="display:none;">
-                        <label for="max_fundos">Máximo de Fundos Permitidos</label>
-                        <input type="number" id="max_fundos" class="form-control" min="1" max="100" value="1">
-                        <small style="color:#888; display:block; margin-top:4px;">
-                            Rango: 1 a 100. Útil para veterinarios que manejan varias fincas.
+                        <label for="max_fundos">Fundos permitidos por el plan</label>
+                        <input type="text" id="max_fundos" class="form-control" value="1" readonly
+                            style="background:#f5f6f7; cursor:not-allowed;">
+                        <small id="max_fundos_nota" style="color:#888; display:block; margin-top:4px;">
+                            El cupo de fundos lo define el plan seleccionado.
                         </small>
                     </div>
 
@@ -301,6 +302,8 @@ document.getElementById('rol').disabled = true;
 		action: "get_t_plan"
 	}).done(function(data) {
 		$("#t_plan").html(data);
+                /* Recalcular el cupo mostrado con el plan ya cargado. */
+                actualizarCupoFundos();
 
 	});
 
@@ -341,15 +344,13 @@ document.getElementById('rol').disabled = true;
 			if (parseInt($('#rol').val(), 10) === 2) {
 				actualizarAccesoOfflinePorPlan();
 			}
+			actualizarCupoFundos();
 		});
-
-
-		//*************************************************************
 		// NUEVO: toggle del campo max_fundos según el checkbox
 		$("#es_multifundo").on('change', function() {
 			if ($(this).is(':checked') && parseInt($('#rol').val(), 10) === 2) {
 				$('#grp_max_fundos').slideDown(150);
-				$('#max_fundos').focus();
+				actualizarCupoFundos();
 			} else {
 				$(this).prop('checked', false);
 				$('#grp_max_fundos').slideUp(150);

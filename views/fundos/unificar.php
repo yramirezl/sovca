@@ -627,15 +627,15 @@ if ($__rol !== 1 && $__rol !== 4) {
                 <label class="uf-option checked" id="uf-opt-desactivar-lbl">
                     <input type="checkbox" id="uf-desactivar" checked>
                     <div class="uf-option-body">
-                        <strong>Desactivar cuentas origen sin fundos</strong>
-                        <small>Las cuentas que queden sin ningún fundo tras la unificación serán desactivadas automáticamente.</small>
+                        <strong>Dejar inhabilitadas las cuentas origen</strong>
+                        <small>De la transacción debe quedar activo solo el usuario elegido. Las cuentas que se queden sin fundos se inhabilitan siempre; con esta casilla se inhabilitan también las que conserven otros fundos.</small>
                     </div>
                 </label>
                 <label class="uf-option checked" id="uf-opt-propiedad-lbl">
                     <input type="checkbox" id="uf-propiedad" checked>
                     <div class="uf-option-body">
                         <strong>Dejar al destino como propietario de los fundos</strong>
-                        <small>El usuario destino figurará como propietario legal de los fundos unificados.</small>
+                        <small>Necesario para que el usuario pueda editar los datos del fundo: la edición solo la permite el propietario.</small>
                     </div>
                 </label>
             </div>
@@ -949,7 +949,8 @@ jQuery(function ($) {
                    +   '<span class="uf-chip-avatar">' + esc(inicial(f.nombre)) + '</span>'
                    +   '<span class="uf-chip-body">'
                    +     '<strong>' + esc(f.nombre) + '</strong>'
-                   +     '<small>' + esc(f.ganaderia) + ' · ' + f.animales + ' anim.</small>'
+                   +     '<small>' + esc(f.ganaderia) + ' · ' + f.animales + ' anim.'
+                   +       (f.plan ? ' · ' + esc(f.plan) : '') + '</small>'
                    +   '</span>'
                    + '</span>';
             });
@@ -1145,7 +1146,8 @@ jQuery(function ($) {
                +   '<span class="uf-chip-avatar">' + esc(inicial(f.nombre)) + '</span>'
                +   '<span class="uf-chip-body">'
                +     '<strong>' + esc(f.nombre) + '</strong>'
-               +     '<small>' + esc(f.ganaderia) + ' · ' + esc(f.animales) + ' anim.</small>'
+               +     '<small>' + esc(f.ganaderia) + ' · ' + esc(f.animales) + ' anim.'
+               +       (f.plan ? ' · ' + esc(f.plan) : '') + '</small>'
                +   '</span>'
                +   '<a href="#" class="uf-chip-x" data-quitar="' + esc(id) + '" title="Quitar">&times;</a>'
                + '</span>';
@@ -1255,7 +1257,12 @@ jQuery(function ($) {
             $('#uf-resumen').html('<div class="uf-loading"><i class="fa fa-info-circle"></i> Sin fundos seleccionados.</div>');
             return;
         }
-        $.post(CTRL, { action: 'unificar_preview', destino: destino.id, fundos: ids }, function (r) {
+        $.post(CTRL, {
+            action: 'unificar_preview',
+            destino: destino.id,
+            fundos: ids,
+            desactivar: $('#uf-desactivar').is(':checked') ? 1 : 0
+        }, function (r) {
             if (!r || !r.ok) {
                 $('#uf-resumen').html('<div class="uf-alert uf-alert-warn"><i class="fa fa-exclamation-triangle"></i>' + esc((r && r.msg) || 'Error.') + '</div>');
                 return;
@@ -1295,6 +1302,52 @@ jQuery(function ($) {
                    + '</div>';
             }
 
+            /* PLAN RESULTANTE: los planes se ofertan por bloques, así que todos
+               los fundos de la cuenta deben quedar en el mismo plan. */
+            if (r.plan && r.plan.id) {
+                h += '<div class="uf-summary-row">'
+                   +   '<span class="uf-summary-icon" style="background:#e8f5e9;color:#2f8f4a;"><i class="fa fa-award"></i></span>'
+                   +   '<div class="uf-summary-body">'
+                   +     '<span class="uf-summary-val">Plan resultante: ' + esc(r.plan.nombre) + '</span>'
+                   +     '<span class="uf-summary-desc">Se aplicará el plan de mayor cobertura a todos los fundos de la cuenta'
+                   +       (r.plan.max_reg ? ' (' + r.plan.max_reg + ' registros por fundo)' : '') + '.</span>'
+                   +   '</div>'
+                   + '</div>';
+            }
+
+            /* CUENTAS QUE QUEDAN INHABILITADAS: solo debe quedar activo el
+               usuario elegido como destino. */
+            var inactivos = $.grep(r.origenes || [], function (o) { return o.quedara_inactivo; });
+            if (inactivos.length) {
+                h += '<div class="uf-summary-row">'
+                   +   '<span class="uf-summary-icon" style="background:#fdecea;color:#c62828;"><i class="fa fa-user-times"></i></span>'
+                   +   '<div class="uf-summary-body">'
+                   +     '<span class="uf-summary-val">Cuentas que quedarán inhabilitadas (' + inactivos.length + ')</span>'
+                   +     '<span class="uf-summary-desc">'
+                   +       $.map(inactivos, function (o) {
+                               return esc(o.username)
+                                    + (o.fundos_restantes
+                                        ? ' <small>(conserva ' + o.fundos_restantes + ' fundo(s) fuera de esta unificación)</small>'
+                                        : '');
+                           }).join(' · ')
+                   +     '</span>'
+                   +   '</div>'
+                   + '</div>';
+            }
+
+            if (r.huerfanos && r.huerfanos.length) {
+                h += '<div class="uf-summary-row">'
+                   +   '<span class="uf-summary-icon" style="background:#fdecea;color:#c62828;"><i class="fa fa-exclamation-triangle"></i></span>'
+                   +   '<div class="uf-summary-body">'
+                   +     '<span class="uf-summary-val uf-warn">Fundos que quedarán sin usuario activo</span>'
+                   +     '<span class="uf-summary-desc uf-warn">'
+                   +       $.map(r.huerfanos, function (x) { return esc(x.nombre) + ' <small>(' + esc(x.usuario) + ')</small>'; }).join(' · ')
+                   +       '<br>Si desmarca la casilla de desactivar, esas cuentas se mantienen activas.'
+                   +     '</span>'
+                   +   '</div>'
+                   + '</div>';
+            }
+
             if (r.errores && r.errores.length) {
                 h += '<div class="uf-summary-row">'
                    +   '<span class="uf-summary-icon" style="background:#fdecea;color:#c62828;"><i class="fa fa-exclamation-triangle"></i></span>'
@@ -1315,6 +1368,11 @@ jQuery(function ($) {
        ============================================================ */
     $('#uf-desactivar, #uf-propiedad').on('change', function () {
         $(this).closest('.uf-option').toggleClass('checked', $(this).is(':checked'));
+        /* La casilla de desactivar cambia quién queda inhabilitado: el resumen
+           se vuelve a pedir para que el administrador lo vea antes de aplicar. */
+        if ($(this).attr('id') === 'uf-desactivar' && destino && Object.keys(seleccion).length) {
+            refrescarResumen();
+        }
     });
 
     /* ============================================================
@@ -1335,8 +1393,9 @@ jQuery(function ($) {
             title: '¿Unificar los fundos seleccionados?',
             content: 'Los fundos pasarán al usuario <b>' + esc(destino.username) + '</b>. '
                    + 'No se borra ningún dato: solo cambia el acceso.<br><br>'
-                   + '<small>Las cuentas origen que queden sin fundos se inhabilitan y pierden el acceso a esos fundos; '
-                   + 'los usuarios ayudantes de cada fundo pasan a depender del nuevo productor (heredan su situación).</small>',
+                   + '<small>Todos los fundos quedarán en el <b>plan de mayor cobertura</b> y las demás cuentas de la '
+                   + 'transacción quedarán inhabilitadas, de modo que solo <b>' + esc(destino.username) + '</b> quede activo. '
+                   + 'Los usuarios ayudantes de cada fundo pasan a depender del nuevo productor (heredan su situación).</small>',
             confirmButton: 'Sí, unificar', cancelButton: 'Cancelar',
             confirmButtonClass: 'btn-success', cancelButtonClass: 'btn-default',
             confirm: function () {
@@ -1365,6 +1424,12 @@ jQuery(function ($) {
                                          + '</b>.';
                             }
                             detalle += '</small>';
+                        }
+
+                        if (res.plan && res.plan.nombre) {
+                            detalle += '<br><small>Plan aplicado a los fundos: <b>'
+                                     + esc(res.plan.nombre)
+                                     + '</b>' + (res.plan.max_reg ? ' (' + res.plan.max_reg + ' registros por fundo)' : '') + '.</small>';
                         }
 
                         $('.message').html(

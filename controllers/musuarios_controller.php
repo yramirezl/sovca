@@ -33,6 +33,7 @@ require_once '../models/Mplanesxfundo.php';
 require_once '../models/Msuscripcion.php';
 require_once '../lib/herencia_productor_helper.php';
 require_once '../lib/normativa_fundos_helper.php';
+require_once '../lib/multifundo_helper.php';
 require_once '../lib/geoip_helper.php';
 
 /*
@@ -233,7 +234,13 @@ function guardarSuscripcionProductor($usuarioId, $planId, $suscripcionId, $fecha
 		return $datos['error'];
 	}
 
-	$registro = Mplanesxfundo::find('first', array('conditions' => array('musuarios_id=?', intval($usuarioId)), 'order' => 'id DESC'));
+// Solo la fila de la CUENTA (mfundos_id NULL). Las filas por fundo las
+    // mantiene mf_actualizar_plan_usuario(); si se reutilizara una de ellas se
+    // le pisarían la vigencia y las fechas al fundo.
+    $registro = Mplanesxfundo::find('first', array(
+            'conditions' => array('musuarios_id=? AND mfundos_id IS NULL', intval($usuarioId)),
+            'order' => 'id DESC'
+    ));
 	if (!$registro) {
 		$registro = new Mplanesxfundo();
 		$registro->musuarios_id = intval($usuarioId);
@@ -906,7 +913,12 @@ switch ($action) {
 				$usr->mtipousuarios_id = $m_tuser_id;
 
 				// --------- MULTI-FUNDO ---------
+				// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
+				// resultado. Sin multifundo la cuenta queda con un solo fundo.
 				$usr->es_multifundo = $es_multifundo;
+				if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
+				        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+				}
 				$usr->max_fundos = $max_fundos;
 				// -------------------------------
 
@@ -1291,9 +1303,31 @@ switch ($action) {
 			$usr->mtipousuarios_id = tipoUsuarioParaGuardar($m_tuser_id, $usr->mtipousuarios_id);
 
 			// --------- MULTI-FUNDO ---------
+			// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
+			// resultado. Sin multifundo la cuenta queda con un solo fundo.
 			$usr->es_multifundo = $es_multifundo;
+			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
+			        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+			}
 			$usr->max_fundos = $max_fundos;
 			// -------------------------------
+			// --------- PLAN: subir o bajar de plan ---------
+			// Se valida antes de guardar para no dejar la cuenta fuera de cupo
+			// (p. ej. bajar a un plan que permite menos fundos de los que hoy
+			// administra). Funciona igual después de haber unificado cuentas.
+			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
+			        $error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0);
+			        if ($error_plan !== '') {
+			                echo '<div class="alert alert-danger alert-dismissable">
+			                        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+			                        <input type="hidden" id="tocon" value="0">
+			                        <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
+			                        ' . $error_plan . '
+			                </div>';
+			                break;
+			        }
+			}
+			// ----------------------------------------------
 
 			// --------- ACCESO AL MODO OFFLINE ---------
 			// 0/1 (ver nota en la acción 'add'). Ya viene filtrado por rol:
@@ -1331,6 +1365,19 @@ switch ($action) {
 
 				if ($rol == 2) {
 					guardarSuscripcionProductor($usr->id, $m_t_plan_id, $msuscripcion_id, $fecha_activa_suscripcion);
+				// El plan y la vigencia se replican a TODOS los fundos de la
+				// cuenta: así subir o bajar de plan aplica también después de
+				// haber unificado varios fundos.
+				if ((int) $m_t_plan_id > 0) {
+					$res_plan = mf_actualizar_plan_usuario($usr->id, $m_t_plan_id, $msuscripcion_id, $fecha_activa_suscripcion);
+					if ($res_plan !== true) {
+						echo '<div class="alert alert-warning alert-dismissable">
+							<button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+							<h4><i class="icon fa fa-warning"></i> Alerta!</h4>
+							' . $res_plan . '
+						</div>';
+					}
+				}
 				}
 
 				echo '<div class="alert alert-success alert-dismissable">
@@ -1410,9 +1457,32 @@ switch ($action) {
 			// escriben en el alta.
 
 			// --------- MULTI-FUNDO ---------
+			// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
+			// resultado. Sin multifundo la cuenta queda con un solo fundo.
 			$usr->es_multifundo = $es_multifundo;
+			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
+			        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+			}
 			$usr->max_fundos = $max_fundos;
 			// -------------------------------
+
+			// --------- PLAN: subir o bajar de plan ---------
+			// Se valida antes de guardar para no dejar la cuenta fuera de cupo
+			// (p. ej. bajar a un plan que permite menos fundos de los que hoy
+			// administra). Funciona igual después de haber unificado cuentas.
+			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
+			        $error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0);
+			        if ($error_plan !== '') {
+			                echo '<div class="alert alert-danger alert-dismissable">
+			                        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+			                        <input type="hidden" id="tocon" value="0">
+			                        <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
+			                        ' . $error_plan . '
+			                </div>';
+			                break;
+			        }
+			}
+			// ----------------------------------------------
 
 			// --------- ACCESO AL MODO OFFLINE ---------
 			// 0/1 (ver nota en la acción 'add'). Ya viene filtrado por rol:
@@ -1450,6 +1520,19 @@ switch ($action) {
 
 				if ($rol == 2) {
 					guardarSuscripcionProductor($usr->id, $m_t_plan_id, $msuscripcion_id, $fecha_activa_suscripcion);
+				// El plan y la vigencia se replican a TODOS los fundos de la
+				// cuenta: así subir o bajar de plan aplica también después de
+				// haber unificado varios fundos.
+				if ((int) $m_t_plan_id > 0) {
+					$res_plan = mf_actualizar_plan_usuario($usr->id, $m_t_plan_id, $msuscripcion_id, $fecha_activa_suscripcion);
+					if ($res_plan !== true) {
+						echo '<div class="alert alert-warning alert-dismissable">
+							<button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+							<h4><i class="icon fa fa-warning"></i> Alerta!</h4>
+							' . $res_plan . '
+						</div>';
+					}
+				}
 				}
 
 				echo '<div class="alert alert-success alert-dismissable">

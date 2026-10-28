@@ -217,6 +217,8 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../tipousuarios/"><i class="fa fa-link"></i> <span>Tipos de Usuario</span></a></li>';
     echo '<li><a href="../roles/"><i class="fa fa-flag"></i> <span>Roles</span></a></li>';
     echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
+    // El maestro de planes define registros y fundos por plan: solo Super Usuario.
+    echo '<li><a href="../planes/"><i class="fa fa-tags"></i> <span>Planes</span></a></li>';
     echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
 

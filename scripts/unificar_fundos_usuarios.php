@@ -54,8 +54,10 @@
  *   --objetivo=ID|USERNAME   Usuario que conserva la cuenta (destino).
  *   --fusionar=ID,USERNAME   Usuario(s) cuyos fundos se pasan al destino.
  *   --aplicar                Ejecuta los cambios (sin esto solo simula).
- *   --desactivar             Desactiva las cuentas origen que queden sin fundos.
+ *   --desactivar             Inhabilita las cuentas origen que queden sin fundos.
  *   --propietario            Deja al destino como propietario de los fundos.
+ *   --reajustar-plan=ID|USER Deja TODOS los fundos de esa cuenta en su plan
+ *                            de mayor cobertura (para cuentas ya unificadas).
  *   --plan                   Muestra este plan y sale.
  *   --help
  *
@@ -149,7 +151,8 @@ function uf_fundos_txt($usuario_id)
     }
     $out = array();
     foreach ($rows as $f) {
-        $gan = ((int) $f['mtipoganaderias_id'] === 1) ? 'bovina' : 'bufalina';
+        $gan = ((int) $f['mtipoganaderias_id'] === 1) ? 'ovina'
+             : (((int) $f['mtipoganaderias_id'] === 2) ? 'caprina' : 'ovina y caprina');
         $out[] = $f['nombre'] . " (id {$f['mfundos_id']}, $gan, {$f['animales']} animales)";
     }
     return implode(' | ', $out);
@@ -183,10 +186,64 @@ if (!$grupos) {
     }
 }
 
+// ─────────────────  1 bis) Reajustar el plan de una cuenta  ─────────────────
+// Sirve para las cuentas que se unificaron con la versión anterior del
+// proceso: quedaron con fundos en planes distintos aunque el plan de la
+// ficha fuera mayor. Deja TODOS sus fundos en el plan de mayor cobertura.
+$reajustarRaw = isset($opts['reajustar-plan']) ? $opts['reajustar-plan'] : '';
+if ($reajustarRaw !== '') {
+    $ucuenta = uf_usuario($reajustarRaw);
+    if (!$ucuenta) {
+        fwrite(STDERR, "\nERROR: no existe el usuario '{$reajustarRaw}'.\n");
+        exit(1);
+    }
+    $fundosCuenta = mf_fundos_para_unificar((int) $ucuenta['id']);
+    if (!$fundosCuenta) {
+        fwrite(STDERR, "\nERROR: el usuario '{$ucuenta['username']}' no tiene fundos.\n");
+        exit(1);
+    }
+
+    echo "\n── Reajuste de plan ────────────────────────────────────────────────────────\n";
+    printf("   Cuenta: id %d · %s · %s\n", $ucuenta['id'], $ucuenta['username'], $ucuenta['email']);
+    $planesC = array(mf_plan_vigente_usuario((int) $ucuenta['id']));
+    foreach ($fundosCuenta as $f) {
+        $pl = mf_plan_detalle(mf_plan_vigente_fundo((int) $f['mfundos_id']));
+        $planesC[] = $pl['id'];
+        printf("      - %-28s (id %d) plan actual: %s\n",
+            $f['nombre'], $f['mfundos_id'], ($pl['nombre'] !== '' ? $pl['nombre'] : 'sin plan'));
+    }
+    $mayor = mf_plan_detalle(mf_plan_mayor($planesC));
+    if ($mayor['id'] <= 0) {
+        fwrite(STDERR, "\nERROR: no se pudo determinar el plan de mayor cobertura.\n");
+        exit(1);
+    }
+    printf("   Plan que prevalecerá: %s (%d registros por fundo)\n", $mayor['nombre'], $mayor['max_reg']);
+
+    if (!$aplicar) {
+        echo "\n [SIMULACIÓN] No se cambió nada. Agrega --aplicar para ejecutar.\n\n";
+        exit(0);
+    }
+
+    $fallos = 0;
+    foreach ($fundosCuenta as $f) {
+        if (!mf_aplicar_plan_fundo((int) $f['mfundos_id'], (int) $ucuenta['id'], $mayor['id'])) {
+            $fallos++;
+        }
+    }
+    _mf_exec("UPDATE musuarios SET mplanes_id = {$mayor['id']} WHERE id = " . (int) $ucuenta['id']);
+
+    echo "\n── Resultado ────────────────────────────────────────────────────────────\n";
+    printf("   Fundos en %s: %d de %d\n", $mayor['nombre'], count($fundosCuenta) - $fallos, count($fundosCuenta));
+    echo '   ' . uf_fundos_txt((int) $ucuenta['id']) . "\n";
+    echo "\n ✔ Reajuste completado.\n\n";
+    exit(0);
+}
+
 // ─────────────────────  2) Unificación solicitada  ─────────────────────
 if ($objetivoRaw === '' || $fusionarRaw === '') {
     echo "\n (No se indicó --objetivo / --fusionar: solo informativo.)\n";
-    echo " Ejemplo:  php scripts/unificar_fundos_usuarios.php --objetivo=79 --fusionar=80\n\n";
+    echo " Ejemplo:  php scripts/unificar_fundos_usuarios.php --objetivo=79 --fusionar=80\n";
+    echo " Reajustar plan: php scripts/unificar_fundos_usuarios.php --reajustar-plan=79 --aplicar\n\n";
     exit(0);
 }
 
@@ -239,20 +296,30 @@ if (!$fundoIds) {
 echo "\n── Unificación solicitada ────────────────────────────────────────────────\n";
 printf("   Destino : id %d · %s · %s\n", $destino['id'], $destino['username'], $destino['email']);
 echo "   Fundos que se asignarán al destino (y se quitarán a los orígenes):\n";
+$planesPrevios = array(mf_plan_vigente_usuario((int) $destino['id']));
 foreach ($fundoIds as $fid) {
     $f = _mf_q1("SELECT f.id, f.nombre, f.mtipoganaderias_id, f.user_propietario
                    FROM mfundos f WHERE f.id = " . (int) $fid . " LIMIT 1");
-    $gan = ($f && (int) $f['mtipoganaderias_id'] === 1) ? 'bovina' : 'bufalina';
+    $gan = ($f && (int) $f['mtipoganaderias_id'] === 1) ? 'ovina'
+         : (($f && (int) $f['mtipoganaderias_id'] === 2) ? 'caprina' : 'ovina y caprina');
     $prop = ($f && $f['user_propietario']) ? ('propietario actual: id ' . $f['user_propietario']) : 'sin propietario';
-    printf("      - %-28s (id %d, %s, %s)\n", $f ? $f['nombre'] : "fundo $fid", $fid, $gan, $prop);
+    $pl   = mf_plan_detalle(mf_plan_vigente_fundo((int) $fid));
+    $planesPrevios[] = $pl['id'];
+    printf("      - %-28s (id %d, %s, plan %s, %s)\n",
+        $f ? $f['nombre'] : "fundo $fid", $fid, $gan, ($pl['nombre'] !== '' ? $pl['nombre'] : 'sin plan'), $prop);
 }
+$planMayor = mf_plan_detalle(mf_plan_mayor($planesPrevios));
 echo "   Orígenes que perderán esos fundos:\n";
 foreach ($origenes as $ori) {
     $o = uf_usuario($ori);
     printf("      - id %d · %s   (fundos actuales: %s)\n", $ori, $o['username'], uf_fundos_txt($ori));
 }
-printf("   Opciones: desactivar orígenes vacíos = %s · transferir propiedad = %s\n",
+printf("   Opciones: inhabilitar orígenes = %s · transferir propiedad = %s\n",
     ($desactivar ? 'SÍ' : 'no'), ($propiedad ? 'SÍ' : 'no'));
+if ($planMayor['id'] > 0) {
+    printf("   Plan que prevalecerá (mayor cobertura): %s (%d registros por fundo)\n",
+        $planMayor['nombre'], $planMayor['max_reg']);
+}
 
 if (!$aplicar) {
     echo "\n [SIMULACIÓN] No se cambió nada. Agrega --aplicar para ejecutar.\n\n";
@@ -275,6 +342,10 @@ if (!empty($res['errores'])) {
 }
 printf("   Fundos asignados al destino: %d\n", count($res['fundos']));
 printf("   Destino: es_multifundo=%d  max_fundos=%d\n", $res['es_multifundo'], $res['max_fundos']);
+if (!empty($res['plan']['id'])) {
+    printf("   Plan aplicado a los fundos: %s (%d registros por fundo)\n",
+        $res['plan']['nombre'], $res['plan']['max_reg']);
+}
 if ($res['desactivados']) {
     echo '   Cuentas desactivadas: ' . implode(', ', $res['desactivados']) . "\n";
 }
