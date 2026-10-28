@@ -18,7 +18,13 @@
  *
  * Puesta en marcha (una sola vez por servidor):
  *   1) php scripts/demo_instalar.php
- *   2) poner SOVCA_DEMO_ACTIVO en true (aquí abajo)
+ *   2) comprobar que SOVCA_DEMO_ACTIVO está en true (aquí abajo)
+ *
+ * La sesión demo trabaja con el ROL DE LA APLICACIÓN (config/db.php →
+ * SOVCA_DB_USER), igual que en BOVS: ese rol solo tiene permisos sobre
+ * sovca y sovca_demo. Crear o borrar la base, en cambio, exige un rol
+ * con CREATEDB, y por eso el instalador usa SOVCA_DEMO_ADMIN_*, que se
+ * configura en el servidor desde config/db.local.php.
  *
  * Para apagar la demostración basta con SOVCA_DEMO_ACTIVO = false: el
  * botón desaparece del login y las sesiones demo dejan de resolverse
@@ -32,7 +38,8 @@
  * PRIMERO. Ejemplo en el servidor:
  *
  *     define('SOVCA_DEMO_ACTIVO', false);
- *     define('SOVCA_DEMO_CLAVE', 'la-clave-de-postgres');
+ *     define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
+ *     define('SOVCA_DEMO_ADMIN_CLAVE', 'la-clave-de-postgres');
  * =====================================================================
  */
 
@@ -43,21 +50,45 @@ if (!defined('SOVCA_DEMO_ACTIVO')) {
     define('SOVCA_DEMO_ACTIVO', true);
 }
 
-/* Base de datos de pruebas (misma estructura, solo catálogos). */
+/* Base de datos de pruebas (misma estructura, solo catálogos).
+   Las credenciales de EJECUCIÓN salen de config/db.php: la sesión demo
+   se conecta con el rol de la aplicación (sovca_app), que solo puede
+   leer y escribir en sovca y sovca_demo. Aquí se conservan los nombres
+   históricos que usan lib/demo_helper.php y el instalador. */
 if (!defined('SOVCA_DEMO_DB')) {
-    define('SOVCA_DEMO_DB', 'sovca_demo');
+    define('SOVCA_DEMO_DB', SOVCA_DB_DEMO_NAME);
 }
 if (!defined('SOVCA_DEMO_HOST')) {
-    define('SOVCA_DEMO_HOST', '127.0.0.1');
+    define('SOVCA_DEMO_HOST', SOVCA_DB_HOST);
 }
 if (!defined('SOVCA_DEMO_PUERTO')) {
-    define('SOVCA_DEMO_PUERTO', '5432');
+    define('SOVCA_DEMO_PUERTO', SOVCA_DB_PORT);
 }
 if (!defined('SOVCA_DEMO_USUARIO')) {
-    define('SOVCA_DEMO_USUARIO', 'postgres');
+    define('SOVCA_DEMO_USUARIO', SOVCA_DB_USER);
 }
 if (!defined('SOVCA_DEMO_CLAVE')) {
-    define('SOVCA_DEMO_CLAVE', 'postgres');
+    define('SOVCA_DEMO_CLAVE', SOVCA_DB_PASS);
+}
+
+/* ---------------------------------------------------------------------
+   CREDENCIALES DE INSTALACIÓN (solo scripts/demo_instalar.php)
+   ---------------------------------------------------------------------
+   Crear la base, clonar la estructura y restaurar el volcado exige un
+   rol con CREATEDB (o superusuario), privilegio que la aplicación NO
+   debe tener. Por defecto se usan las credenciales de ejecución; en el
+   servidor se ponen las del administrador en config/db.local.php:
+
+       define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
+       define('SOVCA_DEMO_ADMIN_CLAVE', '...');
+
+   La sesión demo NUNCA usa estas credenciales.
+   --------------------------------------------------------------------- */
+if (!defined('SOVCA_DEMO_ADMIN_USUARIO')) {
+    define('SOVCA_DEMO_ADMIN_USUARIO', SOVCA_DEMO_USUARIO);
+}
+if (!defined('SOVCA_DEMO_ADMIN_CLAVE')) {
+    define('SOVCA_DEMO_ADMIN_CLAVE', SOVCA_DEMO_CLAVE);
 }
 
 /* Base "origen" que se clona (solo estructura + catálogos). */

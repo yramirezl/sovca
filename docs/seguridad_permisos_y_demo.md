@@ -200,32 +200,46 @@ Si preferís tocarlo en el archivo versionado, es la misma línea en
 
 ## B) Usarla
 
-El instalador usa `SOVCA_DEMO_USUARIO` y `SOVCA_DEMO_CLAVE` de
-`config/demo.php`, que traen `postgres/postgres`. En producción la clave de
-`postgres` es otra, así que hay que ajustarla antes:
+El instalador necesita **dos roles distintos**, y eso se configura en
+`config/db.local.php` (archivo no versionado que `config/demo.php` carga antes
+de definir sus constantes):
+
+| Uso | Constante | Rol típico |
+|---|---|---|
+| Sesión demo del sitio | `SOVCA_DEMO_USUARIO` / `SOVCA_DEMO_CLAVE` (salen de `config/db.php`) | `sovca_app` |
+| Crear la base y restaurar el volcado | `SOVCA_DEMO_ADMIN_USUARIO` / `SOVCA_DEMO_ADMIN_CLAVE` | `postgres` (o cualquier rol con `CREATEDB`) |
+
+La aplicación nunca usa las credenciales de administración: solo las lee el
+instalador, que las necesita para `CREATE DATABASE`, `pg_dump` y `psql`. Si no
+las defines, el instalador usa las de ejecución y fallará con
+`permission denied to create database`.
 
 ```bash
 cd /var/www/html/sovca
 
-sed -i "s/SOVCA_DEMO_CLAVE', 'postgres'/SOVCA_DEMO_CLAVE', 'LA-CLAVE-DE-POSTGRES'/" config/demo.php
-php -l config/demo.php
+# 1) Credenciales de instalación (una sola vez en el servidor)
+cat >> config/db.local.php <<'EOF'
+define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
+define('SOVCA_DEMO_ADMIN_CLAVE', 'LA-CLAVE-DE-POSTGRES');
+EOF
+php -l config/db.local.php
 
-# Como root. NO uses 'sudo -u postgres php': con los permisos 750 root:www-data
-# el usuario del sistema 'postgres' no puede leer el código y PHP responde
-# "Could not open input file". Las credenciales de la base las toma de
-# config/demo.php, no del usuario del sistema.
+# 2) Crear la base. Como root y sin 'sudo -u postgres php': con los permisos
+#    750 root:www-data el usuario del sistema 'postgres' no puede leer el
+#    código y PHP responde "Could not open input file". Las credenciales de la
+#    base vienen de config/db.local.php, no del usuario del sistema.
 php /var/www/html/sovca/scripts/demo_instalar.php
-
-# Ahora sí, permisos para el rol de la aplicación en la base nueva
-SOVCA_APP_PASS="$(cat /root/sovca_app.txt)" bash scripts/crear_usuario_sovca_app.sh
 ```
 
 > `Could not open input file: scripts/demo_instalar.php` significa que el
 > comando se lanzó desde otra carpeta. Usá siempre la ruta absoluta o hacé
 > `cd /var/www/html/sovca` primero.
 
-El segundo comando es necesario porque los `GRANT` se aplicaron cuando
-`sovca_demo` no existía.
+El instalador ya concede al rol de la aplicación (`SOVCA_DEMO_USUARIO`) los
+permisos sobre la base nueva y le cede la propiedad de `demo_registros` y
+`demo_verificaciones`, que `bovs_demo_preparar()` crea y altera en cada
+petición. Por eso **ya no hace falta** volver a ejecutar
+`scripts/crear_usuario_sovca_app.sh` después de instalar o recrear la demo.
 
 Verificación:
 

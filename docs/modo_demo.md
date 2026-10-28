@@ -55,7 +55,10 @@ php scripts/demo_instalar.php
 Requisitos:
 
 - `pg_dump` y `psql` en el `PATH` (paquete `postgresql-client`).
-- El usuario configurado (`SOVCA_DEMO_USUARIO`) debe poder **crear bases de datos**.
+- Las credenciales de instalación (`SOVCA_DEMO_ADMIN_USUARIO` /
+  `SOVCA_DEMO_ADMIN_CLAVE`, por defecto las de ejecución) deben poder **crear
+  bases de datos**. La sesión demo, en cambio, usa el rol de la aplicación
+  (`SOVCA_DB_USER`, o sea `sovca_app`), que solo lee y escribe.
 - `pg_dump` debe ser de la misma versión o superior al servidor.
 - **Correo saliente configurado** (`config/mail.php` o variable `SOVCA_SMTP_PASS`):
   el alta demo exige verificar el correo. Sin SMTP nadie puede crear una

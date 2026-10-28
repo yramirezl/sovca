@@ -30,10 +30,12 @@
  * VARIABLES DE ENTORNO (opcionales, mismas que config/demo.php)
  *   SOVCA_DEMO_DB, SOVCA_DEMO_DB_ORIGEN, SOVCA_DEMO_HOST, SOVCA_DEMO_PUERTO,
  *   SOVCA_DEMO_USUARIO, SOVCA_DEMO_CLAVE
+ *   SOVCA_DEMO_ADMIN_USUARIO, SOVCA_DEMO_ADMIN_CLAVE (rol con CREATEDB:
+ *   es el que crea la base y restaura el volcado)
  *
  * REQUISITOS
  *   · pg_dump y psql en el PATH (misma versión o superior al servidor)
- *   · el usuario configurado debe poder crear bases de datos
+ *   · el usuario ADMIN debe poder crear bases de datos
  * =====================================================================
  */
 
@@ -100,20 +102,45 @@ function demo_ejecutar($comando, &$salida = null)
 
 /* ---------------------------------------------------------------------
    CONEXIÓN ADMINISTRATIVA (base "postgres")
+   ---------------------------------------------------------------------
+   Crear la base y restaurar el volcado necesita un rol con CREATEDB;
+   la aplicación NO lo tiene. Se usan SOVCA_DEMO_ADMIN_* y nunca las
+   credenciales de ejecución (SOVCA_DEMO_USUARIO), que son las que
+   utiliza la sesión demo del sitio.
    --------------------------------------------------------------------- */
+$adminUsuario = SOVCA_DEMO_ADMIN_USUARIO;
+$adminClave   = SOVCA_DEMO_ADMIN_CLAVE;
+
 try {
     $pdoAdmin = new PDO(
         bovs_demo_dsn('postgres'),
-        SOVCA_DEMO_USUARIO,
-        SOVCA_DEMO_CLAVE,
+        $adminUsuario,
+        $adminClave,
         array(
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         )
     );
 } catch (Throwable $e) {
-    demo_error('No se pudo conectar al servidor PostgreSQL (' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . '): ' . $e->getMessage());
+    demo_error('No se pudo conectar al servidor PostgreSQL (' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . ') como ' . $adminUsuario . ': ' . $e->getMessage());
+    demo_error('Define SOVCA_DEMO_ADMIN_USUARIO / SOVCA_DEMO_ADMIN_CLAVE en config/db.local.php con un rol que pueda crear bases de datos.');
     exit(1);
+}
+
+/* Conexión a la base DEMO con el mismo rol administrador: es la que
+   crea las tablas del demo (demo_registros, demo_verificaciones). Los
+   permisos para el rol de la aplicación se conceden al final. */
+function demo_pdo_destino($base)
+{
+    return new PDO(
+        bovs_demo_dsn($base),
+        SOVCA_DEMO_ADMIN_USUARIO,
+        SOVCA_DEMO_ADMIN_CLAVE,
+        array(
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        )
+    );
 }
 
 function demo_bd_existe(PDO $pdo, $nombre)
@@ -147,14 +174,14 @@ if ($psql === '' || $pgdump === '') {
     exit(1);
 }
 
-$credenciales = 'PGPASSWORD=' . escapeshellarg(SOVCA_DEMO_CLAVE)
+$credenciales = 'PGPASSWORD=' . escapeshellarg($adminClave)
     . ' ' . escapeshellarg($psql);
 $dsnBase = ' -h ' . escapeshellarg(SOVCA_DEMO_HOST)
     . ' -p ' . escapeshellarg(SOVCA_DEMO_PUERTO)
-    . ' -U ' . escapeshellarg(SOVCA_DEMO_USUARIO);
+    . ' -U ' . escapeshellarg($adminUsuario);
 
 $cmdPsql = $credenciales . $dsnBase;
-$cmdDump = 'PGPASSWORD=' . escapeshellarg(SOVCA_DEMO_CLAVE) . ' ' . escapeshellarg($pgdump) . $dsnBase;
+$cmdDump = 'PGPASSWORD=' . escapeshellarg($adminClave) . ' ' . escapeshellarg($pgdump) . $dsnBase;
 
 /* ---------------------------------------------------------------------
    PASO 1 — BASE DESTINO
@@ -179,15 +206,38 @@ if ($existeDestino && $recrear) {
 }
 
 if (!$existeDestino) {
-    demo_salida('· Creando la base ' . $destino . '...');
+    /* La demo debe heredar la COLACIÓN del origen, NO la del clúster:
+       en Ubuntu 24.04 el clúster nace en C.UTF-8 y entonces los
+       ORDER BY con acentos/ñ cambian respecto a la base real. */
+    $infoOrigen = $pdoAdmin->query(
+        'SELECT datcollate, datctype FROM pg_database WHERE datname = ' . $pdoAdmin->quote($origen)
+    )->fetch();
+    $lcCollate = $infoOrigen ? $infoOrigen['datcollate'] : 'C.UTF-8';
+    $lcCtype   = $infoOrigen ? $infoOrigen['datctype']   : 'C.UTF-8';
+
+    demo_salida('· Creando la base ' . $destino . ' (LC_COLLATE=' . $lcCollate . ')...');
     try {
-        $pdoAdmin->exec("CREATE DATABASE " . demo_id_sql($destino) . " WITH ENCODING 'UTF8' TEMPLATE template0");
+        $pdoAdmin->exec(
+            "CREATE DATABASE " . demo_id_sql($destino)
+            . " WITH ENCODING 'UTF8'"
+            . " LC_COLLATE " . $pdoAdmin->quote($lcCollate)
+            . " LC_CTYPE " . $pdoAdmin->quote($lcCtype)
+            . " TEMPLATE template0"
+        );
     } catch (Throwable $e) {
         demo_error('No se pudo crear ' . $destino . ': ' . $e->getMessage());
+        demo_error('Si el error menciona el locale, generalo antes: sudo locale-gen ' . $lcCollate);
         exit(1);
     }
 } else {
     demo_salida('· La base ' . $destino . ' ya existe (se reutiliza). Usa --recrear para dejarla limpia.');
+}
+
+try {
+    $pdoDestino = demo_pdo_destino($destino);
+} catch (Throwable $e) {
+    demo_error('No se pudo abrir la base ' . $destino . ': ' . $e->getMessage());
+    exit(1);
 }
 
 /* ---------------------------------------------------------------------
@@ -200,6 +250,8 @@ demo_salida('· Copiando estructura desde ' . $origen . '...');
 $codigo = demo_ejecutar(
     $cmdDump . ' -d ' . escapeshellarg($origen)
     . ' --schema-only --no-owner --no-privileges'
+    /* Las tablas de respaldo (_bkp_*) no forman parte de la aplicación. */
+    . ' --exclude-table=' . escapeshellarg('_bkp_*')
     . ' -f ' . escapeshellarg($tmpSchema),
     $salida
 );
@@ -313,9 +365,8 @@ if (!$sinCatalgos) {
     /* Limpieza de filas propias de fundos reales. */
     demo_salida('· Limpiando filas de fundos reales en los catálogos...');
     try {
-        $pdoDemo = bovs_demo_pdo($destino);
         foreach ($catalogosPorFundo as $tabla) {
-            $pdoDemo->exec('DELETE FROM ' . demo_id_sql($tabla) . ' WHERE mfundos_id IS NOT NULL AND mfundos_id <> 0');
+            $pdoDestino->exec('DELETE FROM ' . demo_id_sql($tabla) . ' WHERE mfundos_id IS NOT NULL AND mfundos_id <> 0');
         }
     } catch (Throwable $e) {
         demo_error('No se pudieron limpiar los catálogos: ' . $e->getMessage());
@@ -380,12 +431,53 @@ if ($codigo !== 0) {
    --------------------------------------------------------------------- */
 demo_salida('· Preparando tablas propias del modo demo...');
 try {
-    $pdoDemo = bovs_demo_pdo($destino);
-    bovs_demo_preparar($pdoDemo);
-    $suscripcion = bovs_demo_suscripcion_id($pdoDemo);
+    bovs_demo_preparar($pdoDestino);
+    $suscripcion = bovs_demo_suscripcion_id($pdoDestino);
 } catch (Throwable $e) {
     demo_error('No se pudo preparar el modo demo: ' . $e->getMessage());
     exit(1);
+}
+
+/* ---------------------------------------------------------------------
+   PASO 6 — PERMISOS PARA EL ROL DE LA APLICACIÓN
+   ---------------------------------------------------------------------
+   Si la base la creó el administrador, las tablas quedan a su nombre y
+   el rol de la aplicación (SOVCA_DEMO_USUARIO) no podría leerlas. Se
+   conceden aquí los mismos privilegios que
+   scripts/crear_usuario_sovca_app.sh, para no depender de recordar
+   ejecutarlo después de cada reinstalación.
+   --------------------------------------------------------------------- */
+if (SOVCA_DEMO_USUARIO !== SOVCA_DEMO_ADMIN_USUARIO) {
+    demo_salida('· Concediendo permisos a ' . SOVCA_DEMO_USUARIO . ' sobre ' . $destino . '...');
+    $rol = '"' . str_replace('"', '""', SOVCA_DEMO_USUARIO) . '"';
+    $sentencias = array(
+        'GRANT CONNECT, TEMPORARY ON DATABASE ' . demo_id_sql($destino) . ' TO ' . $rol,
+        'GRANT USAGE, CREATE ON SCHEMA public TO ' . $rol,
+        'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ' . $rol,
+        'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ' . $rol,
+        'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO ' . $rol,
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ' . $rol,
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ' . $rol,
+    );
+
+    /* bovs_demo_preparar() crea y altera estas dos tablas en cada
+       petición (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+       Si quedan a nombre del administrador, la aplicación recibe
+       "must be owner of table" en cada arranque: se le ceden. */
+    foreach (array('demo_registros', 'demo_verificaciones') as $tablaDemo) {
+        $sentencias[] = 'ALTER TABLE IF EXISTS ' . demo_id_sql($tablaDemo) . ' OWNER TO ' . $rol;
+    }
+
+    try {
+        foreach ($sentencias as $sql) {
+            $pdoDestino->exec($sql);
+        }
+        demo_salida('  permisos concedidos.');
+    } catch (Throwable $e) {
+        demo_error('No se pudieron conceder los permisos a ' . SOVCA_DEMO_USUARIO . ': ' . $e->getMessage());
+        demo_error('Ejecuta: SOVCA_APP_PASS=... bash scripts/crear_usuario_sovca_app.sh');
+        exit(1);
+    }
 }
 
 /* ---------------------------------------------------------------------
@@ -419,7 +511,7 @@ $resumen = array(
 
 foreach ($resumen as $tabla) {
     try {
-        $total = (int) $pdoDemo->query('SELECT count(*) FROM ' . demo_id_sql($tabla))->fetchColumn();
+        $total = (int) $pdoDestino->query('SELECT count(*) FROM ' . demo_id_sql($tabla))->fetchColumn();
         demo_salida(sprintf('  %-18s %6d', $tabla, $total));
     } catch (Throwable $e) {
         demo_salida(sprintf('  %-18s %6s', $tabla, 'n/d'));

@@ -48,13 +48,20 @@ if (!defined('SOVCA_DB_PASS')) {
 }
 
 /* ---------------------------------------------------------------------
-   MODO DEMOSTRACIÓN (opcional)
+   MODO DEMOSTRACIÓN
    ---------------------------------------------------------------------
-   config/demo.php carga este archivo ANTES de definir sus constantes, así
-   que aquí se puede apagar el acceso demo o darle credenciales propias:
+   config/demo.php carga este archivo ANTES de definir sus constantes.
+
+   La SESIÓN demo usa el rol de la aplicación (SOVCA_DB_USER, o sea
+   sovca_app): ese rol solo puede leer y escribir, nunca crear bases.
+
+   La INSTALACIÓN de sovca_demo (php scripts/demo_instalar.php) sí
+   necesita un rol con CREATEDB. Se configura aquí, no en el código:
+
+       define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
+       define('SOVCA_DEMO_ADMIN_CLAVE', 'la-clave-de-postgres');
+
+   Para apagar la demostración:
 
        define('SOVCA_DEMO_ACTIVO', false);
-       define('SOVCA_DEMO_CLAVE', 'la-clave-de-postgres');
-
-   Así no hay que editar archivos versionados en el servidor.
    --------------------------------------------------------------------- */
