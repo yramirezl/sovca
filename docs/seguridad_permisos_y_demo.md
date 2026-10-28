@@ -180,27 +180,37 @@ Elegí una de las dos:
 
 ```bash
 cd /var/www/html/sovca
-nano config/demo.php
+sed -i "s/SOVCA_DEMO_ACTIVO', true/SOVCA_DEMO_ACTIVO', false/" config/demo.php
+php -l config/demo.php
+grep -n "SOVCA_DEMO_ACTIVO" config/demo.php
 ```
 
-```php
-define('SOVCA_DEMO_ACTIVO', false);
-```
-
-Con eso desaparece el acceso demo del login y no hace falta la base.
+Con eso desaparece el acceso demo del login y no hace falta la base. Es la
+opción recomendada en producción: el modo demo existe para mostrar el sistema a
+un interesado, no para el día a día.
 
 ## B) Usarla
+
+El instalador usa `SOVCA_DEMO_USUARIO` y `SOVCA_DEMO_CLAVE` de
+`config/demo.php`, que traen `postgres/postgres`. En producción la clave de
+`postgres` es otra, así que hay que ajustarla antes:
 
 ```bash
 cd /var/www/html/sovca
 
-# Crea sovca_demo con la estructura y los catálogos de sovca (sin datos de
-# productores). Necesita un usuario con CREATEDB: postgres
-sudo -u postgres php scripts/demo_instalar.php
+sed -i "s/SOVCA_DEMO_CLAVE', 'postgres'/SOVCA_DEMO_CLAVE', 'LA-CLAVE-DE-POSTGRES'/" config/demo.php
+php -l config/demo.php
+
+# Ruta absoluta: el script solo se encuentra si estás en la raíz del proyecto
+sudo -u postgres php /var/www/html/sovca/scripts/demo_instalar.php
 
 # Ahora sí, permisos para el rol de la aplicación en la base nueva
 SOVCA_APP_PASS="$(cat /root/sovca_app.txt)" bash scripts/crear_usuario_sovca_app.sh
 ```
+
+> `Could not open input file: scripts/demo_instalar.php` significa que el
+> comando se lanzó desde otra carpeta. Usá siempre la ruta absoluta o hacé
+> `cd /var/www/html/sovca` primero.
 
 El segundo comando es necesario porque los `GRANT` se aplicaron cuando
 `sovca_demo` no existía.
