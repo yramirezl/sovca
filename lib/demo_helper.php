@@ -108,10 +108,31 @@ if (!function_exists('bovs_demo_bd_disponible')) {
             $pdo->query('SELECT 1 FROM musuarios LIMIT 1');
             $estado = true;
         } catch (Throwable $e) {
+            /* El motivo se publica en la pantalla del demo y en el log: sin
+               esto solo se ve "no está instalada" y no hay forma de saber si
+               falta la base, el ruteo del pooler o la clave. */
+            $GLOBALS['bovs_demo_bd_error'] = $e->getMessage();
+            error_log('[SOVCA demo] base no disponible: ' . $e->getMessage());
             $estado = false;
         }
 
         return $estado;
+    }
+}
+
+if (!function_exists('bovs_demo_destino_actual')) {
+    /**
+     * Describe el destino al que intenta conectarse la sesión demo.
+     * Se muestra junto al error para saber de un vistazo qué se probó.
+     */
+    function bovs_demo_destino_actual()
+    {
+        $base = defined('SOVCA_DEMO_DB') ? SOVCA_DEMO_DB : 'sovca_demo';
+        $host = defined('SOVCA_DEMO_HOST') ? SOVCA_DEMO_HOST : '?';
+        $puerto = defined('SOVCA_DEMO_PUERTO') ? SOVCA_DEMO_PUERTO : '?';
+        $usuario = defined('SOVCA_DEMO_USUARIO') ? SOVCA_DEMO_USUARIO : '?';
+
+        return $usuario . '@' . $host . ':' . $puerto . '/' . $base;
     }
 }
 

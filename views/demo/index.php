@@ -446,6 +446,18 @@ $cap_token = $cap['token'];
     .demo-msg--ok { background: #FDF2E2; color: #8A4B12; border: 1px solid #E9C89B; }
     .demo-msg--info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .demo-msg i { margin-top: 2px; }
+    .demo-msg__detalle {
+      display: block;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(153, 27, 27, .2);
+      font-size: 11.5px;
+      font-weight: 400;
+      line-height: 1.5;
+      word-break: break-word;
+      opacity: .9;
+    }
+    .demo-msg__detalle strong { font-weight: 700; }
 
     .validation-msg {
       display: none;
@@ -683,8 +695,15 @@ $cap_token = $cap['token'];
         <div class="demo-msg demo-msg--error visible">
           <i class="fa fa-triangle-exclamation"></i>
           <div>
-            La base de datos de pruebas <strong>todavía no está instalada</strong>.<br>
-            Un administrador debe ejecutar <code>php scripts/demo_instalar.php</code>.
+            La base de datos de pruebas <strong>no está disponible</strong>.<br>
+            Un administrador debe revisar la instalación
+            (<code>php scripts/demo_instalar.php</code>).
+            <?php if (!empty($GLOBALS['bovs_demo_bd_error'])): ?>
+              <small class="demo-msg__detalle">
+                <strong>Destino:</strong> <?= htmlspecialchars(bovs_demo_destino_actual(), ENT_QUOTES, 'UTF-8') ?><br>
+                <strong>Detalle:</strong> <?= htmlspecialchars($GLOBALS['bovs_demo_bd_error'], ENT_QUOTES, 'UTF-8') ?>
+              </small>
+            <?php endif; ?>
           </div>
         </div>
       <?php endif; ?>
