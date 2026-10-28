@@ -87,6 +87,25 @@ function demo_id_sql($nombre)
     return '"' . str_replace('"', '""', (string) $nombre) . '"';
 }
 
+/* Quita del volcado las sentencias de extensión (CREATE/ALTER/COMMENT/DROP
+   EXTENSION). Ya se resolvieron aparte: algunas exigen superusuario
+   (pg_stat_statements) y la demo no las necesita. */
+function demo_quitar_extensiones($archivo)
+{
+    $lineas = @file($archivo, FILE_IGNORE_NEW_LINES);
+    if (!$lineas) {
+        return;
+    }
+    $salida = array();
+    foreach ($lineas as $linea) {
+        if (preg_match('/^(CREATE|ALTER|COMMENT ON|DROP)\s+EXTENSION\b/i', $linea)) {
+            continue;
+        }
+        $salida[] = $linea;
+    }
+    @file_put_contents($archivo, implode("\n", $salida) . "\n");
+}
+
 function demo_binario($nombre)
 {
     $ruta = trim((string) @shell_exec('command -v ' . escapeshellarg($nombre) . ' 2>/dev/null'));
@@ -329,6 +348,35 @@ try {
 /* ---------------------------------------------------------------------
    PASO 2 — ESTRUCTURA
    --------------------------------------------------------------------- */
+/* Extensiones: se crean ANTES de la estructura porque las tablas pueden
+   usar sus funciones en los DEFAULT. Las que el rol de la aplicación no
+   puede instalar (pg_stat_statements, no "trusted") se omiten y se
+   informan: la demo funciona igual sin ellas. */
+demo_salida('· Preparando extensiones...');
+
+$extensiones = array();
+$salidaExt   = array();
+$cmdExtensiones = $cmdPsql . ' -d ' . escapeshellarg($origen)
+    . ' -tAc ' . escapeshellarg("SELECT extname FROM pg_extension WHERE extname <> 'plpgsql' ORDER BY 1");
+
+if (demo_ejecutar($cmdExtensiones, $salidaExt) === 0) {
+    foreach ($salidaExt as $lineaExt) {
+        $lineaExt = trim($lineaExt);
+        if ($lineaExt !== '') {
+            $extensiones[] = $lineaExt;
+        }
+    }
+}
+
+foreach ($extensiones as $ext) {
+    try {
+        $pdoDestino->exec('CREATE EXTENSION IF NOT EXISTS ' . demo_id_sql($ext));
+        demo_salida('  ' . $ext . ': creada');
+    } catch (Throwable $e) {
+        demo_salida('  ' . $ext . ': omitida (requiere superusuario, la demo no la necesita)');
+    }
+}
+
 $tmpSchema = sys_get_temp_dir() . '/sovca_demo_schema_' . getmypid() . '.sql';
 
 demo_salida('· Copiando estructura desde ' . $origen . '...');
@@ -347,6 +395,8 @@ if ($codigo !== 0) {
     @unlink($tmpSchema);
     exit(1);
 }
+
+demo_quitar_extensiones($tmpSchema);
 
 /* Si la base destino ya tenía tablas, el restore puede quejarse de
    objetos existentes. Se restaura con ON_ERROR_STOP y se informa. */
