@@ -209,6 +209,11 @@ de definir sus constantes):
 | Sesión demo del sitio | `SOVCA_DEMO_USUARIO` / `SOVCA_DEMO_CLAVE` (salen de `config/db.php`) | `sovca_app` |
 | Crear la base y restaurar el volcado | `SOVCA_DEMO_ADMIN_USUARIO` / `SOVCA_DEMO_ADMIN_CLAVE` | `postgres` (o cualquier rol con `CREATEDB`) |
 
+La administración va **directo a PostgreSQL** (`SOVCA_DEMO_ADMIN_PUERTO`, 5432
+por defecto), no por PgBouncer: el pooler no puede crear bases y su
+`[databases]` no incluye `postgres`. Aunque `SOVCA_DB_PORT` sea 6432, el
+instalador usa 5432 salvo que cambies esa constante.
+
 La aplicación nunca usa las credenciales de administración: solo las lee el
 instalador, que las necesita para `CREATE DATABASE`, `pg_dump` y `psql`. Si no
 las defines, el instalador usa las de ejecución y fallará con

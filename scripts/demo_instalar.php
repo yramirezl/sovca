@@ -30,8 +30,9 @@
  * VARIABLES DE ENTORNO (opcionales, mismas que config/demo.php)
  *   SOVCA_DEMO_DB, SOVCA_DEMO_DB_ORIGEN, SOVCA_DEMO_HOST, SOVCA_DEMO_PUERTO,
  *   SOVCA_DEMO_USUARIO, SOVCA_DEMO_CLAVE
- *   SOVCA_DEMO_ADMIN_USUARIO, SOVCA_DEMO_ADMIN_CLAVE (rol con CREATEDB:
- *   es el que crea la base y restaura el volcado)
+ *   SOVCA_DEMO_ADMIN_USUARIO, SOVCA_DEMO_ADMIN_CLAVE, SOVCA_DEMO_ADMIN_HOST,
+ *   SOVCA_DEMO_ADMIN_PUERTO (rol con CREATEDB que crea la base y restaura el
+ *   volcado; va directo a PostgreSQL, no por PgBouncer)
  *
  * REQUISITOS
  *   · pg_dump y psql en el PATH (misma versión o superior al servidor)
@@ -110,10 +111,21 @@ function demo_ejecutar($comando, &$salida = null)
    --------------------------------------------------------------------- */
 $adminUsuario = SOVCA_DEMO_ADMIN_USUARIO;
 $adminClave   = SOVCA_DEMO_ADMIN_CLAVE;
+$adminHost    = SOVCA_DEMO_ADMIN_HOST;
+$adminPuerto  = SOVCA_DEMO_ADMIN_PUERTO;
+
+/* El DSN se arma aquí y no con bovs_demo_dsn(): ese helper usa el host y
+   el puerto de la SESIÓN demo, que en producción apuntan a PgBouncer. */
+function demo_dsn_admin($base)
+{
+    return 'pgsql:host=' . SOVCA_DEMO_ADMIN_HOST
+        . ';port=' . SOVCA_DEMO_ADMIN_PUERTO
+        . ';dbname=' . $base;
+}
 
 try {
     $pdoAdmin = new PDO(
-        bovs_demo_dsn('postgres'),
+        demo_dsn_admin('postgres'),
         $adminUsuario,
         $adminClave,
         array(
@@ -122,7 +134,7 @@ try {
         )
     );
 } catch (Throwable $e) {
-    demo_error('No se pudo conectar al servidor PostgreSQL (' . SOVCA_DEMO_HOST . ':' . SOVCA_DEMO_PUERTO . ') como ' . $adminUsuario . ': ' . $e->getMessage());
+    demo_error('No se pudo conectar al servidor PostgreSQL (' . $adminHost . ':' . $adminPuerto . ') como ' . $adminUsuario . ': ' . $e->getMessage());
     demo_error('Define SOVCA_DEMO_ADMIN_USUARIO / SOVCA_DEMO_ADMIN_CLAVE en config/db.local.php con un rol que pueda crear bases de datos.');
     exit(1);
 }
@@ -133,7 +145,7 @@ try {
 function demo_pdo_destino($base)
 {
     return new PDO(
-        bovs_demo_dsn($base),
+        demo_dsn_admin($base),
         SOVCA_DEMO_ADMIN_USUARIO,
         SOVCA_DEMO_ADMIN_CLAVE,
         array(
@@ -176,8 +188,8 @@ if ($psql === '' || $pgdump === '') {
 
 $credenciales = 'PGPASSWORD=' . escapeshellarg($adminClave)
     . ' ' . escapeshellarg($psql);
-$dsnBase = ' -h ' . escapeshellarg(SOVCA_DEMO_HOST)
-    . ' -p ' . escapeshellarg(SOVCA_DEMO_PUERTO)
+$dsnBase = ' -h ' . escapeshellarg($adminHost)
+    . ' -p ' . escapeshellarg($adminPuerto)
     . ' -U ' . escapeshellarg($adminUsuario);
 
 $cmdPsql = $credenciales . $dsnBase;

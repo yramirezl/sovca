@@ -90,6 +90,15 @@ if (!defined('SOVCA_DEMO_ADMIN_USUARIO')) {
 if (!defined('SOVCA_DEMO_ADMIN_CLAVE')) {
     define('SOVCA_DEMO_ADMIN_CLAVE', SOVCA_DEMO_CLAVE);
 }
+if (!defined('SOVCA_DEMO_ADMIN_HOST')) {
+    define('SOVCA_DEMO_ADMIN_HOST', SOVCA_DEMO_HOST);
+}
+/* La administración va SIEMPRE directo a PostgreSQL, nunca por PgBouncer:
+   el pooler no puede crear bases y su [databases] no incluye "postgres".
+   Por eso el puerto por defecto es 5432 aunque SOVCA_DB_PORT sea 6432. */
+if (!defined('SOVCA_DEMO_ADMIN_PUERTO')) {
+    define('SOVCA_DEMO_ADMIN_PUERTO', '5432');
+}
 
 /* Base "origen" que se clona (solo estructura + catálogos). */
 if (!defined('SOVCA_DEMO_DB_ORIGEN')) {

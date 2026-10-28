@@ -61,6 +61,12 @@ if (!defined('SOVCA_DB_PASS')) {
        define('SOVCA_DEMO_ADMIN_USUARIO', 'postgres');
        define('SOVCA_DEMO_ADMIN_CLAVE', 'la-clave-de-postgres');
 
+   La administración va directo a PostgreSQL (puerto 5432 por defecto),
+   aunque SOVCA_DB_PORT sea 6432 por PgBouncer: el pooler no puede crear
+   bases. Si PostgreSQL escucha en otro puerto:
+
+       define('SOVCA_DEMO_ADMIN_PUERTO', '5433');
+
    Para apagar la demostración:
 
        define('SOVCA_DEMO_ACTIVO', false);
