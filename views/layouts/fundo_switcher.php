@@ -50,7 +50,9 @@ if (!function_exists('mf_listar_fundos_usuario')) {
                 p.max_reg,
                 p.nombre            AS plan_nombre,
                 (SELECT COUNT(*) FROM manimales a 
-                  WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales
+                  WHERE a.mfundos_id = f.id
+                    AND a.status = 1 AND a.mestatus_id = 1
+                    AND a.estatus_animal IN (1, 2, 4)) AS total_animales
               FROM mfundosxusuarios fxu
         INNER JOIN mfundos f    ON f.id = fxu.mfundos_id
          LEFT JOIN mplanes p    ON p.id = f.mplanes_id
@@ -249,7 +251,9 @@ if (!function_exists('mf_listar_todos_los_fundos')) {
                 u.username          AS propietario_username,
                 u.email             AS propietario_email,
                 (SELECT COUNT(*) FROM manimales a
-                  WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales,
+                  WHERE a.mfundos_id = f.id
+                    AND a.status = 1 AND a.mestatus_id = 1
+                    AND a.estatus_animal IN (1, 2, 4)) AS total_animales,
                 (SELECT COUNT(*) FROM mfundosxusuarios fxu
                   WHERE fxu.mfundos_id = f.id AND fxu.status = 1) AS total_usuarios
               FROM mfundos f

@@ -226,14 +226,14 @@ if (!function_exists('mf_cargar_fundo_en_sesion')) {
         // Marca de vigencia del nombre (ver mf_sincronizar_fundo_sesion)
         $_SESSION['fundo_nombre_id'] = (int)$f['id'];
 
-        // Recalcular acceso a registro de animales
-        // SOVCA cuenta los animales vinculados al fundo en manimalxfundos
-        // (un animal puede pertenecer a varios fundos). El criterio de
-        // "animal activo" de BOVS se revisa aparte en la Fase 7.
+        // Recalcular acceso a registro de animales.
+        // Se cuentan los animales ACTIVOS del fundo con el criterio único del
+        // sistema (lib/animales_conteo_helper.php): los vendidos, muertos,
+        // descartados y donadores sin habilitar no ocupan cupo del plan.
         $c = _mf_q1("
-            SELECT COUNT(id) AS total
-              FROM manimalxfundos
-             WHERE status = 1 AND mfundos_id = $fid
+            SELECT COUNT(*) AS total
+              FROM manimales a
+             WHERE a.mfundos_id = $fid AND " . bovs_animal_activo_sql('a') . "
         ");
         $usados = ($c && isset($c['total'])) ? (int)$c['total'] : 0;
         $_SESSION['acceso_reg_animales'] = ($_SESSION['maximo_registros'] > $usados) ? 1 : 0;
@@ -422,9 +422,9 @@ if (!function_exists('mf_activar_supervisor')) {
         $_SESSION['maximo_registros'] = (int)$f['max_reg'];
 
         $c = _mf_q1("
-            SELECT COUNT(id) AS total
-              FROM manimalxfundos
-             WHERE status = 1 AND mfundos_id = $fid
+            SELECT COUNT(*) AS total
+              FROM manimales a
+             WHERE a.mfundos_id = $fid AND " . bovs_animal_activo_sql('a') . "
         ");
         $usados = ($c && isset($c['total'])) ? (int)$c['total'] : 0;
         $_SESSION['acceso_reg_animales'] = ($_SESSION['maximo_registros'] > $usados) ? 1 : 0;

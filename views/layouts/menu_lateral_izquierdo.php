@@ -28,7 +28,9 @@ if (!function_exists('render_selector_fundos')) {
 
             $sql = "SELECT f.id AS mfundos_id, f.nombre, f.cid_rif,
                            (SELECT COUNT(*) FROM manimales a
-                             WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales
+                             WHERE a.mfundos_id = f.id
+                               AND a.status = 1 AND a.mestatus_id = 1
+                               AND a.estatus_animal IN (1, 2, 4)) AS total_animales
                       FROM mfundosxusuarios fxu
                 INNER JOIN mfundos f ON f.id = fxu.mfundos_id
                      WHERE fxu.musuarios_id = $uid

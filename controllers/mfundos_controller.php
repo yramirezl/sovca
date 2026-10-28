@@ -79,7 +79,9 @@ switch ($action) {
                 p.max_reg,
                 p.nombre              AS plan_nombre,
                 (SELECT COUNT(*) FROM manimales a
-                  WHERE a.mfundos_id = f.id AND a.status = 1) AS total_animales,
+                  WHERE a.mfundos_id = f.id
+                    AND a.status = 1 AND a.mestatus_id = 1
+                    AND a.estatus_animal IN (1, 2, 4)) AS total_animales,
                 (SELECT COUNT(*) FROM mfundosxusuarios fxu2
                   WHERE fxu2.mfundos_id = f.id AND fxu2.status = 1) AS total_usuarios
               FROM mfundosxusuarios fxu
@@ -284,7 +286,8 @@ switch ($action) {
                     SUM(CASE WHEN estatus_animal = 3 THEN 1 ELSE 0 END) AS donadores,
                     SUM(CASE WHEN estatus_animal = 5 THEN 1 ELSE 0 END) AS donadoras
                   FROM manimales
-                 WHERE mfundos_id = $fundo_id AND status = 1
+                 WHERE mfundos_id = $fundo_id AND status = 1 AND mestatus_id = 1
+                   AND estatus_animal IN (1, 2, 4)
             ");
             $s = ($stats && isset($stats[0])) ? $stats[0] : null;
 
@@ -771,7 +774,9 @@ switch ($action) {
                    COALESCE(v.mplanes_id, f.mplanes_id) AS mplanes_id,
                    p.nombre AS plan_nombre, p.max_reg,
                    (SELECT COUNT(*) FROM manimales a
-                     WHERE a.mfundos_id = f.id AND a.status = 1) AS animales
+                     WHERE a.mfundos_id = f.id
+                       AND a.status = 1 AND a.mestatus_id = 1
+                       AND a.estatus_animal IN (1, 2, 4)) AS animales
               FROM mfundos f
          LEFT JOIN LATERAL (
                     SELECT px.mplanes_id
