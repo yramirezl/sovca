@@ -214,11 +214,16 @@ clave, basta con abrir BOVS en el navegador.)
 ## 7 · Migraciones de base de datos
 
 `sovca_app` no es dueño de las tablas, así que los DDL se ejecutan con
-`postgres` ignorando la configuración de la aplicación:
+`postgres` **directo al 5432** (no por el pooler, que solo conoce los usuarios
+de su userlist) ignorando la configuración de la aplicación:
 
 ```bash
 cd /var/www/html/sovca
-export SOVCA_DB_IGNORAR_LOCAL=1 SOVCA_DB_USER=postgres
+
+export SOVCA_DB_IGNORAR_LOCAL=1
+export SOVCA_DB_PORT=5432
+export SOVCA_DB_USER=postgres
+export SOVCA_DB_PASS='la-clave-de-postgres'
 
 php scripts/actualizar_planes_fundos.php;                    php scripts/actualizar_planes_fundos.php --aplicar
 php scripts/agregar_cierre_remoto_sesiones.php;              php scripts/agregar_cierre_remoto_sesiones.php --aplicar
@@ -226,11 +231,17 @@ php scripts/optimizar_indices_reportes.php;                  php scripts/optimiz
 php scripts/corregir_fk_servicio_nacimiento.php;             php scripts/corregir_fk_servicio_nacimiento.php --aplicar
 php scripts/actualizar_vista_animales_activos.php --dry-run; php scripts/actualizar_vista_animales_activos.php
 
-unset SOVCA_DB_IGNORAR_LOCAL SOVCA_DB_USER
+unset SOVCA_DB_IGNORAR_LOCAL SOVCA_DB_PORT SOVCA_DB_USER SOVCA_DB_PASS
 ```
+
+Las cuatro variables son necesarias: `config/db.php` ya tiene `6432` y
+`sovca_app`, y sin `SOVCA_DB_PORT=5432` los scripts intentarían el pooler con el
+usuario `postgres`, que no está en el userlist (error `SASL authentication
+failed`).
 
 Todos son simulados por defecto: leé la salida de cada uno antes de pasar al
 siguiente. Afectan **solo a la base `sovca`**.
+
 
 ---
 
@@ -296,6 +307,8 @@ ls /var/www/html
 |---|---|---|
 | `password authentication failed for user "sovca_app"` | Clave distinta entre `config/db.php` y el rol, o userlist desactualizado | Rehacer pasos 5 y 6 |
 | `password authentication failed for user "postgres"` | Un script intentando TCP sin `PGPASSWORD_ADMIN` | Ejecutar como root (usa socket) o pasar la clave |
+| `SASL authentication failed` al 6432 con `postgres` | Los DDL van por el pooler y ese usuario no está en el userlist | Paso 7: `SOVCA_DB_PORT=5432` |
+| `SASL authentication failed` al 6432 con `sovca_app` | La clave de `config/db.php` no coincide con la del rol, o el userlist quedó desactualizado | Comparar con `/root/sovca_app.txt` y repetir pasos 5 y 6 |
 | `no such database: sovca` | PgBouncer sin ruta para la base | Paso 6 |
 | `permission denied for table …` | Faltan GRANT | Repetir paso 5 |
 | `must be owner of table …` | DDL con `sovca_app` | Paso 7 |

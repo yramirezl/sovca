@@ -245,19 +245,26 @@ systemctl reload pgbouncer 2>/dev/null && echo "   [OK] pgbouncer recargado" \
 # ── Verificación ───────────────────────────────────────────────────────────
 echo
 echo "── Verificación por el pooler (puerto $PUERTO_POOL) ───────────────────"
-for b in "${LISTA_BASES[@]}"; do
-    b="$(echo "$b" | tr -d '[:space:]')"
-    [ -n "$b" ] || continue
-    if PGPASSWORD="$(printf '%s' "${SOVCA_DB_PASS:-}")" psql -h 127.0.0.1 -p "$PUERTO_POOL" \
-            -U "$USUARIO" -d "$b" -Atc "SELECT 'ok ' || current_database() || ' via ' || current_user" 2>/dev/null; then
-        :
-    else
-        echo "   $b : falló la prueba. Revisá SOVCA_DB_PASS o corré:"
-        echo "        PGPASSWORD='…' psql -h 127.0.0.1 -p $PUERTO_POOL -U $USUARIO -d $b -c 'select 1'"
-    fi
-done
+if [ -z "${SOVCA_DB_PASS:-}" ]; then
+    echo "   (sin SOVCA_DB_PASS en el entorno: se omite la prueba automática)"
+    echo "   Probalo a mano con la clave del rol:"
+    echo "     PGPASSWORD='la-clave' psql -h 127.0.0.1 -p $PUERTO_POOL -U $USUARIO -d ${LISTA_BASES[0]} -c 'select 1'"
+else
+    for b in "${LISTA_BASES[@]}"; do
+        b="$(echo "$b" | tr -d '[:space:]')"
+        [ -n "$b" ] || continue
+        # -w: nunca pide contraseña por teclado (falla rápido si no coincide)
+        if PGPASSWORD="$SOVCA_DB_PASS" psql -w -h 127.0.0.1 -p "$PUERTO_POOL" \
+                -U "$USUARIO" -d "$b" -Atc "SELECT 'ok ' || current_database() || ' via ' || current_user" 2>&1; then
+            :
+        else
+            echo "   $b : falló la prueba (ver el mensaje de arriba)."
+        fi
+    done
+fi
 
 echo
-echo " Listo. Recordá que la aplicación debe apuntar al puerto del pooler:"
-echo "   config/db.local.php →  define('SOVCA_DB_PORT', '$PUERTO_POOL');"
+echo " Listo. La aplicación debe apuntar al puerto del pooler:"
+echo "   config/db.php  →  SOVCA_DB_PORT = '$PUERTO_POOL'"
+echo "   (o config/db.local.php si preferís no versionar la clave)"
 echo

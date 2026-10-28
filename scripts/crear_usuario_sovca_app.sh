@@ -88,4 +88,4 @@ done
 
 echo
 echo "Listo. Rol $APP_USER creado/actualizado."
-echo "Configurá config/db.local.php con SOVCA_DB_USER='$APP_USER' y la misma clave."
+echo "Poné la misma clave en config/db.php (SOVCA_DB_USER=$APP_USER) o en config/db.local.php."
