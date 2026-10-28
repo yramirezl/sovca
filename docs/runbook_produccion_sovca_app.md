@@ -15,11 +15,28 @@ CLAVE_APP='la-clave-real-de-sovca_app'
 PHP_SVC=$(systemctl list-units --type=service --plain --no-legend \
           | grep -oE 'php8?\.?4-fpm' | head -1)
 echo "PHP-FPM: $PHP_SVC"
-
-# Git como el usuario de Apache, sin que importe de quién sea el repositorio.
-# El -c evita el error "detected dubious ownership".
-GIT="sudo -u www-data git -c safe.directory=$APP -C $APP"
 ```
+
+### Quién ejecuta git
+
+Elegí **un** modo y usalo en todos los pasos. No hace falta `sudo -u www-data`
+si el repositorio es de `root` y se despliega como `root`.
+
+| Situación del servidor | Variable a usar |
+|---|---|
+| **El repo es de `root` y entrás como root** (lo habitual aquí) | `GIT="git -C $APP"` |
+| El repo es de `www-data` | `GIT="sudo -u www-data git -C $APP"` |
+| El repo es de otro usuario y querés usar `www-data` | `GIT="sudo -u www-data git -c safe.directory=$APP -C $APP"` |
+
+```bash
+# Elegí una y exportala
+GIT="git -C $APP"
+```
+
+> `sudo -u www-data git config --global …` **no** funciona por defecto: el home
+> de `www-data` es `/var/www`, que pertenece a root, así que no puede crear
+> `/var/www/.gitconfig`. Por eso la tercera opción usa `-c`, que no escribe
+> configuración en ningún sitio.
 
 ---
 
@@ -54,26 +71,32 @@ todavía**: sus credenciales son las que van a `config/db.local.php` en el paso 
 fatal: detected dubious ownership in repository at '/var/www/html/sovca'
 ```
 
-Significa que el repositorio pertenece a otro usuario (root, `yramirez`…) y no a
-`www-data`. La variable `$GIT` de arriba ya lo resuelve sin tocar nada.
-
-Para dejarlo arreglado de forma permanente hay dos caminos:
+Significa que el repositorio pertenece a otro usuario (root, `yramirez`…) y no
+al que ejecuta git. Tres salidas, de menos a más invasiva:
 
 ```bash
-# a) Guardar la excepción para www-data (rápido, no cambia dueños)
-sudo -u www-data git config --global --add safe.directory "$APP"
-#    si falla por el HOME de www-data:
-sudo -u www-data HOME=/var/www git config --global --add safe.directory "$APP"
-sudo -u www-data git config --global --get-all safe.directory
+# 1) Git como el dueño del repo (lo más simple si entrás como root)
+git -C "$APP" status --short
 
-# b) Homogeneizar el dueño del árbol (lo correcto si el pull se hace como www-data)
-sudo chown -R www-data:www-data "$APP"
+# 2) Excepción puntual, sin escribir configuración
+sudo -u www-data git -c safe.directory="$APP" -C "$APP" status --short
+
+# 3) Excepción permanente para www-data (requiere que pueda escribir su home)
+sudo install -o www-data -g www-data -m 644 /dev/null /var/www/.gitconfig
+sudo -u www-data git config --global --add safe.directory "$APP"
 ```
 
-La opción **b** es la recomendada: si el despliegue se hace con `www-data`, todo
-el árbol debe ser suyo, así los archivos nuevos no quedan con otro dueño y la
-aplicación puede escribir en `file/`. Si preferís desplegar con vuestro usuario
-por SSH, entonces elegid la **a** y haced siempre `git -c safe.directory=…`.
+Si además el deploy lo hace `www-data`, el árbol tiene que ser suyo; si no, el
+`pull` falla con `Permission denied` al crear archivos:
+
+```bash
+sudo chown -R www-data:www-data "$APP"
+sudo -u www-data test -w "$APP/.git" && echo "OK: www-data puede escribir en .git"
+```
+
+> Un árbol en `777` **no** es la solución: expone el código y `.git` a
+> cualquiera. Mejor `root:www-data` con `775` en carpetas y `664` en archivos,
+> y `file/` (fotos, correos, mantenimiento) propiedad de `www-data`.
 
 ---
 
