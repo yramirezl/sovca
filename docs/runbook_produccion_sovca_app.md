@@ -15,6 +15,10 @@ CLAVE_APP='la-clave-real-de-sovca_app'
 PHP_SVC=$(systemctl list-units --type=service --plain --no-legend \
           | grep -oE 'php8?\.?4-fpm' | head -1)
 echo "PHP-FPM: $PHP_SVC"
+
+# Git como el usuario de Apache, sin que importe de quién sea el repositorio.
+# El -c evita el error "detected dubious ownership".
+GIT="sudo -u www-data git -c safe.directory=$APP -C $APP"
 ```
 
 ---
@@ -25,8 +29,8 @@ echo "PHP-FPM: $PHP_SVC"
 cd $APP
 
 # Rama y estado del repo
-sudo -u www-data git branch --show-current
-sudo -u www-data git status --short
+$GIT branch --show-current
+$GIT status --short
 
 # Credenciales con las que funciona HOY (¡anotarlas!)
 grep -n "pgsql://" config/conexion.php alertas/conexion.php \
@@ -44,16 +48,43 @@ Si `git status` muestra cambios en archivos versionados (típico:
 `config/conexion.php` editado a mano en el servidor), **no los descartes
 todavía**: sus credenciales son las que van a `config/db.local.php` en el paso 2.
 
+### Si aparece «detected dubious ownership»
+
+```
+fatal: detected dubious ownership in repository at '/var/www/html/sovca'
+```
+
+Significa que el repositorio pertenece a otro usuario (root, `yramirez`…) y no a
+`www-data`. La variable `$GIT` de arriba ya lo resuelve sin tocar nada.
+
+Para dejarlo arreglado de forma permanente hay dos caminos:
+
+```bash
+# a) Guardar la excepción para www-data (rápido, no cambia dueños)
+sudo -u www-data git config --global --add safe.directory "$APP"
+#    si falla por el HOME de www-data:
+sudo -u www-data HOME=/var/www git config --global --add safe.directory "$APP"
+sudo -u www-data git config --global --get-all safe.directory
+
+# b) Homogeneizar el dueño del árbol (lo correcto si el pull se hace como www-data)
+sudo chown -R www-data:www-data "$APP"
+```
+
+La opción **b** es la recomendada: si el despliegue se hace con `www-data`, todo
+el árbol debe ser suyo, así los archivos nuevos no quedan con otro dueño y la
+aplicación puede escribir en `file/`. Si preferís desplegar con vuestro usuario
+por SSH, entonces elegid la **a** y haced siempre `git -c safe.directory=…`.
+
 ---
 
 ## Paso 1 · Bajar la referencia y crear el rol
 
 ```bash
 cd $APP
-sudo -u www-data git fetch origin
+$GIT fetch origin
 
 # El script se ejecuta desde fuera del árbol para no depender del pull
-sudo -u www-data git show origin/main:scripts/crear_usuario_sovca_app.sh > /tmp/crear_usuario.sh
+$GIT show origin/main:scripts/crear_usuario_sovca_app.sh > /tmp/crear_usuario.sh
 SOVCA_APP_PASS="$CLAVE_APP" bash /tmp/crear_usuario.sh
 ```
 
@@ -75,7 +106,7 @@ sudo -u postgres psql -Atc \
 
 ```bash
 cd $APP
-sudo -u www-data git show origin/main:config/db.local.example.php > /tmp/db.local.php
+$GIT show origin/main:config/db.local.example.php > /tmp/db.local.php
 sudo -u www-data cp /tmp/db.local.php config/db.local.php
 sudo -u www-data nano config/db.local.php
 ```
@@ -123,7 +154,7 @@ sudo bash /tmp/pgbouncer_preparar_usuario.sh --aplicar
 Si el script no se puede bajar (no existe `/tmp/pgbouncer_preparar_usuario.sh`):
 
 ```bash
-sudo -u www-data git show origin/main:scripts/pgbouncer_preparar_usuario.sh > /tmp/pgbouncer_preparar_usuario.sh
+$GIT show origin/main:scripts/pgbouncer_preparar_usuario.sh > /tmp/pgbouncer_preparar_usuario.sh
 ```
 
 ### Prueba obligatoria por el pooler
@@ -157,8 +188,8 @@ php $APP/scripts/mantenimiento.php --on --motivo="Despliegue SOVCA" --minutos=60
 
 ```bash
 cd $APP
-sudo -u www-data git pull origin main
-sudo -u www-data git log --oneline -1
+$GIT pull origin main
+$GIT log --oneline -1
 ```
 
 Debe quedar en `27a68ba` (o el último de `main`).
@@ -166,16 +197,12 @@ Debe quedar en `27a68ba` (o el último de `main`).
 Si `git pull` se queja de cambios locales en `config/`:
 
 ```bash
-sudo -u www-data git stash push -m "local prod $(date +%F)" -- config
-sudo -u www-data git pull origin main
+$GIT stash push -m "local prod $(date +%F)" -- config
+$GIT pull origin main
 # el respaldo de credenciales ya está en config/db.local.php
 ```
 
-Si aparece `dubious ownership`:
-
-```bash
-sudo -u www-data git config --global --add safe.directory $APP
-```
+(`dubious ownership` ya quedó resuelto con la variable `$GIT` en el paso 0.)
 
 ---
 
@@ -267,7 +294,7 @@ php $APP/scripts/mantenimiento.php --off --nota="Despliegue completado"
 cd $APP
 
 # Código
-sudo -u www-data git reset --hard 4b772d2
+$GIT reset --hard 4b772d2
 
 # Configuración (credenciales del servidor)
 sudo tar xzf /root/sovca-pre-AAAA-MM-DD-HHMM.tgz -C /var/www/html
