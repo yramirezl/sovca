@@ -92,6 +92,9 @@ return array(
     'guardar_en_archivo' => false,
 
     // Carpeta para los correos del modo de prueba (vacía = automática).
+    // Ojo: si Apache corre con PrivateTmp, la carpeta temporal del sistema no
+    // es visible desde la consola; conviene fijar aquí una carpeta del proyecto
+    // con permiso de escritura para el usuario de Apache.
     'archivo_dir' => '',
 
     // Minutos de vigencia del código de recuperación

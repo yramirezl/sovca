@@ -49,7 +49,7 @@ $controles = array(
     // Assets del selector y del teclado
     'css/servicio-selector.css'                     => array('.sel-animal', null),
     'js/servicio-selector.js'                       => array('bovsSelectorAnimal', null),
-    'js/sovca-teclado.js'                            => array('ms_direccion', null),
+    'js/bovs-teclado.js'                            => array('ms_direccion', null),
     // PWA
     'app_offline/versiones.json'                    => array('4.45', null),
     'app_offline/service-worker.php'                => array('VERSION_CACHE', null),
