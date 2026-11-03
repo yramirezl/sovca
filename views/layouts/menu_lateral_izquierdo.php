@@ -38,12 +38,33 @@ if (!function_exists('render_selector_fundos')) {
                        AND f.status = 1
                   ORDER BY f.nombre ASC";
 
-            $fundos = $conn->query_and_fetch_all($sql);
-        } catch (Exception $e) {
+            /* ⚠️ PgsqlAdapter NO tiene query_and_fetch_all(): se usa
+               query() + fetchAll(), igual que el resto del sistema.
+               El catch debe ser Throwable: en PHP 7/8 un método
+               inexistente lanza Error, no Exception. */
+            $stmt   = $conn->query($sql);
+            $fundos = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
+        } catch (Throwable $e) {
             return '';
         }
 
         if (!$fundos || count($fundos) === 0) return '';
+
+        /* Cuenta de UN SOLO fundo: la barra superior ya muestra "FUNDO ACTIVO"
+           con el nombre, así que repetir el bloque en el menú lateral es
+           información duplicada. Solo se dibuja el selector cuando el usuario
+           es multifundo (ahí sí sirve para cambiar de fundo). */
+        $es_multifundo = 0;
+        try {
+            $stmtMulti = $conn->query("SELECT es_multifundo FROM musuarios WHERE id = $uid");
+            if ($stmtMulti) {
+                $filaMulti = $stmtMulti->fetch(PDO::FETCH_ASSOC);
+                $es_multifundo = ($filaMulti && (int)$filaMulti['es_multifundo'] === 1) ? 1 : 0;
+            }
+        } catch (Throwable $e) {
+            $es_multifundo = 0;
+        }
+        if (!$es_multifundo || count($fundos) < 2) return '';
 
         $activo = null;
         foreach ($fundos as $f) {

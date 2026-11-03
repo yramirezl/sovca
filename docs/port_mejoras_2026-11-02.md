@@ -144,3 +144,25 @@ La clave de la firma digital y la URL pública pueden vivir en
 
 > Después del port, `versiones.json` y `service-worker.js` deben subir juntos
 > para que los equipos con caché vieja descarguen la PWA nueva.
+
+## 9. Correcciones posteriores al port (2026-11-02)
+
+- **Menú lateral vacío (fatal).** `render_selector_fundos()` llamaba a
+  `PgsqlAdapter::query_and_fetch_all()`, método que NO existe en el
+  php-activerecord de SOVCA. El `catch (Exception)` tampoco atrapaba el
+  `Error` de PHP 7/8, así que la página se cortaba justo al pintar el menú
+  (barra superior visible y contenido vacío). Se cambió a `query()` +
+  `fetchAll(PDO::FETCH_ASSOC)` con `catch (Throwable)`, igual que BOVS.
+- El selector de fundos del menú ahora solo se dibuja para usuarios
+  `es_multifundo` con 2+ fundos; con un solo fundo la barra superior ya
+  muestra el nombre y el bloque era información duplicada.
+- `views/layouts/_crud_index.php`: `array_merge` es superficial y las vistas
+  que definían `routes` con solo `add/edit/home` perdían `view`, `import` y
+  `download`, generando avisos "Undefined array key" en cada carga. Las rutas
+  se completan ahora con los valores por defecto.
+
+Verificación: `php -l` sin errores; con sesión simulada de los roles 1, 2 y 4
+responden 200 (sin fatales) inicio, animales, nacimientos, servicios,
+categorías, usuarios, fundos, conexiones, estadísticas, dispositivos,
+sincronizaciones, planes, mantenimiento, producción de leche, control
+sanitario y dashboard.

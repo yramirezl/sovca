@@ -51,6 +51,15 @@ $crud = array_merge([
     'extraButtonsHtml' => '',
 ], $crud);
 
+/* -------- Completar rutas no informadas --------
+   array_merge es superficial: si la vista define 'routes' con solo
+   add/edit/home, se perdían view/import/download y el layout emitía
+   avisos "Undefined array key" en cada carga. */
+$crud['routes'] = array_merge([
+    'add' => null, 'edit' => null, 'view' => null,
+    'import' => null, 'download' => null, 'home' => '../inicio/',
+], (isset($crud['routes']) && is_array($crud['routes'])) ? $crud['routes'] : array());
+
 /* -------- Auto-eliminar la columna del id -------- */
 $filtered = [];
 foreach ($crud['columns'] as $col) {
