@@ -198,7 +198,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
         0 0 0 7px rgba(31, 91, 51, 0.12),
         0 18px 44px rgba(59, 36, 18, 0.16),
         0 6px 16px rgba(59, 36, 18, 0.08) !important;
-      padding: 30px 32px 22px !important;
+      padding: 22px 28px 16px !important;
       position: relative !important;
       overflow: hidden !important;
       animation: cardEnter .6s cubic-bezier(.22, 1, .36, 1);
@@ -243,13 +243,13 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     /* ---- Logo principal ---- */
     .login-card-logo {
       text-align: center;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
       position: relative;
       z-index: 2;
     }
 
     .login-card-logo img {
-      max-width: 220px;
+      max-width: 185px;
       width: 100%;
       height: auto;
       display: block;
@@ -287,7 +287,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .login-title-wrap {
       text-align: center;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       position: relative;
       z-index: 2;
     }
@@ -339,13 +339,13 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        FORMULARIO
        ============================================================ */
     .form-group {
-      margin-bottom: 13px;
+      margin-bottom: 11px;
       position: relative;
       z-index: 2;
     }
 
     .form-group--submit {
-      margin-top: 18px;
+      margin-top: 14px;
       margin-bottom: 0;
     }
 
@@ -727,7 +727,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        y en negrita para que resalte sin romper la armonía del login.
        ============================================================ */
     .demo-cta {
-      margin-top: 12px;
+      margin-top: 8px;
       text-align: center;
       position: relative;
       z-index: 2;
@@ -775,11 +775,11 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     .demo-cta__hint {
       display: block;
       text-align: center;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 600;
       color: #C2610C;
       letter-spacing: .3px;
-      margin-top: 5px;
+      margin-top: 3px;
     }
 
     /* Enlace para quien ya tiene una cuenta demo (segunda visita). */
@@ -903,7 +903,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .offline-trigger {
       text-align: center;
-      margin-top: 6px;
+      margin-top: 2px;
       position: relative;
       z-index: 2;
     }
@@ -954,11 +954,11 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
     .offline-trigger__modulo {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 5px 10px;
+      gap: 7px;
+      padding: 3px 8px;
       border-radius: 8px;
       color: #c0560f;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       letter-spacing: .2px;
       text-decoration: none;
@@ -979,8 +979,8 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        FOOTER + LOGO ESQUINA INFERIOR DERECHA
        ============================================================ */
     .login-footer {
-      margin-top: 16px;
-      padding-top: 12px;
+      margin-top: 12px;
+      padding-top: 10px;
       border-top: 1px solid #E7DBCD;
       text-align: center;
       font-size: 10.5px;
@@ -1020,15 +1020,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        el formulario completo cabe sin scroll vertical. */
     @media (max-height: 820px) and (min-width: 481px) {
       .login-main-container {
-        padding: 16px 16px !important;
+        padding: 14px 16px !important;
       }
 
       .login-card {
-        padding: 20px 30px 16px !important;
+        padding: 18px 28px 14px !important;
       }
 
       .login-card-logo img {
-        max-width: 158px;
+        max-width: 145px;
       }
 
       .login-card-logo {
@@ -1101,18 +1101,18 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
        automático de iOS (fuente de 16px en los inputs). */
     @media (max-width: 480px) {
       .login-main-container {
-        padding: 12px 12px !important;
-        padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+        padding: 10px 12px !important;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
       }
 
       .login-card {
-        padding: 20px 18px 16px !important;
+        padding: 16px 16px 12px !important;
         border-radius: 16px !important;
         border-width: 4px !important;
       }
 
       .login-card-logo img {
-        max-width: 140px !important;
+        max-width: 128px !important;
       }
 
       .login-title-wrap {
@@ -1345,11 +1345,6 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
           <span class="sub-title-badge">Gestión Ovina y Caprina</span>
         </div>
 
-        <div class="login-chip">
-          <span class="live-dot"></span>
-          Acceso Seguro
-        </div>
-
         <?php if ($mttoActivo): ?>
           <div class="mtto-banner" role="status">
             <i class="fa fa-wrench"></i>
@@ -1532,13 +1527,12 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
                 Acceso demostrativo
               </a>
               <span class="demo-cta__hint">
-                Cuenta de prueba de <?= (int) SOVCA_DEMO_DIAS ?> días · datos de ejemplo
+                Cuenta de prueba · <?= (int) SOVCA_DEMO_DIAS ?> días
               </span>
             </div>
           <?php endif; ?>
 
 <?php if (!$mttoActivo): ?>
-            <div class="offline-status" id="offline-mode-status">Comprobando estado de conexión...</div>
             <!-- ============================================================
                  MODO OFFLINE (UNICO ACCESO)
                  Lleva al módulo: en la portada están las opciones (entrar a
