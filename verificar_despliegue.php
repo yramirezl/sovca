@@ -50,6 +50,10 @@ $controles = array(
     'css/servicio-selector.css'                     => array('.sel-animal', null),
     'js/servicio-selector.js'                       => array('bovsSelectorAnimal', null),
     'js/bovs-teclado.js'                            => array('ms_direccion', null),
+    // Login compacto y menú corregido (2026-11-03)
+    'views/login.php'                               => array('Cuenta de prueba ·', 'datos de ejemplo'),
+    'views/layouts/menu_lateral_izquierdo.php'      => array('catch (Throwable $e)', '$conn->query_and_fetch_all($sql)'),
+    'views/layouts/_crud_index.php'                 => array('Completar rutas no informadas', null),
     // PWA
     // (la versión del frontend ya no se compara por número: desde V1.nnnnn la
     //  revisión cambia en cada entrega, así que solo se comprueba el archivo)
