@@ -137,7 +137,34 @@ if (!function_exists('bovs_cx_latido')) {
             return false;
         }
 
+        return bovs_cx_actualizar_actividad($id, $ruta);
+    }
+}
+
+if (!function_exists('bovs_cx_actualizar_actividad')) {
+    /**
+     * Marca actividad en una fila del historial y ACUMULA la duración
+     * (desde el inicio de la conexión hasta ahora).
+     *
+     * Sin las guardas de entorno que tiene el latido, para que también se
+     * pueda probar desde consola.
+     *
+     * @param int    $id      fila de conexiones_historial
+     * @param string $ruta    página o acción
+     * @param bool   $forzar  ignora el límite de una escritura cada 20 s
+     */
+    function bovs_cx_actualizar_actividad($id, $ruta = '', $forzar = false)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            return false;
+        }
+
         $ruta = substr(trim((string) $ruta), 0, 255);
+        $filtroTiempo = $forzar
+            ? ''
+            : 'AND (ultima_actividad IS NULL
+                    OR ultima_actividad < now() - interval \'20 seconds\')';
 
         return bovs_cx_x(
             'UPDATE conexiones_historial
@@ -146,8 +173,7 @@ if (!function_exists('bovs_cx_latido')) {
                     duracion_seg = GREATEST(0, EXTRACT(EPOCH FROM (now() - fecha))::int)
               WHERE id = ?
                 AND cerrada = false
-                AND (ultima_actividad IS NULL
-                     OR ultima_actividad < now() - interval \'20 seconds\')',
+                ' . $filtroTiempo,
             array($ruta, $id)
         );
     }
@@ -198,9 +224,9 @@ if (!function_exists('bovs_cx_cerrar_sesion')) {
  * responde, validar_session.php fuerza el cierre al vencer el plazo.
  * ===================================================================== */
 
-if (!defined('BOVS_CX_CIERRE_SEG')) {
+if (!defined('SOVCA_CX_CIERRE_SEG')) {
     /** Segundos de gracia que tiene el usuario para guardar. */
-    define('BOVS_CX_CIERRE_SEG', 60);
+    define('SOVCA_CX_CIERRE_SEG', 60);
 }
 
 if (!function_exists('bovs_cx_cierre_estado_sesion')) {
@@ -233,7 +259,7 @@ if (!function_exists('bovs_cx_cierre_estado_sesion')) {
         $filas = bovs_cx_q(
             'SELECT id, cerrada, cierre_solicitado_at, cierre_solicitado_por,
                     CASE WHEN cierre_solicitado_at IS NULL THEN NULL
-                         ELSE GREATEST(0, ' . (int) BOVS_CX_CIERRE_SEG . '
+                         ELSE GREATEST(0, ' . (int) SOVCA_CX_CIERRE_SEG . '
                               - EXTRACT(EPOCH FROM (now() - cierre_solicitado_at))::int)
                     END AS restante
                FROM conexiones_historial

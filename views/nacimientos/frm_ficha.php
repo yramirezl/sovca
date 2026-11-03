@@ -283,10 +283,19 @@ if ($nac) {
                     a.id                                  AS id_animal,
                     COALESCE(a.codigo_rgb_id_animal, \'\') AS codigo_animal
                FROM mternerosxnacimientos t
-          LEFT JOIN manimales a
-                 ON a.mfundos_id = t.mfundos_id
-                AND a.status = 1
-                AND UPPER(BTRIM(a.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+          /* Solo se cruza con un animal cuando la cría tiene ID: con el ID
+             vacío el join igualaba cadenas vacías y traía a todos los animales
+             sin codigo_ternero del fundo, mostrando la cría repetida. */
+          LEFT JOIN LATERAL (
+                    SELECT m.id, m.codigo_rgb_id_animal
+                      FROM manimales m
+                     WHERE m.mfundos_id = t.mfundos_id
+                       AND m.status = 1
+                       AND BTRIM(COALESCE(t.id_ternero, \'\')) <> \'\'
+                       AND UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+                     ORDER BY m.id
+                     LIMIT 1
+               ) a ON true
               WHERE t.mregnacimientos_id = ' . (int)$id_reg_nac . '
                 AND t.mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
                 AND t.status = 1

@@ -74,7 +74,7 @@ switch ($action) {
             'abierta'  => $estado['abierta'],
             'cierre'   => $estado['cierre'],
             'restante' => $estado['restante'],
-            'plazo'    => (int) BOVS_CX_CIERRE_SEG,
+            'plazo'    => (int) SOVCA_CX_CIERRE_SEG,
         ));
         break;
 
@@ -115,8 +115,8 @@ switch ($action) {
             ? array(
                 'ok'       => true,
                 'msg'      => 'Cierre solicitado. El usuario verá el aviso y su sesión se cerrará en '
-                            . (int) BOVS_CX_CIERRE_SEG . ' segundos.',
-                'plazo'    => (int) BOVS_CX_CIERRE_SEG,
+                            . (int) SOVCA_CX_CIERRE_SEG . ' segundos.',
+                'plazo'    => (int) SOVCA_CX_CIERRE_SEG,
             )
             : array('ok' => false, 'msg' => 'No se pudo solicitar el cierre.'));
         break;

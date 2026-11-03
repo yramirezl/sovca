@@ -33,6 +33,10 @@ $crud = array_merge([
     'columnDefs' => [],
     'rowCallbackJs' => '',
     'searchPlaceholder' => 'Buscar…',
+    /* true = cada término se compara por palabra contra las columnas (ver
+       js/crud-index.js). Evita que un número traiga animales cuyo CÓDIGO
+       contiene esos dígitos. */
+    'busquedaPorCampos' => false,
     'scrollY' => null,
     'showCount' => true,
     'autoRedirectMs' => 300000,
@@ -84,6 +88,10 @@ foreach ($crud['columns'] as $i => $col) {
     if (array_key_exists('visible', $col)) {
         $columnsJs .= ", visible: " . ($col['visible'] ? 'true' : 'false');
     }
+    // Cómo se busca esta columna: 'palabra' (por defecto) o 'codigo'.
+    if (isset($col['busqueda'])) {
+        $columnsJs .= ", busqueda: '" . addslashes($col['busqueda']) . "'";
+    }
     $columnsJs .= " }";
     if ($i < $n - 1) $columnsJs .= ",";
     $columnsJs .= "\n";
@@ -99,7 +107,7 @@ $scrollYJs = is_null($crud['scrollY']) ? 'null' : "'" . addslashes($crud['scroll
 ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-index.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-index.css?v=4" type="text/css" />
 
 <div class="crud-page" data-theme="<?php echo htmlspecialchars($crud['theme']); ?>">
 
@@ -153,7 +161,7 @@ $scrollYJs = is_null($crud['scrollY']) ? 'null' : "'" . addslashes($crud['scroll
 </div>
 
 <script src="../../plugins/confirma/jquery-confirm.min.js"></script>
-<script src="../../js/crud-index.js?v=5"></script>
+<script src="../../js/crud-index.js?v=6"></script>
 <script>
 (function () {
     var crud = CrudIndex.init({
@@ -179,6 +187,7 @@ $scrollYJs = is_null($crud['scrollY']) ? 'null' : "'" . addslashes($crud['scroll
         columnDefs: <?php echo json_encode($crud['columnDefs'], JSON_UNESCAPED_UNICODE); ?>,
 
         searchPlaceholder: '<?php echo addslashes($crud['searchPlaceholder']); ?>',
+        busquedaPorCampos: <?php echo $crud['busquedaPorCampos'] ? 'true' : 'false'; ?>,
         scrollY: <?php echo $scrollYJs; ?>,
         idField: '<?php echo addslashes($crud['idField']); ?>',
         dblClickEdit: <?php echo $crud['dblClickEdit'] ? 'true' : 'false'; ?>,

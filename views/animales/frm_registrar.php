@@ -283,7 +283,8 @@ require_once '../../lib/estatus_animal_helper.php';
                                     <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                                 </a>
                             </label>
-                            <input type="text" id="numero_arete" class="form-control" placeholder="Nro Arete">
+                            <input type="text" id="numero_arete" class="form-control" placeholder="Nro Arete" maxlength="15" autocomplete="off"
+                                   title="Números, letras y guiones. Máximo 15 caracteres.">
                             <i class="fa fa-lock crud-form__lock"></i>
                             <div id='ms_nro_arete'><p></p></div>
                         </div>
@@ -1076,7 +1077,7 @@ function Guardar_Ficha() {
             formData.append('peso_nac', $("#peso_nac").val());
             formData.append('fecha_ingreso', $("#fecha_ingreso").val());
             formData.append('aptitud_animal', $("#aptitud_animal").val());
-            formData.append('numero_arete', $("#numero_arete").val());
+            formData.append('numero_arete', (window.BovsArete ? BovsArete.formatear($("#numero_arete").val()) : $("#numero_arete").val()));
             formData.append('categoria_ingreso', $("#categoria_ingreso").val());
             formData.append('categoria_futura', $("#categoria_futura").val());
             formData.append('rgd_madre', $("#rgd_madre").val());
@@ -1280,6 +1281,10 @@ function esnombre_animal(e) {
 //////////////////VALIDANDO QUE NO SE REPITA EL NUMERO DE ARETE
 $("#numero_arete").blur(function() {
 
+    /* Deja el arete en el formato canónico (mayúsculas, guiones, máx. 15)
+       antes de consultar el duplicado. */
+    this.value = (window.BovsArete ? BovsArete.formatear(this.value) : this.value);
+
     $.post("../../controllers/manimales_controller", {
 
         action: "search_nro_arete",
@@ -1294,7 +1299,7 @@ $("#numero_arete").blur(function() {
         if (validar != 0) {
             document.getElementById('ms_nro_arete').style.display = 'block';
             document.getElementById("ms_nro_arete").innerHTML =
-                'NUMERO DE ARETE Ya se Encuentra Registrado';
+                parsedJson.mensaje || 'NUMERO DE ARETE Ya se Encuentra Registrado';
             document.getElementById('numero_arete').focus();
             var valor = $("#numero_arete").val();
             setTimeout(function() {

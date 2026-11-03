@@ -73,7 +73,7 @@ VerificarAcceso($_SESSION['acceso_alerta']);
    ============================================================ */
 $crud = [
 	'title'    => 'Notificaciones Activas',
-	'subtitle' => 'Eventos del rebaño pendientes de revisión: partos, controles sanitarios y pesajes',
+	'subtitle' => 'Eventos del rebaño pendientes de revisión: palpaciones, partos, controles sanitarios y pesajes',
 	'icon'     => 'fa-bell',
 	'theme'    => 'warning',
 

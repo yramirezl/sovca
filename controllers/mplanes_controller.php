@@ -22,7 +22,7 @@ switch ($action){
 			foreach ($data as $rs) {
         $nombre=$rs->nombre;
         $max_reg=$rs->max_reg;
-        // El cupo de fundos lo define el plan (mplanes.max_fundos). Se envía
+        // El TOPE de fundos lo define el plan (mplanes.max_fundos). Se envía
         // en el atributo data- para que el formulario de usuario lo muestre
         // sin necesidad de otra petición.
         $max_fundos = (int) $rs->max_fundos;
@@ -44,8 +44,11 @@ switch ($action){
     // =========================================================
     // MÓDULO DE PLANES  (solo Administrador / Super Usuario)
     // ---------------------------------------------------------
-    // El plan define los registros y los fundos que admite una cuenta.
-    // Se puede ajustar bajo demanda: subir el cupo de fundos de un plan
+    // El plan define los registros y el TOPE de fundos que admite una cuenta.
+    // Ojo: el tope NO es la cantidad contratada. Cada cuenta se registra con
+    // 1 fundo y el administrador lo sube hasta ese tope según lo que el
+    // productor compró (musuarios.max_fundos).
+    // Se puede ajustar bajo demanda: subir el tope de fundos de un plan
     // permite dar más fincas sin obligar a cambiar de plan al productor.
     // =========================================================
 
@@ -122,21 +125,38 @@ switch ($action){
 
         $pid = (int) $plan->id;
 
-        /* El cupo de la ficha se recalcula con el nuevo valor del plan. Se usa
-           GREATEST para no dejar fuera de cupo a una cuenta que ya tiene más
-           fundos de los que el plan pasa a permitir. */
+        /* El valor del plan es un TOPE, no un cupo asignado. Al cambiarlo solo
+           se ACOTA el cupo contratado de cada cuenta: una cuenta que contrató
+           1 fundo sigue con 1 aunque el plan pase a admitir 20, y nunca queda
+           en 0. Si el tope baja por debajo de los fundos que una cuenta ya
+           administra, se avisa para que se ajuste a mano. */
         Mplane::connection()->query("
             UPDATE musuarios u
-               SET max_fundos = GREATEST($max_fundos,
-                       (SELECT COUNT(*) FROM mfundosxusuarios fx
-                         WHERE fx.musuarios_id = u.id AND fx.status = 1))
+               SET max_fundos = GREATEST(1, LEAST(COALESCE(u.max_fundos, 1), $max_fundos))
              WHERE u.mplanes_id = $pid AND u.es_multifundo = TRUE
         ");
 
+        $excedidas = Mplane::find_by_sql("
+            SELECT COUNT(*) AS n
+              FROM musuarios u
+             WHERE u.mplanes_id = $pid AND u.es_multifundo = TRUE
+               AND (SELECT COUNT(*) FROM mfundosxusuarios fx
+                     WHERE fx.musuarios_id = u.id AND fx.status = 1) > $max_fundos
+        ");
+        $n_excedidas = $excedidas ? (int) $excedidas[0]->n : 0;
+
+        $msg = 'Plan guardado.';
+        if ($n_excedidas > 0) {
+            $msg .= ' Atención: ' . $n_excedidas . ' cuenta(s) de este plan tienen más fundos'
+                  . ' que el nuevo tope (' . $max_fundos . '). Súbales el cupo o quíteles acceso'
+                  . ' a fundos.';
+        }
+
         echo json_encode(array(
-            'ok'  => true,
-            'msg' => 'Plan guardado.',
-            'id'  => $pid,
+            'ok'                => true,
+            'msg'               => $msg,
+            'id'                => $pid,
+            'cuentas_excedidas' => $n_excedidas,
         ));
         break;
 

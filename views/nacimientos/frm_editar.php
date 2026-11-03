@@ -10,8 +10,8 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-form.css" type="text/css" />
-<link rel="stylesheet" href="../../css/servicio-selector.css?v=15" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-form.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/servicio-selector.css?v=16" type="text/css" />
 <link rel="stylesheet" href="../../plugins/datepicker/datepicker3.css" type="text/css" />
 <link rel="stylesheet" href="../../plugins/unslider/unslider.css">
 <link rel="stylesheet" href="../../plugins/leaflet/leaflet.css" />
@@ -138,6 +138,9 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                         <select name="tipo_servicio" id="tipo_servicio" class="form-control bbb" tabindex="7">
                             <option></option>
                         </select>
+                        <small id="aviso_tipo_servicio" class="text-warning" style="display:none;">
+                            Este parto no tiene tipo de servicio registrado. Elige uno: se guardará también en el módulo de servicios.
+                        </small>
                     </div>
 
                     <label>Datos de la Donadora</label>
@@ -168,8 +171,22 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_h_donadora" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_h_donadora">
+                        <div class="sel-ficha" id="ficha_dona">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_dona'><p></p></div>
                     </div>
 
@@ -217,8 +234,22 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_h" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_h">
+                        <div class="sel-ficha" id="ficha_h">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_h'><p></p></div>
                         <div id='ms_nombre'><p></p></div>
                     </div>
@@ -316,8 +347,22 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_m" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_m">
+                        <div class="sel-ficha" id="ficha_m">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_m'><p></p></div>
                     </div>
 
@@ -498,6 +543,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 <script src="../../plugins/leaflet/leaflet.label.js"></script>
 <script src="../../plugins/select3/bootstrap-select.min.js"></script>
 <script src="../../plugins/select3/i18n/defaults-es_ES.min.js"></script>
+<script type="text/javascript" src="../../js/nac-busqueda-animal.js?v=3"></script>
 <script type="text/javascript" src="../../js/servicio-selector.js?v=16"></script>
 <script type="text/javascript" src="../../js/crud-animal-selector.js?v=15"></script>
 
@@ -570,6 +616,23 @@ $(document).ready(function() {
         $("#nombre_h").val(parsedJson.nombre_animal_h);
         $("#cod_animal_m").val(parsedJson.cod_animal_m);
         $("#nombre_m").val(parsedJson.nombre_animal_m);
+        /* La ficha muestra cada dato por separado y oculta las columnas sin
+           valor (un animal sin arete no muestra «Nro arete»). */
+        bovsPintarFichaAnimal('ficha_h', {
+            codigo: parsedJson.cod_animal_h,
+            nombre: parsedJson.nombre_animal_h,
+            nro_arete: parsedJson.arete_animal_h
+        });
+        bovsPintarFichaAnimal('ficha_m', {
+            codigo: parsedJson.cod_animal_m,
+            nombre: parsedJson.nombre_animal_m,
+            nro_arete: parsedJson.arete_animal_m
+        });
+        bovsPintarFichaAnimal('ficha_dona', {
+            codigo: parsedJson.cod_animal_dona,
+            nombre: parsedJson.nombre_animal_dona,
+            nro_arete: parsedJson.arete_animal_dona
+        });
         $("#fecha_parto").val(parsedJson.fecha_parto);
         $("#peso_nacer").val(parsedJson.peso_nacer);
         $("#sexo").val(parsedJson.sexo);
@@ -584,7 +647,17 @@ $(document).ready(function() {
         if (proposito_guardado === '1') proposito_guardado = '2';
         $("#proposito").val(proposito_guardado);
         $("#tipo_servicio").val(parsedJson.tipo_servicio);
+        /* Registro viejo sin tipo: se deja elegir para poder corregirlo (si
+           queda en 0 el parto no aparece en el listado). */
+        var tipoGuardado = String(parsedJson.tipo_servicio || '');
+        if (tipoGuardado === '' || tipoGuardado === '0') {
+            document.getElementById("tipo_servicio").disabled = false;
+            $('#aviso_tipo_servicio').show();
+        } else {
+            $('#aviso_tipo_servicio').hide();
+        }
         $("#cod_animal_dona").val(parsedJson.cod_animal_dona);
+        $("#nombre_h_donadora").val(parsedJson.nombre_animal_dona || '');
         $("#id_ternero").val(parsedJson.id_ternero);
         proposito = $("#proposito").val();
         actualizarFechaSecadoNacimiento();
@@ -678,6 +751,7 @@ $('#limpiar_dona').click(function() {
     document.getElementById("cod_animal_h").disabled = true;
     document.getElementById("nombre_h_donadora").value = "";
     document.getElementById("cod_animal_dona").value = "";
+    bovsPintarFichaAnimal('ficha_dona', {});
     document.getElementById("limpiar_dona").disabled = true;
     document.getElementById("buscar_dona").disabled = true;
     document.getElementById('dona_codigo').checked = false;
@@ -702,6 +776,7 @@ $('#limpiar_m').click(function() {
     document.getElementById("limpiar_m").disabled = true;
     document.getElementById("nombre_m").value = '';
     document.getElementById("cod_animal_m").value = '';
+    bovsPintarFichaAnimal('ficha_m', {});
 });
 
 $('#buscar').click(function() {
@@ -725,33 +800,20 @@ $('#buscar').click(function() {
                 $('.base').unslider('animate:1');
                 setTimeout(function() { $(".alert").alert('close'); }, 3000);
             } else {
-                $("#nombre_h").val(data);
                 document.getElementById("buscar").disabled = true;
                 document.getElementById('b_codigo').disabled = true;
                 document.getElementById('b_nro_arete').disabled = true;
                 document.getElementById("fecha_parto").disabled = false;
                 document.getElementById("limpiar").disabled = false;
             }
-            var valor = $("#nombre_h").val();
-            var array = valor.split("*");
-            var log = array[0];
-            var array2 = log.split('"');
-            var log2 = array2[1];
-            var log_n = array[1];
-            var array_n2 = log_n.split('"');
-            var log_n2 = array_n2[0];
-            var log_n3 = array[2];
-            var array_n3 = log_n3.split('"');
-            var log_n4 = array_n3[0];
-            log_n4 = parseInt(log_n4);
-            if (log_n4 > 1) {
-                document.getElementById("nro_parto").disabled = true;
-            } else {
-                document.getElementById("nro_parto").disabled = false;
+            /* Se reescribe siempre desde la respuesta: si la búsqueda falló
+               los campos quedan vacíos (antes se guardaba lo tecleado). */
+            var busq_h = bovsAplicarBusquedaAnimal(data, 'cod_animal_h', 'nombre_h', 'nro_parto', 'ficha_h');
+            var nro_parto_sug = parseInt(busq_h.nro_parto, 10);
+            if (!isNaN(nro_parto_sug)) {
+                $("#nro_parto").val(nro_parto_sug);
+                document.getElementById("nro_parto").disabled = (nro_parto_sug > 1);
             }
-            $("#cod_animal_h").html(log2).val(log2);
-            $("#nombre_h").html(log_n2).val(log_n2);
-            $("#nro_parto").html(log_n4).val(log_n4);
         });
     } else {
         document.getElementById('ms_cod_animal_h').style.display = 'block';
@@ -778,7 +840,6 @@ $('#buscar_dona').click(function() {
             $('.base').unslider('animate:1');
             setTimeout(function() { $(".alert").alert('close'); }, 3000);
         } else {
-            $("#nombre_h_donadora").val(data);
             document.getElementById("buscar_dona").disabled = true;
             document.getElementById('dona_codigo').disabled = true;
             document.getElementById('dona_nro_arete').disabled = true;
@@ -787,16 +848,7 @@ $('#buscar_dona').click(function() {
             document.getElementById('b_codigo').disabled = false;
             document.getElementById('b_nro_arete').disabled = false;
         }
-        var valor = $("#nombre_h_donadora").val();
-        var array = valor.split("*");
-        var log = array[0];
-        var array2 = log.split('"');
-        var log2 = array2[1];
-        var log_n = array[1];
-        var array_n2 = log_n.split('"');
-        var log_n2 = array_n2[0];
-        $("#cod_animal_dona").html(log2).val(log2);
-        $("#nombre_h_donadora").html(log_n2).val(log_n2);
+        bovsAplicarBusquedaAnimal(data, 'cod_animal_dona', 'nombre_h_donadora', null, 'ficha_dona');
     });
 });
 
@@ -965,21 +1017,13 @@ $('#buscar_m').click(function() {
             $('.base').unslider('animate:1');
             setTimeout(function() { $(".alert").alert('close'); }, 3000);
         } else {
-            $("#nombre_m").html(data).val(data);
             document.getElementById("buscar_m").disabled = true;
             document.getElementById("cod_animal_m").disabled = true;
             document.getElementById("limpiar_m").disabled = false;
         }
-        var valor = $("#nombre_m").val();
-        var array = valor.split("*");
-        var log = array[0];
-        var array2 = log.split('"');
-        var log2 = array2[1];
-        var log_n = array[1];
-        var array_n2 = log_n.split('"');
-        var log_n2 = array_n2[0];
-        $("#cod_animal_m").html(log2).val(log2);
-        $("#nombre_m").html(log_n2).val(log_n2);
+        /* Si la búsqueda falla el campo queda vacío: antes se conservaba el
+           texto tecleado y se guardaba como código del padre. */
+        bovsAplicarBusquedaAnimal(data, 'cod_animal_m', 'nombre_m', null, 'ficha_m');
     });
 });
 
@@ -1313,6 +1357,10 @@ function LimpiarCampos() {
     document.getElementById('b_nro_arete').checked = false;
     document.getElementById("nombre_h_donadora").value = '';
     document.getElementById("cod_animal_dona").value = '';
+    /* Las fichas visibles no se vacían solas: reflejan el animal elegido. */
+    bovsPintarFichaAnimal('ficha_h', {});
+    bovsPintarFichaAnimal('ficha_m', {});
+    bovsPintarFichaAnimal('ficha_dona', {});
 }
 
 function BloquearCampos() {
@@ -1506,7 +1554,10 @@ function ValidarCamposVacios() {
     var aptitud_animal = $("#aptitud_animal").val();
     var cod_animal_dona = $("#cod_animal_dona").val();
 
-    if ((tipo_servicio == 3) && (cod_animal_dona == "")) {
+    if (!tipo_servicio || tipo_servicio === '0') {
+        $('#aviso_tipo_servicio').show();
+        $('.message').html('<div class="alert alert-warning">Indica el <strong>Tipo de Servicio</strong> del parto.</div>');
+    } else if ((tipo_servicio == 3) && (cod_animal_dona == "")) {
         document.getElementById('ms_cod_animal_dona').style.display = 'block';
         document.getElementById("ms_cod_animal_dona").innerHTML = 'Este Campo es Obligatorio';
     } else if (cod_animal_h == "") {

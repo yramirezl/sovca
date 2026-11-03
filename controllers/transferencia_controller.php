@@ -3,7 +3,7 @@ require_once '../models/Mcontacto.php';
 
 include '../lib/sanitizar.php';
 
-require_once '../lib/PHPExcel/Classes/PHPExcel/IOFactory.php';
+require_once '../vendor/autoload.php';
 date_default_timezone_set('America/Caracas');
 $datos = ($_POST["datos"]);
 $errores = array();
@@ -31,7 +31,7 @@ if($contar_arch == 2){
 	}
        
 
-	$data = PHPExcel_IOFactory::load($archivo);
+  $data = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
 	$hoja = $data->getActiveSheet()->toArray(null,true,true,true);
 
 	

@@ -14,48 +14,65 @@ if ($parametros !== false && $parametros !== '') {
     }
 }
 if ($id_animal <= 0) { die('ID de animal inválido'); }
+
+/* Modo embebido: el panel lateral (js/bovs-drawer.js) pide solo el fragmento
+   de la ficha, sin el marco de la página (menú, cabecera y pie). Así la ficha
+   se consulta a la derecha sin navegar ni abrir un formulario. */
+$embed = !empty($_GET['embed']);
 ?>
 <?php include("../layouts/constantes.php") ?>
-<?php include_once("../layouts/cabecera.php") ?>
+<?php if (!$embed) { include_once("../layouts/cabecera.php"); } ?>
 
 <style>
-.ficha-wrap { max-width: 1080px; margin: 0 auto; background: #fff; padding: 24px; border: 1px solid #e3e7ed; border-radius: 12px; box-shadow: 0 8px 28px rgba(15,23,42,.06); }
-.ficha-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #2f8f4a; padding-bottom: 14px; margin-bottom: 18px; gap: 16px; }
-.ficha-header h2 { margin: 0; font-size: 20px; font-weight: 800; color: #234e35; letter-spacing: .08em; }
-.ficha-header .fundo { font-size: 13px; color: #6b7480; }
-.ficha-header .fundo strong { font-size: 16px; color: #234e35; }
-.ficha-main { display: flex; gap: 22px; margin-bottom: 18px; align-items: flex-start; }
-.ficha-foto { width: 170px; flex-shrink: 0; text-align: center; }
-.ficha-foto img { width: 170px; height: 170px; object-fit: cover; border: 3px solid #dceee1; border-radius: 10px; background: #f4f7f6; }
+.ficha-wrap { max-width: 1080px; margin: 0 auto; background: #fff; padding: 16px 18px; border: 1px solid #e3e7ed; border-radius: 12px; box-shadow: 0 8px 28px rgba(15,23,42,.06); }
+.ficha-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 11px 16px; margin-bottom: 12px; border-radius: 10px; background: linear-gradient(135deg, #1f4b32 0%, #2f7d4e 100%); color: #fff; box-shadow: 0 4px 14px rgba(31, 75, 50, .18); }
+.ficha-header h2 { margin: 0; font-size: 16px; font-weight: 800; color: #fff; letter-spacing: .12em; }
+.ficha-header .fundo { font-size: 11.5px; color: rgba(255,255,255,.82); line-height: 1.3; display: flex; flex-direction: column; gap: 1px; }
+.ficha-header .fundo strong { font-size: 17px; color: #fff; letter-spacing: .02em; line-height: 1.15; }
+.ficha-header .fundo__etiqueta { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.ficha-header .fundo__etiqueta i { font-size: 10px; }
+.ficha-header .fundo__rif { font-size: 11px; color: rgba(255,255,255,.75); }
+.ficha-header .fundo__rif b { color: #fff; font-weight: 700; }
+.ficha-header .text-right small { color: rgba(255,255,255,.82); font-size: 11px; }
+/* Animal que no nació en la finca: se marca en la cabecera para que quede
+   claro en pantalla y en papel. */
+.ficha-origen { display: inline-block; margin-top: 5px; padding: 3px 9px; border-radius: 10px; font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #7c2d12; background: #fde68a; }
+.ficha-main { display: flex; gap: 16px; margin-bottom: 12px; align-items: flex-start; }
+.ficha-foto { width: 152px; flex-shrink: 0; text-align: center; }
+.ficha-foto img { width: 148px; height: 148px; object-fit: cover; border: 4px solid #fff; border-radius: 10px; background: #f4f7f6; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
 .ficha-identidad { flex: 1; min-width: 0; }
-.ficha-codigo { display: inline-block; font-size: 22px; font-weight: 800; color: #1b5e20; background: #f0fbf3; border: 1px solid #cfe3d6; border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; word-break: break-word; }
-.ficha-datos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.ficha-codigo { display: inline-block; font-size: 21px; font-weight: 800; letter-spacing: .02em; color: #14532d; background: linear-gradient(180deg, #eefaf1, #dff3e6); border: 1px solid #b9e0c6; border-radius: 8px; padding: 5px 13px; margin-bottom: 9px; word-break: break-word; box-shadow: inset 0 1px 0 #fff; }
+.ficha-datos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 8px; }
 .ficha-datos-grid--identidad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ficha-datos-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ficha-dato { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; background: #f8fafc; border: 1px solid #eef1f4; border-left: 3px solid #dceee1; border-radius: 8px; }
-.ficha-dato__label { font-size: 10.5px; font-weight: 700; color: #7b8794; text-transform: uppercase; letter-spacing: .06em; line-height: 1.25; }
-.ficha-dato__valor { font-size: 13px; font-weight: 600; color: #233e2d; line-height: 1.35; word-break: break-word; }
+.ficha-dato { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 6px 9px; background: #fff; border: 1px solid #e6ebf1; border-left: 3px solid #2f8f4a; border-radius: 7px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.ficha-dato__label { font-size: 9.5px; font-weight: 800; color: #7b8794; text-transform: uppercase; letter-spacing: .07em; line-height: 1.25; }
+.ficha-dato__valor { font-size: 12.5px; font-weight: 700; color: #12291d; line-height: 1.3; word-break: break-word; }
+/* Ayuda emergente: mismo icono y mismo tooltip de Bootstrap que el formulario
+   de registro, para que la ficha hable el mismo idioma visual. */
+.ficha-dato--ayuda { cursor: help; }
+.ficha-dato--ayuda:hover { border-color: #b9e0c6; box-shadow: 0 2px 6px rgba(47, 143, 74, .12); }
 .ficha-dato--full { grid-column: 1 / -1; }
-.ficha-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; align-items: stretch; }
+.ficha-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
 .ficha-panel { display: flex; flex-direction: column; min-width: 0; border: 1px solid #e3e7ed; border-radius: 10px; background: #fff; overflow: hidden; box-shadow: 0 2px 8px rgba(15,23,42,.03); }
-.ficha-panel__head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: #f0fbf3; border-bottom: 1px solid #dceee1; }
-.ficha-panel__head i { color: #2f8f4a; font-size: 14px; }
-.ficha-panel__head h4 { margin: 0; font-size: 12px; font-weight: 800; color: #234e35; letter-spacing: .06em; text-transform: uppercase; }
-.ficha-panel__body { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #fff; }
+.ficha-panel__head { display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: linear-gradient(135deg, #245c3a, #2f8f4a); border-bottom: 0; }
+.ficha-panel__head i { color: #fff; font-size: 14px; }
+.ficha-panel__head h4 { margin: 0; font-size: 12px; font-weight: 800; color: #fff; letter-spacing: .08em; text-transform: uppercase; }
+.ficha-panel__body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: #fff; }
 .ficha-panel__body .ficha-datos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ficha-obs-wrap { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 84px; padding: 10px 12px; background: #f8fafc; border: 1px dashed #cfe3d6; border-radius: 8px; }
+.ficha-obs-wrap { display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 52px; padding: 8px 10px; background: #f8fafc; border: 1px dashed #cfe3d6; border-radius: 7px; }
 .ficha-obs { flex: 1; font-size: 13px; color: #233e2d; line-height: 1.5; white-space: pre-wrap; }
 .ficha-tabla-full { width: 100%; font-size: 12px; border-collapse: separate; border-spacing: 0; }
 .ficha-tabla-full th { background: #f0fbf3; color: #234e35; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 8px 10px; text-align: left; border-bottom: 1px solid #dceee1; }
 .ficha-tabla-full td { padding: 8px 10px; border-bottom: 1px solid #eef1f4; color: #233e2d; vertical-align: top; }
 .ficha-tabla-full tbody tr:nth-child(even) td { background: #fafbfc; }
 .ficha-tabla-full tbody tr:last-child td { border-bottom: none; }
-.ficha-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; padding: 16px; border-top: 1px dashed #cfe3d6; background: #f8fafc; border-radius: 10px; gap: 20px; }
+.ficha-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 10px 14px; border-top: 1px dashed #cfe3d6; background: #f8fafc; border-radius: 8px; gap: 14px; }
 .ficha-qr { text-align: center; }
-.ficha-qr img { width: 110px; height: 110px; }
-.ficha-firma { text-align: center; width: 220px; }
-.linea-firma { border-bottom: 1px solid #9aa6b2; height: 40px; margin-bottom: 4px; }
-.ficha-botones { text-align: right; margin-top: 20px; }
+.ficha-qr img { width: 82px; height: 82px; }
+.ficha-firma { text-align: center; width: 200px; }
+.linea-firma { border-bottom: 1px solid #9aa6b2; height: 30px; margin-bottom: 3px; }
+.ficha-botones { text-align: right; margin-top: 12px; }
 .ficha-botones .btn { margin-left: 8px; margin-bottom: 6px; }
 
 .ficha-cargando { text-align: center; padding: 80px 20px; color: #888; }
@@ -159,9 +176,19 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
     .ficha-tabla-full td::before { content: attr(data-label) ": "; font-weight: 700; color: #7b8794; }
 }
 @media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    html, body { background: #fff !important; }
     .no-print, .main-header, .main-sidebar, .main-footer, .content-header { display: none !important; }
     .ficha-wrap { border: none; padding: 0; max-width: 100%; box-shadow: none; }
+    .ficha-header { box-shadow: none; }
     .ficha-panel, .ficha-dato, .ficha-footer { break-inside: avoid; page-break-inside: avoid; }
+    .ficha-grid-2 { gap: 12px; }
+    /* Sin esto el navegador imprime el degradado en blanco y la ficha pierde
+       justo lo que la hace presentable. */
+    .ficha-header, .ficha-panel__head, .ficha-codigo, .ficha-foto img, .ficha-origen {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
     .ficha-botones { display: none !important; }
     .hist-drawer, .hist-overlay { display: none !important; }
 }
@@ -205,12 +232,14 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
 
     <div class="ficha-header">
         <div class="fundo">
-            <strong id="fundo_nombre">—</strong><br>
-            <small>RIF: <span id="rif_fundo">—</span></small>
+            <span class="fundo__etiqueta"><i class="fa fa-map-marker"></i> Fundo</span>
+            <strong id="fundo_nombre">—</strong>
+            <span class="fundo__rif">RIF <b id="rif_fundo">—</b></span>
         </div>
         <div class="text-right">
             <h2>FICHA DEL ANIMAL</h2>
-            <small>Fecha: <?php echo date("d-m-Y"); ?></small>
+            <small>Emitida el <?php echo date("d-m-Y"); ?></small>
+            <span class="ficha-origen" id="ficha_origen" style="display:none;"></span>
         </div>
     </div>
 
@@ -293,8 +322,12 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
                         <span class="ficha-dato__label">Procedencia</span>
                         <span class="ficha-dato__valor" id="procedencia">—</span>
                     </div>
-                    <div class="ficha-dato">
-                        <span class="ficha-dato__label">Servicio</span>
+                    <div class="ficha-dato ficha-dato--ayuda" data-toggle="tooltip" tabindex="0"
+                         title="Servicio reproductivo con el que la madre quedó preñada: monta, inseminación o transferencia">
+                        <span class="ficha-dato__label">
+                            Servicio
+                            <img src="../../dist/img/ayuda.jpeg" height="13" width="13" alt="Ayuda">
+                        </span>
                         <span class="ficha-dato__valor" id="servicio">—</span>
                     </div>
                 </div>
@@ -404,7 +437,9 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
     </div>
 
     <div class="ficha-botones no-print">
+        <?php if (!$embed): ?>
         <button type="button" class="btn btn-warning" id="exit"><i class="fa fa-reply"></i> Regresar</button>
+        <?php endif; ?>
         <a id="ver_publico" class="btn btn-info" href="#" target="_blank" style="display:none;"><i class="fa fa-external-link"></i> Ver página pública</a>
         <button type="button" class="btn btn-success" id="pdf"><i class="fa fa-file-pdf-o"></i> Exportar PDF</button>
         <button type="button" class="btn btn-primary" id="imprimir"><i class="fa fa-print"></i> Imprimir</button>
@@ -612,6 +647,16 @@ $(document).ready(function () {
         $("#procedencia").text(data.procedencia || '—');
         $("#servicio").text(data.servicio || '—');
 
+        /* Marca de origen: los animales adquiridos en otro establecimiento se
+           identifican en la cabecera. La fuente es 'procedencia', que es el
+           dato que el productor ya carga al registrar el animal. */
+        var procedencia_txt = String(data.procedencia || '').trim();
+        if (/^comprad|extern|otro fundo/i.test(procedencia_txt)) {
+            $("#ficha_origen").text('ADQUIRIDO FUERA · ' + procedencia_txt.toUpperCase()).show();
+        } else {
+            $("#ficha_origen").hide();
+        }
+
         var madreTxt = ((data.madre && data.madre.codigo ? data.madre.codigo : '') + ' ' + (data.madre && data.madre.nombre ? data.madre.nombre : '')).trim();
         var padreTxt = ((data.padre && data.padre.codigo ? data.padre.codigo : '') + ' ' + (data.padre && data.padre.nombre ? data.padre.nombre : '')).trim();
         $("#madre").text(madreTxt || 'No registrado');
@@ -801,8 +846,12 @@ $(document).ready(function () {
         $("#pdf_qr").val(QR_DATA_URL);
         $("#form_pdf").submit();
     });
-    $("#exit").on('click', function () { window.location.href = '../animales/'; });
+    $("#exit").on('click', function () {
+        /* Dentro del panel lateral no se navega: se cierra el panel. */
+        if (window.BovsDrawer && BovsDrawer.isOpen()) { BovsDrawer.close(); return; }
+        window.location.href = '../animales/';
+    });
 });
 </script>
 
-<?php include_once("../layouts/pie.php") ?>
+<?php if (!$embed) { include_once("../layouts/pie.php"); } ?>

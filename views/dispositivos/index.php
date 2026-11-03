@@ -13,7 +13,7 @@ $es_admin_vista = in_array($rol_actual, [1, 4]);
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-index.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-index.css?v=4" type="text/css" />
 
 <div class="crud-page" data-theme="danger">
 
@@ -44,6 +44,9 @@ $es_admin_vista = in_array($rol_actual, [1, 4]);
                 <button id="recargar" type="button" class="crud-btn crud-btn--success">
                     <i class="fa fa-refresh"></i> <span>Recargar</span>
                 </button>
+                <a href="sincronizaciones.php" class="crud-btn crud-btn--info" style="text-decoration:none;">
+                    <i class="fa fa-exchange"></i> <span>Resumen de sync</span>
+                </a>
                 <a href="historico.php" class="crud-btn crud-btn--ghost" style="text-decoration:none;">
                     <i class="fa fa-history"></i> <span>Ver histórico</span>
                 </a>

@@ -15,6 +15,9 @@
  */
 
 require_once __DIR__ . '/config/bootstrap.php';
+require_once __DIR__ . '/../lib/edad_macho_helper.php';
+require_once __DIR__ . '/../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/arete_helper.php';
 require_once '../models/Vusuario.php';
 require_once '../models/Mfundo.php';
 require_once '../models/Maptitude.php';
@@ -44,13 +47,17 @@ $usuario['fundo_id'] = \Api\ApiAuth::requerirFundo($input, $usuario);
 switch ($action) {
 
     case 'validar_arete':
-        $nroArete = trim((string) ($input['nro_arete'] ?? ''));
+        $nroArete = bovs_arete_normalizar($input['nro_arete'] ?? '');
         if ($nroArete === '') {
             \Api\ApiResponse::error('Debe indicar un número de arete.', 422);
         }
 
-        $condicion = 'mfundos_id = ? and status = 1 and UPPER(TRIM(nro_arete)) = ?';
-        $valores = [(int) $usuario['fundo_id'], strtoupper($nroArete)];
+        /* Misma regla que la web (lib/arete_helper.php): mayúsculas y
+           espacios normalizados, solo animales con status = 1. */
+        $condicion = "mfundos_id = ? and status = 1 "
+                   . "and regexp_replace(upper(btrim(coalesce(nro_arete, ''))), '\\s+', ' ', 'g') = ?";
+        $valores = [(int) $usuario['fundo_id'], $nroArete];
+
         $uuidExcluir = trim((string) ($input['uuid_local_excluir'] ?? ''));
         if ($uuidExcluir !== '') {
             if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uuidExcluir)) {
@@ -108,7 +115,7 @@ switch ($action) {
             'order' => 'nombre asc',
         ]);
 
-        // Categorías (Becerro, Novillo, Vaca, etc. por sexo/edad):
+        // Categorías (Cordero, Borrego, Oveja, etc. por sexo/edad):
         // mismo criterio exacto que razas — globales (mfundos_id = 0)
         // + propias del fundo, filtradas por tipo de ganadería.
         $categorias = Mcategoria::find('all', [
@@ -184,6 +191,39 @@ switch ($action) {
             ]);
         }
 
+        // PERIODO DE GESTIÓN (PGB): días de gestación del fundo. La app
+        // offline lo usa para calcular la fecha probable de parto al
+        // marcar la hembra como gestante (fecha de servicio + estos
+        // días), igual que hace el formulario web. Si el fundo no lo
+        // tiene, se usa el de la ganadería sin fundo y, en última
+        // instancia, el valor estándar de 283 días.
+        $periodoGestacion = Mperiodo::find('first', [
+            'conditions' => [
+                'status > ? and codper_bov = ? and mtipoganaderias_id = ? and mfundos_id = ?',
+                0, 'PGB', $tipoGanaderia, $usuario['fundo_id'],
+            ],
+        ]);
+        if (!$periodoGestacion) {
+            $periodoGestacion = Mperiodo::find('first', [
+                'conditions' => [
+                    'status > ? and codper_bov = ? and mtipoganaderias_id = ? and mfundos_id = 0',
+                    0, 'PGB', $tipoGanaderia,
+                ],
+            ]);
+        }
+
+        // EDAD MINIMA DEL MACHO (EMM), en días: misma regla que la web
+        // (ver lib/edad_macho_helper.php). Se manda el número de días para
+        // que la PWA pueda filtrar y validar sin conexión.
+        $edadMinimaMachoDias = bovs_edad_minima_macho_dias($usuario['fundo_id'], $tipoGanaderia);
+
+        // PERÍODOS DE LACTANCIA (PBL) Y PRODUCCIÓN DE LECHE (PPL), en días.
+        // La app offline los usa para calcular sola la fecha de secado de
+        // un nacimiento (fecha de parto + período), igual que hace el
+        // servidor al crear el registro (ver bovs_calcular_secado_parto).
+        $periodoLactanciaDias = bovs_periodo_reproductivo_dias('PBL', $usuario['fundo_id'], $tipoGanaderia);
+        $periodoProduccionDias = bovs_periodo_reproductivo_dias('PPL', $usuario['fundo_id'], $tipoGanaderia);
+
         \Api\ApiResponse::ok([
             'aptitudes' => array_map(fn($a) => ['id' => (int) $a->id, 'nombre' => $a->nombre], $aptitudes),
             'lotes' => array_map(fn($l) => ['id' => (int) $l->id, 'nombre' => $l->nombre], $lotes),
@@ -223,6 +263,10 @@ switch ($action) {
                 'nombre' => $c->nombre,
             ], Mcausamortalidade::find('all', ['order' => 'nombre asc'])),
             'periodo_palpacion_dias' => $periodoPalpacion ? (int) $periodoPalpacion->dias_gestacion : null,
+            'periodo_gestacion_dias' => $periodoGestacion ? (int) $periodoGestacion->dias_gestacion : 283,
+            'periodo_lactancia_dias' => $periodoLactanciaDias,
+            'periodo_produccion_dias' => $periodoProduccionDias,
+            'edad_minima_macho_dias' => $edadMinimaMachoDias,
             'tipo_ganaderia_id' => $tipoGanaderia,
             'fundo_id' => (int) $usuario['fundo_id'],
             'servidor_ahora' => date('Y-m-d H:i:s'),

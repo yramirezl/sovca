@@ -30,6 +30,7 @@
 		  echo $constante["css_tema_bovs"];   // 👈 NUEVA — Capa override SOVCA (siempre al final)
 		  echo $constante["css_tooltips"];    // Tooltips globales (después del tema)
 		  echo $constante["css_validacion"];  // Resaltado de campos obligatorios y botones de diálogo
+                  echo $constante["css_inicio"];      // Portada: hero responsive y accesos rápidos
 	//----------------------------------------------------------------
 	//-- Se imprimente las etiquetas html de escape para validar el --
 	//-- Soporte de IExploer de HTML5                               --
@@ -203,7 +204,9 @@ if (isset($_SESSION['idusuariox'])) {
 	//----------------------------------------------------------------
 	// include_once("carrusel2.php");
 
-	session_start();
+	if (session_status() === PHP_SESSION_NONE) {
+		session_start();
+	}
 
 	if ( ( $_SESSION[ 'tipo_ganaderia' ] == 1 ) ) {
 	

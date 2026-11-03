@@ -1,25 +1,73 @@
 // Lógica específica del módulo "animales": crear, editar y listar.
 
+/**
+ * FORMATO CANÓNICO del N° de arete, igual que la web y el servidor
+ * (lib/arete_helper.php):
+ *   mayúsculas · símbolos/espacios → guion · sin guiones dobles ·
+ *   sin guion al inicio · máximo 15 caracteres.
+ *
+ *   ' 322  jr ' → '322-JR'   ·   'SN 2-1' → 'SN-2-1'
+ */
+function normalizarArete(valor) {
+  let texto = String(valor == null ? '' : valor).trim();
+  if (!texto) return '';
+
+  texto = texto.replace(/[áàäâãéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ]/g, (c) => (
+    {
+      'á': 'A', 'à': 'A', 'ä': 'A', 'â': 'A', 'ã': 'A',
+      'é': 'E', 'è': 'E', 'ë': 'E', 'ê': 'E',
+      'í': 'I', 'ì': 'I', 'ï': 'I', 'î': 'I',
+      'ó': 'O', 'ò': 'O', 'ö': 'O', 'ô': 'O', 'õ': 'O',
+      'ú': 'U', 'ù': 'U', 'ü': 'U', 'û': 'U',
+      'ñ': 'N', 'ç': 'C',
+      'Á': 'A', 'À': 'A', 'Ä': 'A', 'Â': 'A', 'Ã': 'A',
+      'É': 'E', 'È': 'E', 'Ë': 'E', 'Ê': 'E',
+      'Í': 'I', 'Ì': 'I', 'Ï': 'I', 'Î': 'I',
+      'Ó': 'O', 'Ò': 'O', 'Ö': 'O', 'Ô': 'O', 'Õ': 'O',
+      'Ú': 'U', 'Ù': 'U', 'Ü': 'U', 'Û': 'U',
+      'Ñ': 'N', 'Ç': 'C'
+    }[c] || c));
+
+  texto = texto.toUpperCase();
+  texto = texto.replace(/[^0-9A-Z]+/g, '-');
+  texto = texto.replace(/^-+/, '');
+
+  if (texto.length > 15) {
+    texto = texto.slice(0, 15).replace(/-+$/, '');
+  }
+
+  return texto;
+}
+
 /** Usado SOLO al crear — es el único momento en que se fija el arete. */
 function camposDesdeFormulario(datosFormulario) {
   return {
     nombre: datosFormulario.nombre,
     sexo: Number(datosFormulario.sexo),
-    nro_arete: datosFormulario.nro_arete,
+    nro_arete: normalizarArete(datosFormulario.nro_arete),
+    // Number('') es 0 y Number(undefined) es NaN (que JSON convierte en null).
+    // El servidor rechaza null en estas columnas NOT NULL, así que se manda 0.
     aptitud: Number(datosFormulario.aptitud) || 0,
     mrazas_id: Number(datosFormulario.mrazas_id) || 0,
+    // Estatus de negocio (1 Activo, 2/3 Donador, 4/5 Donadora) y tipo de
+    // servicio: en la web son obligatorios porque de ellos dependen los
+    // conteos del plan y la elegibilidad para servicios reproductivos.
+    estatus_animal: Number(datosFormulario.estatus_animal) || 1,
+    servicio: Number(datosFormulario.servicio) || 0,
     codigo_ternero: datosFormulario.codigo_ternero || '',
     f_nacimiento: datosFormulario.f_nacimiento || null,
+    f_ingreso: datosFormulario.f_ingreso || null,
+    rena: datosFormulario.rena || '',
+    alza: datosFormulario.alza || '',
     mlotes_id: datosFormulario.mlotes_id ? Number(datosFormulario.mlotes_id) : undefined,
     categoria_ingreso_id: datosFormulario.categoria_ingreso_id ? Number(datosFormulario.categoria_ingreso_id) : undefined,
     categoria_futura_id: datosFormulario.categoria_futura_id ? Number(datosFormulario.categoria_futura_id) : undefined,
-      rgd_madre: datosFormulario.rgd_madre || '',
-      nombre_madre: datosFormulario.nombre_madre || '',
-      rgd_padre: datosFormulario.rgd_padre || '',
-      nombre_padre: datosFormulario.nombre_padre || '',
-      procedencia: datosFormulario.procedencia || '',
-      servicio: datosFormulario.servicio ? Number(datosFormulario.servicio) : undefined,
-      peso_nacimiento: datosFormulario.peso_nacimiento || '',
+    rgd_madre: datosFormulario.rgd_madre || '',
+    nombre_madre: datosFormulario.nombre_madre || '',
+    rgd_padre: datosFormulario.rgd_padre || '',
+    nombre_padre: datosFormulario.nombre_padre || '',
+    procedencia: datosFormulario.procedencia || '',
+    peso_nacimiento: datosFormulario.peso_nacimiento || '',
     observaciones: datosFormulario.observaciones || '',
   };
 }
@@ -38,6 +86,17 @@ function camposEditablesAlEditar(datosFormulario) {
     sexo: Number(datosFormulario.sexo),
     aptitud: Number(datosFormulario.aptitud) || 0,
     mrazas_id: Number(datosFormulario.mrazas_id) || 0,
+    estatus_animal: Number(datosFormulario.estatus_animal) || 1,
+    servicio: Number(datosFormulario.servicio) || 0,
+    f_nacimiento: datosFormulario.f_nacimiento || null,
+    f_ingreso: datosFormulario.f_ingreso || null,
+    rena: datosFormulario.rena || '',
+    alza: datosFormulario.alza || '',
+    rgd_madre: datosFormulario.rgd_madre || '',
+    nombre_madre: datosFormulario.nombre_madre || '',
+    rgd_padre: datosFormulario.rgd_padre || '',
+    nombre_padre: datosFormulario.nombre_padre || '',
+    procedencia: datosFormulario.procedencia || '',
     mlotes_id: datosFormulario.mlotes_id ? Number(datosFormulario.mlotes_id) : undefined,
     categoria_ingreso_id: datosFormulario.categoria_ingreso_id ? Number(datosFormulario.categoria_ingreso_id) : undefined,
     categoria_futura_id: datosFormulario.categoria_futura_id ? Number(datosFormulario.categoria_futura_id) : undefined,
@@ -84,14 +143,14 @@ const Animales = {
    */
   async existeArete(nroArete, uuidExcluir = null) {
     if (!nroArete) return null;
-    const objetivo = String(nroArete).trim().toUpperCase();
+    const objetivo = normalizarArete(nroArete);
     if (!objetivo) return null;
 
     const todos = await Db.obtenerTodos('animales');
     const choque = todos.find((animal) => {
       if (uuidExcluir && animal.uuid_local === uuidExcluir) return false;
       if (Number(animal.status ?? 1) !== 1) return false;
-      return String(animal.nro_arete || '').trim().toUpperCase() === objetivo;
+      return normalizarArete(animal.nro_arete) === objetivo;
     });
     return choque || null;
   },

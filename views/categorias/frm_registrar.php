@@ -6,7 +6,7 @@ ValidaSession("../login");
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-form.css" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-form.css?v=3" type="text/css" />
 <link rel="stylesheet" href="../../plugins/datepicker/datepicker3.css" type="text/css" />
 <link rel="stylesheet" href="../../plugins/unslider/unslider.css">
 <link rel="stylesheet" href="../../plugins/leaflet/leaflet.css" />
@@ -76,6 +76,18 @@ ValidaSession("../login");
                         </div>
                     </div>
 
+                    <!-- Cadena de categorías del mismo sexo (la completa el JS) -->
+                    <div class="cat-rangos" id="cat_rangos" style="display:none;">
+                        <div class="cat-rangos__head">
+                            <i class="fa fa-sitemap"></i>
+                            <strong>Categorías del mismo sexo</strong>
+                            <span class="cat-rangos__nota">Los rangos no deberían cruzarse.</span>
+                            <span class="cat-rangos__rango" id="cat_rangos_rango"></span>
+                        </div>
+                        <ul class="cat-rangos__lista" id="cat_rangos_lista"></ul>
+                        <div id="cat_rangos_aviso"></div>
+                    </div>
+
                 </div>
             </div>
 
@@ -106,6 +118,8 @@ ValidaSession("../login");
 <script src="../../plugins/leaflet/leaflet.label.js"></script>
 <script src="../../plugins/select3/bootstrap-select.min.js"></script>
 <script src="../../plugins/select3/i18n/defaults-es_ES.min.js"></script>
+<script type="text/javascript" src="../../js/categoria-rangos.js?v=1"></script>
+
 
 <script type="text/javascript">
 $("#derecha").click(function() {
@@ -194,7 +208,6 @@ $("#exit").click(function() {
 });
 
 $('#save').click(function() {
-    var ideco2 = parseInt($("#n_accion").val());
     $.confirm({
         title: '¿Está Seguro de Guardar el Registro ?',
         content: false,
@@ -202,49 +215,64 @@ $('#save').click(function() {
         cancelButton: 'No',
         confirmButtonClass: 'btn-success',
         cancelButtonClass: 'btn-danger',
-        confirm: function() {
-            $.post("../../controllers/mcategorias_controller", {
-                action: "add",
-                nombre_categoria: $("#nombre_categoria").val(),
-                sexo: $("#sexo").val(),
-                edadminima: $("#edadminima").val(),
-                edadmaxima: $("#edadmaxima").val()
-            }).done(function(data) {
-                var parsedJson = $.parseJSON(data);
-                $(".message").html(parsedJson.mensaje);
-                switch (parsedJson.deslizador) {
-                    case "1":
-                        $('.base').unslider('animate:0');
-                        tick = 0;
-                        document.getElementById('izquierda').disabled = true;
-                        $("#izquierda").css("display", "none");
-                        document.getElementById('derecha').disabled = false;
-                        $("#derecha").css("display", "block");
-                        break;
-                    case "2":
-                        $('.base').unslider('animate:1');
-                        tick = 1;
-                        document.getElementById('izquierda').disabled = false;
-                        $("#izquierda").css("display", "block");
-                        document.getElementById('derecha').disabled = true;
-                        $("#derecha").css("display", "none");
-                        break;
-                }
-                if (parsedJson.resultado != 'error') {
-                    $('.base').unslider('animate:0');
-                    setTimeout(function() {
-                        $(location).attr('href', '../categorias/');
-                    }, 3000);
-                } else {
-                    setTimeout(function() {
-                        $(".alert").alert('close');
-                    }, 1500);
-                }
-            }, "json");
-        },
+        confirm: function() { bovsGuardarCategoria(0); },
         cancel: function() {}
     });
 });
+
+/* Guarda la categoría.
+   El servidor puede responder «advertencia» cuando el rango de edad se cruza
+   con otra categoría del mismo sexo: en ese caso NO guarda y aquí se pregunta
+   si se corrigen las edades o si se guarda de todos modos (forzar = 1). */
+function bovsGuardarCategoria(forzar) {
+    $.post("../../controllers/mcategorias_controller", {
+        action: "add",
+        nombre_categoria: $("#nombre_categoria").val(),
+        sexo: $("#sexo").val(),
+        edadminima: $("#edadminima").val(),
+        edadmaxima: $("#edadmaxima").val(),
+        forzar: forzar ? 1 : 0
+    }).done(function(data) {
+        var parsedJson = (typeof data === 'string') ? $.parseJSON(data) : data;
+
+        if (parsedJson.resultado === 'advertencia') {
+            bovsDialogoAdvertenciaCategoria(parsedJson, function() {
+                bovsGuardarCategoria(1);
+            });
+            return;
+        }
+
+        $(".message").html(parsedJson.mensaje);
+        switch (parsedJson.deslizador) {
+            case "1":
+                $('.base').unslider('animate:0');
+                tick = 0;
+                document.getElementById('izquierda').disabled = true;
+                $("#izquierda").css("display", "none");
+                document.getElementById('derecha').disabled = false;
+                $("#derecha").css("display", "block");
+                break;
+            case "2":
+                $('.base').unslider('animate:1');
+                tick = 1;
+                document.getElementById('izquierda').disabled = false;
+                $("#izquierda").css("display", "block");
+                document.getElementById('derecha').disabled = true;
+                $("#derecha").css("display", "none");
+                break;
+        }
+        if (parsedJson.resultado != 'error') {
+            $('.base').unslider('animate:0');
+            setTimeout(function() {
+                $(location).attr('href', '../categorias/');
+            }, 3000);
+        } else {
+            setTimeout(function() {
+                $(".alert").alert('close');
+            }, 1500);
+        }
+    }, "json");
+}
 
 function esnombre(e) {
     k = (document.all) ? e.keyCode : e.which;
@@ -307,6 +335,20 @@ $(document).on('click', '#exit_top', function() {
         observer.observe(document.body, { attributes: true, attributeFilter: ['disabled'], subtree: true });
     });
 })();
+</script>
+
+<script type="text/javascript">
+/* Panel con las categorías del mismo sexo y aviso de rangos cruzados. */
+$(function () {
+    bovsCategoriaRangos.iniciar({
+        panel: 'cat_rangos',
+        sexo:  'sexo',
+        min:   'edadminima',
+        max:   'edadmaxima',
+        nombre:  'nombre_categoria',
+        url:   '../../controllers/mcategorias_controller'
+    });
+});
 </script>
 
 <?php include_once("../layouts/pie.php") ?>

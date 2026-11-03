@@ -51,7 +51,9 @@ $controles = array(
     'js/servicio-selector.js'                       => array('bovsSelectorAnimal', null),
     'js/bovs-teclado.js'                            => array('ms_direccion', null),
     // PWA
-    'app_offline/versiones.json'                    => array('4.45', null),
+    // (la versión del frontend ya no se compara por número: desde V1.nnnnn la
+    //  revisión cambia en cada entrega, así que solo se comprueba el archivo)
+    'app_offline/versiones.json'                    => array('"actual"', null),
     'app_offline/service-worker.php'                => array('VERSION_CACHE', null),
 );
 

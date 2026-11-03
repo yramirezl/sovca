@@ -104,6 +104,15 @@
         searchPlaceholder: 'Buscar…',
         searchDebounceMs:  200,
 
+        /* Búsqueda por campos (opt-in).
+         * DataTables busca "contiene" en TODAS las columnas, así que escribir
+         * 322 traía también al animal 2322 y al 2452 (su CÓDIGO termina en
+         * 0322): el mismo criterio devolvía animales que no eran. Con
+         * busquedaPorCampos cada término se compara por PALABRA contra las
+         * columnas, y el código solo por su consecutivo (o por el texto
+         * completo si el término trae letras). */
+        busquedaPorCampos: false,
+
         autoSizeMinHeight: 200,
         autoSizeReserveBottom: 70,
 
@@ -139,6 +148,93 @@
             clearTimeout(t);
             t = setTimeout(function () { fn.apply(ctx, args); }, wait);
         };
+    }
+
+    /* =====================================================================
+       BÚSQUEDA POR CAMPOS — utilidades
+       ===================================================================== */
+
+    /** Mayúsculas, sin acentos y con espacios simples ("Mañanita" → "MANANITA"). */
+    function normalizarBusqueda(texto) {
+        var t = String(texto == null ? '' : texto);
+        if (t.normalize) {
+            try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+            catch (e) { /* navegador sin normalize */ }
+        }
+        return t.toUpperCase().replace(/\s+/g, ' ').trim();
+    }
+
+    /** Parte un valor en palabras: "322 JR" → ['322', 'JR']. */
+    function palabrasDeBusqueda(texto) {
+        return normalizarBusqueda(texto)
+            .replace(/[^0-9A-Z]+/g, ' ')
+            .split(' ')
+            .filter(function (p) { return p !== ''; });
+    }
+
+    /** Coincide si alguna palabra del valor es igual al término o empieza con él. */
+    function coincidePorPalabra(valor, termino) {
+        var palabras = palabrasDeBusqueda(valor);
+        for (var i = 0; i < palabras.length; i++) {
+            if (palabras[i] === termino || palabras[i].indexOf(termino) === 0) return true;
+        }
+
+        /* Los aretes se guardan como 'SN-2' pero se busca 'sn2': también se
+           compara el valor sin separadores (solo por PREFIJO, para no repetir
+           el problema de "322" encontrando a 2322). */
+        var compacto = normalizarBusqueda(valor).replace(/[^0-9A-Z]+/g, '');
+        if (compacto && compacto.indexOf(termino) === 0) return true;
+
+        return false;
+    }
+
+    /**
+     * Código SOVCA ("SOVCA-063-0322"):
+     *  - término con letras → se busca como texto ("SOVCA-063", "bovs-063-05");
+     *  - término solo numérico → se compara con el CONSECUTIVO (último
+     *    segmento), no con cualquier trozo. Así "322" no encuentra 0322.
+     */
+    function coincidePorCodigo(valor, termino) {
+        var codigo = normalizarBusqueda(valor).replace(/\s+/g, '');
+        if (/[A-Z]/.test(termino)) {
+            return codigo.indexOf(termino.replace(/\s+/g, '')) !== -1;
+        }
+        var partes = codigo.replace(/[^0-9A-Z]+/g, ' ').split(' ').filter(function (p) { return p !== ''; });
+        var consecutivo = partes.length ? partes[partes.length - 1] : '';
+        return consecutivo === termino;
+    }
+
+    /**
+     * Registra UNA sola vez el filtro global de DataTables. Cada tabla guarda
+     * su estado en settings._crudBusqueda; las que no usan búsqueda por campos
+     * no tienen estado y el filtro las deja pasar sin tocarlas.
+     */
+    function registrarFiltroPorCampos() {
+        if (registrarFiltroPorCampos.hecho) return;
+        registrarFiltroPorCampos.hecho = true;
+
+        $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex, rowData) {
+            var estado = settings._crudBusqueda;
+            if (!estado || !estado.terminos || !estado.terminos.length) return true;
+
+            var fila = rowData || {};
+
+            for (var t = 0; t < estado.terminos.length; t++) {
+                var termino = estado.terminos[t];
+                var encontrado = false;
+
+                for (var i = 0; i < estado.palabra.length && !encontrado; i++) {
+                    encontrado = coincidePorPalabra(fila[estado.palabra[i]], termino);
+                }
+                for (var j = 0; j < estado.codigo.length && !encontrado; j++) {
+                    encontrado = coincidePorCodigo(fila[estado.codigo[j]], termino);
+                }
+
+                if (!encontrado) return false;
+            }
+
+            return true;
+        });
     }
 
     function dialogInfo(title) {
@@ -236,6 +332,39 @@
         };
 
         var table = $table.dataTable(dtConfig);
+
+        /* ---------- Búsqueda por campos (opcional) ---------- */
+        if (c.busquedaPorCampos) {
+            registrarFiltroPorCampos();
+
+            var camposPalabra = [];
+            var camposCodigo = [];
+
+            (c.columns || []).forEach(function (col) {
+                if (!col || !col.data || col.busqueda === false) return;
+                if (col.busqueda === 'codigo') camposCodigo.push(col.data);
+                else camposPalabra.push(col.data);
+            });
+
+            var estadoBusqueda = { terminos: [], palabra: camposPalabra, codigo: camposCodigo };
+            table.api().settings()[0]._crudBusqueda = estadoBusqueda;
+
+            var $entradaBusqueda = usingExternalSearch
+                ? $(c.searchSelector)
+                : $table.closest('.crud-table-wrap').find('.dataTables_filter input');
+
+            if ($entradaBusqueda.length) {
+                /* Se quita el buscador propio de DataTables (coincidencia por
+                   "contiene" en cualquier columna) y se filtra por campos. */
+                $entradaBusqueda.off('.DT').off('keyup change clear input search');
+                $entradaBusqueda.on('input keyup search', debounce(function () {
+                    estadoBusqueda.terminos = normalizarBusqueda(this.value)
+                        .split(' ')
+                        .filter(function (t) { return t !== ''; });
+                    table.api().draw();
+                }, c.searchDebounceMs));
+            }
+        }
 
         function applyAutoSize() {
             var $scrollBody = $table.closest('.crud-table-wrap').find('.dataTables_scrollBody');
@@ -449,5 +578,14 @@
         };
     }
 
-    window.CrudIndex = { init: init, renders: renders };
+    window.CrudIndex = {
+        init: init,
+        renders: renders,
+        busqueda: {
+            normalizar: normalizarBusqueda,
+            palabras: palabrasDeBusqueda,
+            coincidePalabra: coincidePorPalabra,
+            coincideCodigo: coincidePorCodigo
+        }
+    };
 })(window, jQuery);

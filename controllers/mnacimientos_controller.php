@@ -14,6 +14,8 @@ require_once '../models/Mregservicio.php';
 include '../lib/sanitizar.php';
 require_once '../lib/estatus_animal_helper.php';
 require_once '../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/macho_resolver_helper.php';
+require_once __DIR__ . '/../lib/arete_helper.php';
 
 date_default_timezone_set('America/Caracas');
 
@@ -173,11 +175,24 @@ function construirGruposUnificacionNacimiento($mfundos_id)
       $bloqueos[] = 'Los registros tienen estados de ficha distintos.';
     }
 
-    /* Números de parto distintos = DOS PARTOS DIFERENTES de la misma hembra,
-       no un duplicado. No se ofrecen para unificar (antes solo se avisaba
-       "se conservará el menor", lo que borraba un parto real). */
+    /* Números de parto distintos: el sistema numera solo, así que el MISMO
+       parto registrado dos veces queda con 2 y 3. Antes esto descartaba el
+       grupo (`return`) y el productor no podía hacer nada; ahora se ofrece
+       con aviso cuando los números son consecutivos y solo se bloquea cuando
+       la diferencia es grande, que es cuando sí parecen dos partos reales. */
     if (count($numeros_parto) > 1) {
-      return;
+      $nros = array_keys($numeros_parto);
+      sort($nros, SORT_NUMERIC);
+      $menor = (int) $nros[0];
+      $mayor = (int) $nros[count($nros) - 1];
+
+      if (($mayor - $menor) <= 1) {
+        $avisos[] = 'Los números de parto no coinciden (' . $menor . ' y ' . $mayor
+          . '): al anular se conserva el del registro que queda y al unificar se toma el menor.';
+      } else {
+        $bloqueos[] = 'Los números de parto son muy distintos (' . $menor . ' y ' . $mayor
+          . '): parecen dos partos diferentes de la misma fecha.';
+      }
     }
 
     $ids = array_values(array_unique($ids));
@@ -263,6 +278,66 @@ function calcularFechaSecadoNacimiento($fecha_parto, $produccion_leche, $proposi
     'ok' => true,
     'fecha' => $calculo['fecha'] ? $calculo['fecha']->format('d-m-Y') : null
   );
+}
+
+/**
+ * Corrige el tipo de servicio de un servicio gestante viejo.
+ *
+ * Contexto: antes el módulo de servicios permitía guardar sin tipo
+ * (`mservicios_id = 0`). Al registrar el parto el formulario pedía el tipo,
+ * pero el controlador lo sobrescribía con el del servicio (0) y el nacimiento
+ * quedaba invisible en el listado (la vista une con mtiposervicios).
+ *
+ * Regla: el tipo del SERVICIO manda cuando existe; si el servicio no tiene
+ * tipo se usa el elegido en el parto y se graba también en el servicio, para
+ * que ambos queden coherentes.
+ */
+if (!function_exists('nac_corregir_tipo_servicio')) {
+  function nac_corregir_tipo_servicio($mregservicios_id, $tipo_servicio, $mfundos_id, $usuario_id)
+  {
+    $sid = (int) $mregservicios_id;
+    $tid = (int) $tipo_servicio;
+    if ($sid <= 0 || $tid <= 0) {
+      return false;
+    }
+    try {
+      $cx = Mregservicio::connection();
+      $cx->query(
+        "UPDATE mregservicios
+            SET mservicios_id = ?, updated = NOW(), user_modify = ?
+          WHERE id = ? AND mfundos_id = ?
+            AND COALESCE(mservicios_id, 0) = 0",
+        array($tid, (int) $usuario_id, $sid, (int) $mfundos_id)
+      );
+      error_log('[NAC] tipo de servicio ' . $tid . ' aplicado al servicio ' . $sid);
+      return true;
+    } catch (Throwable $e) {
+      error_log('[NAC] no se pudo actualizar el tipo del servicio ' . $sid . ': ' . $e->getMessage());
+      return false;
+    }
+  }
+}
+
+/**
+ * Primer renglón de un mensaje técnico, sin el stack trace.
+ *
+ * Es lo único útil para el operador ("SQLSTATE[23503] ... violates foreign key
+ * constraint ...") y evita mostrar rutas internas del servidor en pantalla.
+ */
+if (!function_exists('nac_resumen_error')) {
+  function nac_resumen_error($mensaje)
+  {
+    $texto = trim((string) $mensaje);
+    if ($texto === '') {
+      return '';
+    }
+    $partes = preg_split('/\R/', $texto);
+    $linea  = isset($partes[0]) ? trim($partes[0]) : '';
+    $linea  = preg_replace('/^(PDOException|Exception|Error):\s*/i', '', $linea);
+    return function_exists('mb_substr')
+      ? mb_substr($linea, 0, 300, 'UTF-8')
+      : substr($linea, 0, 300);
+  }
 }
 
 switch ($action) {
@@ -785,17 +860,45 @@ switch ($action) {
           throw new RuntimeException('No se pudo actualizar el nacimiento que se conserva.');
         }
 
+        /* IMPORTANTE EL ORDEN: el índice único
+           mternerosxnacimientos_fundo_id_ternero_uq es PARCIAL
+           (mfundos_id, id_ternero) WHERE status = 1. Si se copiaba el código de
+           la cría del registro anulado al que se conserva ANTES de dar de baja
+           las crías del anulado, el UPDATE chocaba con ese índice
+           ("duplicate key value violates unique constraint") y la transacción
+           se revertía entera: el usuario veía "Ocurrió un error inesperado al
+           anular el registro". Por eso primero se dan de baja las crías del
+           registro que se anula. */
+        $conexion->query(
+          "UPDATE public.mternerosxnacimientos
+              SET status = 0, user_modify = ?, updated = NOW()
+            WHERE mregnacimientos_id = ? AND status = 1",
+          array($usuario_id, $id_anular)
+        );
+
         /* Si el registro que queda no tenía el código de la cría en su
-           detalle, se lo pasamos para que "Crías del Parto" lo muestre. */
+           detalle, se lo pasamos para que "Crías del Parto" lo muestre.
+           Nunca se copia un código que ya esté activo en otro nacimiento del
+           fundo: el índice único lo rechazaría. */
         if (count($ids_conservar) === 0 && count($codigos_anular) === 1) {
           $codigos_lista = array_keys($codigos_anular);
-          $conexion->query(
-            "UPDATE public.mternerosxnacimientos
-                SET id_ternero = ?, user_modify = ?, updated = NOW()
-              WHERE mregnacimientos_id = ? AND status = 1
-                AND BTRIM(COALESCE(id_ternero, '')) = ''",
-            array($codigos_lista[0], $usuario_id, $id_conservar)
-          );
+          $ocupado = $conexion->query(
+            "SELECT 1 AS x FROM public.mternerosxnacimientos
+              WHERE mfundos_id = ? AND status = 1
+                AND BTRIM(id_ternero) = ?
+                AND mregnacimientos_id <> ?
+              LIMIT 1",
+            array($mfundos_id, $codigos_lista[0], $id_conservar)
+          )->fetch();
+          if (!$ocupado) {
+            $conexion->query(
+              "UPDATE public.mternerosxnacimientos
+                  SET id_ternero = ?, user_modify = ?, updated = NOW()
+                WHERE mregnacimientos_id = ? AND status = 1
+                  AND BTRIM(COALESCE(id_ternero, '')) = ''",
+              array($codigos_lista[0], $usuario_id, $id_conservar)
+            );
+          }
         }
 
         /* Fichas del animal y bajas de cría que apuntaban al código del
@@ -813,13 +916,8 @@ switch ($action) {
           );
         }
 
-        /* Baja lógica de las crías del registro anulado y del propio registro. */
-        $conexion->query(
-          "UPDATE public.mternerosxnacimientos
-              SET status = 0, user_modify = ?, updated = NOW()
-            WHERE mregnacimientos_id = ? AND status = 1",
-          array($usuario_id, $id_anular)
-        );
+        /* Baja lógica del vínculo con el fundo y del propio registro (las
+           crías ya se dieron de baja más arriba, antes de mover el código). */
         $conexion->query(
           "UPDATE public.mnacimientoxfundos
               SET status = 0, user_modify = ?, updated = NOW()
@@ -887,6 +985,16 @@ switch ($action) {
                      WHERE a.mfundos_id = s.mfundos_id
                        AND a.codigo_rgb_id_animal = s.codigo_rgb_id_animal_dona
                      LIMIT 1) AS nombre_dona,
+                   COALESCE((SELECT a.nro_arete
+                      FROM Manimales a
+                     WHERE a.mfundos_id = s.mfundos_id
+                       AND a.codigo_rgb_id_animal = s.codigo_rgb_id_animal_macho
+                     LIMIT 1), '') AS arete_macho,
+                   COALESCE((SELECT a.nro_arete
+                      FROM Manimales a
+                     WHERE a.mfundos_id = s.mfundos_id
+                       AND a.codigo_rgb_id_animal = s.codigo_rgb_id_animal_dona
+                     LIMIT 1), '') AS arete_dona,
                    COALESCE((SELECT MAX(n.nro_parto) + 1
                                FROM mregnacimientos n
                               WHERE n.mfundos_id = s.mfundos_id
@@ -924,6 +1032,8 @@ switch ($action) {
           'nombre_macho' => $servicio->nombre_m,
           'nombre_donadora' => $servicio->nombre_dona,
           'arete_hembra' => $servicio->nro_arete,
+          'arete_macho' => $servicio->arete_macho,
+          'arete_donadora' => $servicio->arete_dona,
           'fecha_servicio' => $fecha,
           'nro_parto' => (int)$servicio->nro_parto,
           'tipo_servicio' => (int)$servicio->mservicios_id,
@@ -1155,7 +1265,7 @@ switch ($action) {
         $criterio = "Nro de Arete";
       }
 
-      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_h,codigo_rgb_id_animal as cod_animal_h,f_nacimiento from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=1 and " . bovs_estatus_animal_sql(1) . " $cadena;");
+      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_h,codigo_rgb_id_animal as cod_animal_h,f_nacimiento, coalesce(nro_arete,'') as nro_arete from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=1 and " . bovs_estatus_animal_sql(1) . " $cadena;");
 
       if ($data != null) {
         @$data_nacimiento = VMregnacimiento::find_by_sql("select  id from VMregnacimientos where mfundos_id=" . $mfundos_id . " $cadena_2 ;");
@@ -1228,7 +1338,9 @@ switch ($action) {
 
               $estatus = $rs->estatus;
               if ($estatus == 1) {
-                $nombre = $rs->cod_animal_h . '*' . $rs->nombre_h . '*' .  $nro_parto;
+                /* CODIGO*NOMBRE*NRO_ARETE*NRO_PARTO: el arete viaja para que el
+                   formulario muestre «Nombre · Arete 102» y no solo el nombre. */
+                $nombre = $rs->cod_animal_h . '*' . $rs->nombre_h . '*' . $rs->nro_arete . '*' . $nro_parto;
                 $resp = $nombre;
               } else {
                 $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
@@ -1321,7 +1433,7 @@ switch ($action) {
       }
 
       /* La DONADORA es una hembra donante (4 DONADORA ACTIVO / 5 DONADORA) */
-      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_h,codigo_rgb_id_animal as cod_animal_h,f_nacimiento from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=1 and " . bovs_estatus_animal_donante_sql(1) . " $cadena;");
+      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_h,codigo_rgb_id_animal as cod_animal_h,f_nacimiento, coalesce(nro_arete,'') as nro_arete from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=1 and " . bovs_estatus_animal_donante_sql(1) . " $cadena;");
 
       if ($data != null) {
         @$data_nacimiento = VMregnacimiento::find_by_sql("select  id from VMregnacimientos where mfundos_id=" . $mfundos_id . " $cadena_2 ;");
@@ -1333,7 +1445,7 @@ switch ($action) {
 
             $estatus = $rs->estatus;
             if ($estatus == 1) {
-              $nombre = $rs->cod_animal_h . '*' . $rs->nombre_h;
+              $nombre = $rs->cod_animal_h . '*' . $rs->nombre_h . '*' . $rs->nro_arete;
               $resp = $nombre;
             } else {
               $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
@@ -1440,6 +1552,144 @@ switch ($action) {
     $peso_nacer = $primer_ternero['peso_nacimiento'];
     $nacio = $primer_ternero['estatus_nacido'];
     $aptitud_animal = $primer_ternero['aptitud'];
+
+    /* ==================================================================
+       GUARDA CONTRA DUPLICADOS AL CARGAR EL PARTO
+       ------------------------------------------------------------------
+       Un parto se identifica por (fundo, madre, fecha). Si ya existe un
+       nacimiento activo con esa combinación, se rechaza: antes se podía
+       cargar dos veces y quedaban dos crías para una sola madre, con el
+       hato descuadrado. Para corregir un parto ya cargado están la edición
+       y la unificación de duplicados.
+       ================================================================== */
+    $fundo_add = (int) $_SESSION['mfundos_id'];
+    $fecha_parto_bd = trim((string) $fecha_parto);
+    $cod_madre_bd = strtoupper(trim((string) $cod_animal_h));
+
+    if ($fundo_add > 0 && $cod_madre_bd !== ''
+      && preg_match('/^[A-Z0-9.\-]+$/', $cod_madre_bd)
+      && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_parto_bd)) {
+
+      $dup_parto = Mregnacimiento::find_by_sql("
+        SELECT id, codigo_ternero, to_char(f_parto, 'DD-MM-YYYY') AS fecha
+          FROM public.mregnacimientos
+         WHERE mfundos_id = " . $fundo_add . "
+           AND upper(trim(codigo_rgb_id_animal_hembra)) = '" . $cod_madre_bd . "'
+           AND f_parto::date = '" . $fecha_parto_bd . "'::date
+           AND status = 1
+         LIMIT 1");
+
+      if ($dup_parto && count($dup_parto) > 0) {
+        $dup = $dup_parto[0];
+        echo json_encode(array(
+          'resultado' => 'error',
+          'mensaje' => '<div class="alert alert-warning">'
+            . '<h4><i class="icon fa fa-warning"></i> Este parto ya está registrado</h4>'
+            . 'La madre <b>' . htmlspecialchars($cod_madre_bd) . '</b> ya tiene un nacimiento con fecha <b>'
+            . htmlspecialchars((string) $dup->fecha) . '</b>'
+            . ' (cría <b>' . htmlspecialchars((string) $dup->codigo_ternero) . '</b>, registro #' . (int) $dup->id . ').'
+            . '<br>Si hay que corregirlo, edite ese nacimiento. Si son mellizos cargados por separado, use la '
+            . 'unificación de duplicados.'
+            . '</div>'
+        ));
+        break;
+      }
+    }
+
+    /* Número de parto: el otro dato que identifica la cría dentro de la vida
+       reproductiva de la madre. Tampoco puede repetirse, aunque la fecha se
+       haya escrito distinto (por ejemplo 13/05 y 14/05 del mismo parto). */
+    if ($fundo_add > 0 && $cod_madre_bd !== '' && (int) $nro_parto > 0
+      && preg_match('/^[A-Z0-9.\-]+$/', $cod_madre_bd)) {
+
+      $parto_repetido = Mregnacimiento::find_by_sql("
+        SELECT id, to_char(f_parto, 'DD-MM-YYYY') AS fecha
+          FROM public.mregnacimientos
+         WHERE mfundos_id = " . $fundo_add . "
+           AND upper(trim(codigo_rgb_id_animal_hembra)) = '" . $cod_madre_bd . "'
+           AND nro_parto = " . (int) $nro_parto . "
+           AND status = 1
+         LIMIT 1");
+
+      if ($parto_repetido && count($parto_repetido) > 0) {
+        echo json_encode(array(
+          'resultado' => 'error',
+          'mensaje' => '<div class="alert alert-warning">'
+            . '<h4><i class="icon fa fa-warning"></i> Número de parto repetido</h4>'
+            . 'La madre <b>' . htmlspecialchars($cod_madre_bd) . '</b> ya tiene registrado el parto número <b>'
+            . (int) $nro_parto . '</b> con fecha ' . htmlspecialchars((string) $parto_repetido[0]->fecha) . '.'
+            . '<br>Si es una cría nueva, indique el número de parto siguiente.'
+            . '</div>'
+        ));
+        break;
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       EL PADRE TIENE QUE EXISTIR (ver lib/macho_resolver_helper.php)
+       ------------------------------------------------------------------
+       Antes bastaba con que el campo no estuviera vacío: si el operador
+       tecleaba el nro de arete y la búsqueda fallaba, ese número se guardaba
+       como código del padre y el listado mostraba un «código fantasma»
+       (p. ej. 2005, que en realidad es el arete del toro SOVCA-063-078).
+       Ahora el valor se resuelve contra manimales: si es un arete se convierte
+       al código real y, si no corresponde a ningún macho, el parto no se guarda.
+       ================================================================== */
+    if ($fundo_add > 0 && $mregservicios_id <= 0 && trim((string) $cod_animal_m) !== '') {
+
+      $macho_res = bovs_resolver_codigo_macho($cod_animal_m, $fundo_add);
+
+      if (!$macho_res['encontrado']) {
+        echo json_encode(array(
+          'resultado' => 'error',
+          'mensaje'   => bovs_mensaje_macho_no_encontrado($macho_res)
+        ));
+        break;
+      }
+
+      /* Se guarda siempre el código real del animal, nunca el arete. */
+      $cod_animal_m = $macho_res['codigo'];
+    }
+
+    /* El ID o arete de cada cría no puede pertenecer ya a un animal activo
+       del mismo fundo: al cargar la segunda cría es donde más fácil se repite. */
+    if ($fundo_add > 0 && count($ids_terneros) > 0) {
+      foreach (array_keys($ids_terneros) as $cod_cria) {
+        $cod_cria_busqueda = bovs_arete_normalizar($cod_cria);
+
+        // Misma regla que el alta de animales (lib/arete_helper.php):
+        // mayúsculas y espacios normalizados, solo status=1 del fundo.
+        $cria_ocupada = bovs_arete_existente($fundo_add, $cod_cria_busqueda);
+
+        if (!$cria_ocupada) {
+          $filas_codigo = Mregnacimiento::find_by_sql("
+            SELECT id, codigo_rgb_id_animal
+              FROM public.manimales
+             WHERE mfundos_id = " . (int) $fundo_add . " AND status = 1
+               AND upper(trim(codigo_rgb_id_animal)) = '" . addslashes($cod_cria_busqueda) . "'
+             LIMIT 1");
+          if ($filas_codigo && count($filas_codigo) > 0) {
+            $cria_ocupada = array(
+              'codigo_rgb_id_animal' => (string) $filas_codigo[0]->codigo_rgb_id_animal,
+              'nombre'               => '',
+              'nro_arete'            => (string) $cod_cria_busqueda,
+            );
+          }
+        }
+
+        if ($cria_ocupada) {
+          echo json_encode(array(
+            'resultado' => 'error',
+            'mensaje' => '<div class="alert alert-warning">'
+              . '<h4><i class="icon fa fa-warning"></i> Identificación repetida</h4>'
+              . htmlspecialchars(bovs_arete_mensaje($cria_ocupada), ENT_QUOTES, 'UTF-8')
+              . '<br>Use una identificación distinta para la cría.'
+              . '</div>'
+          ));
+          break 2;
+        }
+      }
+    }
 
     if (($tipo_servicio ==3) &&  ($cod_animal_dona == "" )) {
 
@@ -1631,7 +1881,18 @@ switch ($action) {
           $cod_animal_h = $servicio_gestante->codigo_rgb_id_animal_hembra;
           $cod_animal_m = $servicio_gestante->codigo_rgb_id_animal_macho;
           $cod_animal_dona = $servicio_gestante->codigo_rgb_id_animal_dona;
-          $tipo_servicio = (int)$servicio_gestante->mservicios_id;
+          /* Si el servicio tiene tipo, manda el del servicio. Si no lo tiene
+             (dato viejo) se usa el que eligió el operador en el parto y se
+             corrige el servicio. Antes se copiaba el 0 y el nacimiento
+             desaparecía del listado. */
+          $tipo_servicio_servicio = (int) $servicio_gestante->mservicios_id;
+          if ($tipo_servicio_servicio > 0) {
+            $tipo_servicio = $tipo_servicio_servicio;
+          } elseif ((int) $tipo_servicio > 0) {
+            nac_corregir_tipo_servicio((int) $servicio_gestante->id, $tipo_servicio, $mfundos_id, $usuario_id);
+          } else {
+            $tipo_servicio = 0;
+          }
           $reg_nac->mregservicios_id = (int)$servicio_gestante->id;
           $reg_nac->mtiposervicios_id = $tipo_servicio;
           $reg_nac->codigo_rgb_id_animal_hembra = $cod_animal_h;
@@ -1646,6 +1907,20 @@ switch ($action) {
           $reg_nac->mregservicios_id = null;
         }
 
+        /* El tipo de servicio es obligatorio: con 0 el parto no aparece en el
+           listado y tampoco se puede unificar/anular después. */
+        if ((int) $tipo_servicio <= 0) {
+          $conexion->rollback();
+          echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-warning"></i>
+        Alerta!
+        </h4>
+        Indique el <strong>Tipo de Servicio</strong> del parto. Si la hembra llegó preñada de otro fundo, elija el que corresponda; si su servicio no tenía tipo, se actualizará también en el módulo de servicios.
+        </div>'));
+          break;
+        }
         $sovca_nac_ok  = false;
         $sovca_nac_err = '';
         try {
@@ -1678,7 +1953,7 @@ switch ($action) {
           if (!$detalle_guardado) {
             $conexion->rollback();
             $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudieron guardar los datos de todos los terneros. No se registró el parto.'
-              . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars($sovca_nac_err, ENT_QUOTES, 'UTF-8') . '</small>' : '') . '</div>');
+              . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars(nac_resumen_error($sovca_nac_err), ENT_QUOTES, 'UTF-8') . '</small>' : '') . '</div>');
           } else {
             $reg_nac_fundo = new Mnacimientoxfundo();
             $reg_nac_fundo->mregnacimientos_id = (int)$reg_nac->id;
@@ -1737,7 +2012,7 @@ switch ($action) {
           Alerta!
           </h4>
           Error al registrar los datos.'
-          . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars($sovca_nac_err, ENT_QUOTES, 'UTF-8') . '</small>' : '')
+          . ($sovca_nac_err !== '' ? '<br><small>Detalle: ' . htmlspecialchars(nac_resumen_error($sovca_nac_err), ENT_QUOTES, 'UTF-8') . '</small>' : '')
           . '</div>');
         }
         // echo json_encode($respuesta);
@@ -1860,12 +2135,57 @@ switch ($action) {
 
         $reg_nac = Mregnacimiento::find($id_reg_nac);
 
+        /* Mismo criterio que en el alta: si el servicio gestante no tiene tipo
+           se usa el elegido en el parto y se corrige en el servicio. */
+        $servicio_vinculado = (int) $reg_nac->mregservicios_id;
+        if ($servicio_vinculado > 0) {
+          $serv_actual = null;
+          try {
+            $serv_actual = Mregservicio::find($servicio_vinculado);
+          } catch (Throwable $e) {
+            $serv_actual = null;
+          }
+          if ($serv_actual && (int) $serv_actual->mservicios_id > 0) {
+            $tipo_servicio = (int) $serv_actual->mservicios_id;
+          } elseif ($serv_actual && (int) $tipo_servicio > 0) {
+            nac_corregir_tipo_servicio($servicio_vinculado, $tipo_servicio, $mfundos_id, $usuario_id);
+          }
+        }
+
+        if ((int) $tipo_servicio <= 0) {
+          echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-warning"></i>
+        Alerta!
+        </h4>
+        Indique el <strong>Tipo de Servicio</strong> del parto.
+        </div>'));
+          break;
+        }
+
         $reg_nac->mtiposervicios_id = $tipo_servicio;
 
         if ($tipo_servicio !=1){
           $reg_nac->codigo_rgb_id_animal_dona = $cod_animal_dona;
         }
         $reg_nac->id_ternero = $id_ternero;
+
+        /* El padre debe existir en el fundo (ver lib/macho_resolver_helper.php).
+           Si el parto viene de un servicio gestante manda el servicio, así que
+           solo se valida cuando el dato se editó a mano. Se guarda el código
+           real del animal, nunca un número de arete o texto libre. */
+        if ($servicio_vinculado <= 0 && trim((string) $cod_animal_m) !== '') {
+          $macho_edit = bovs_resolver_codigo_macho($cod_animal_m, (int) $mfundos_id);
+          if (!$macho_edit['encontrado']) {
+            echo json_encode(array(
+              'resultado' => 'error',
+              'mensaje'   => bovs_mensaje_macho_no_encontrado($macho_edit)
+            ));
+            break;
+          }
+          $cod_animal_m = $macho_edit['codigo'];
+        }
 
         $reg_nac->codigo_rgb_id_animal_macho = $cod_animal_m;
         $reg_nac->f_parto = $fecha_parto;
@@ -2092,9 +2412,11 @@ switch ($action) {
         $nro_arete = $nro_arete_codigo;
 
         $cadena = "and nro_arete='$nro_arete' ";
+        $cod_rgb_animal = $nro_arete_codigo;
         $criterio = "Nro de Arete";
       }
       $cad_estatus="";
+      $nombre_servicio="";
       if($tipo_s==2){
         $cad_estatus="and " . bovs_estatus_animal_donante_sql(2);
         $nombre_servicio="INSEMINACION ARTIFICIAL";
@@ -2109,7 +2431,7 @@ switch ($action) {
          $nombre_servicio="TRANSFERENCIA DE EMBRIONES";
       }
 
-      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_m,codigo_rgb_id_animal as cod_animal_m from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=2 $cadena $cad_estatus;");
+      @$data = Manimale::find_by_sql("select  id, mestatus_id as estatus, nombre as nombre_m,codigo_rgb_id_animal as cod_animal_m, coalesce(nro_arete,'') as nro_arete from Manimales where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=2 $cadena $cad_estatus;");
 
 
       if ($data != null) {
@@ -2118,7 +2440,7 @@ switch ($action) {
 
           $estatus = $rs->estatus;
           if ($estatus == 1) {
-            $nombre = $rs->cod_animal_m . '*' . $rs->nombre_m;
+            $nombre = $rs->cod_animal_m . '*' . $rs->nombre_m . '*' . $rs->nro_arete;
             $resp = $nombre;
           } else {
             $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
@@ -2158,9 +2480,28 @@ switch ($action) {
       $rol = $_SESSION['rolx'];
       $hoy = date("d-m-Y");
 
-      if ($usuario_id != "" && (( $rol == 1 )||( $rol == 4 ) )) {
+      /* El productor (rol 2) TAMBIÉN elimina sus nacimientos: el listado le
+         muestra el botón y antes recibía "Usted no puede realizar esta
+         transacción", que es lo reportado desde producción cuando intenta
+         quitar el parto duplicado. Los roles 1 y 4 pueden con cualquier
+         registro; el rol 2 solo dentro de su fundo activo. */
+      $puede_rol    = in_array((int) $rol, array(1, 2, 4), true);
+      $es_admin     = in_array((int) $rol, array(1, 4), true);
+      $fundo_sesion = isset($_SESSION['mfundos_id']) ? (int) $_SESSION['mfundos_id'] : 0;
 
-        $regserv = Mregnacimiento::find($record);
+      $regserv = null;
+      if ($puede_rol && (int) $record > 0) {
+        try {
+          $regserv = Mregnacimiento::find($record);
+        } catch (Exception $e) {
+          $regserv = null;
+        }
+      }
+
+      $mismo_fundo = $regserv && ((int) $regserv->mfundos_id === $fundo_sesion);
+
+      if ($puede_rol && $regserv && ($es_admin || $mismo_fundo)) {
+
         $regserv->user_modify = $usuario_id;
         $regserv->updated = $hoy;
         $regserv->status = 0;
@@ -2210,6 +2551,53 @@ switch ($action) {
 
       if ($data != null) {
 
+        /* Nombre y nro de arete de la madre, el padre y la donadora. La vista
+           solo trae el nombre, así que los datos de los tres códigos se
+           resuelven en una sola consulta. El formulario pinta con esto la
+           ficha de cada animal (columnas Nombre / Nro arete / Código). */
+        $animales_nac = array();
+        $codigos_nac  = array();
+
+        foreach ($data as $rs_e) {
+          $posibles = array(
+            $rs_e->codigo_rgb_id_animal_hembra,
+            $rs_e->codigo_rgb_id_animal_macho,
+            $rs_e->codigo_rgb_id_animal_dona,
+          );
+          foreach ($posibles as $cod_e) {
+            $cod_e = trim((string) $cod_e);
+            if ($cod_e !== '') { $codigos_nac[$cod_e] = true; }
+          }
+        }
+
+        if (count($codigos_nac) > 0) {
+          $lista_cod = array();
+          foreach (array_keys($codigos_nac) as $cod_e) {
+            $lista_cod[] = "'" . str_replace("'", "''", $cod_e) . "'";
+          }
+          $filas_e = @Manimale::find_by_sql(
+            "SELECT codigo_rgb_id_animal,
+                    COALESCE(nombre, '')    AS nombre,
+                    COALESCE(nro_arete, '') AS nro_arete
+               FROM manimales
+              WHERE mfundos_id = " . (int) $mfundos_id . "
+                AND codigo_rgb_id_animal IN (" . implode(',', $lista_cod) . ")");
+          foreach ($filas_e as $f_e) {
+            $animales_nac[(string) $f_e->codigo_rgb_id_animal] = array(
+              'nombre'    => (string) $f_e->nombre,
+              'nro_arete' => (string) $f_e->nro_arete,
+            );
+          }
+        }
+
+        $dato_nac = function ($codigo, $campo, $defecto = '') use ($animales_nac) {
+          $codigo = trim((string) $codigo);
+          if ($codigo !== '' && isset($animales_nac[$codigo][$campo])) {
+            return $animales_nac[$codigo][$campo];
+          }
+          return (string) $defecto;
+        };
+
         foreach ($data as $rs) {
             // validar fechas
             $f_parto="";
@@ -2229,9 +2617,11 @@ switch ($action) {
             "fichado" => $rs->fichado,
             "codigo_ternero" => $rs->codigo_ternero,
             "cod_animal_h" => $rs->codigo_rgb_id_animal_hembra,
-            "nombre_animal_h" => $rs->nombre_h,
+            "nombre_animal_h" => $dato_nac($rs->codigo_rgb_id_animal_hembra, 'nombre', $rs->nombre_h),
+            "arete_animal_h" => $dato_nac($rs->codigo_rgb_id_animal_hembra, 'nro_arete'),
             "cod_animal_m" => $rs->codigo_rgb_id_animal_macho,
-            "nombre_animal_m" => $rs->nombre_m,
+            "nombre_animal_m" => $dato_nac($rs->codigo_rgb_id_animal_macho, 'nombre', $rs->nombre_m),
+            "arete_animal_m" => $dato_nac($rs->codigo_rgb_id_animal_macho, 'nro_arete'),
             "fecha_parto" => $f_parto,
             "peso_nacer" => $rs->peso_nacimiento,
             "sexo" => $rs->sexo,
@@ -2243,6 +2633,8 @@ switch ($action) {
             "ira_produccion" => $rs->produccion_leche,
             "id_ternero" => $rs->id_ternero,
             "cod_animal_dona" => $rs->codigo_rgb_id_animal_dona,
+            "nombre_animal_dona" => $dato_nac($rs->codigo_rgb_id_animal_dona, 'nombre'),
+            "arete_animal_dona" => $dato_nac($rs->codigo_rgb_id_animal_dona, 'nro_arete'),
             "tipo_servicio" => $rs->mtiposervicios_id,
             "proposito" => $rs->proposito
           );
@@ -2275,6 +2667,11 @@ switch ($action) {
     if ($fundo_crias > 0 && $id_nac_crias > 0) {
 
       try {
+        /* OJO con el join a manimales: si la cría todavía no tiene ID, el
+           campo llega vacío y `'' = ''` hacía que la cría coincidiera con
+           TODOS los animales sin codigo_ternero del fundo. Por eso un parto
+           de una sola cría aparecía como "Cría 1, 2 y 3" en la edición.
+           Se exige un ID no vacío y se limita a una fila con LATERAL. */
         $rs_crias = Mregnacimiento::find_by_sql(
           "SELECT t.id                              AS id_cria,
                   t.nro_ternero,
@@ -2288,10 +2685,16 @@ switch ($action) {
                   COALESCE(a.codigo_rgb_id_animal, '') AS codigo_animal
              FROM mternerosxnacimientos t
         LEFT JOIN maptitudes ap ON ap.id = t.aptitud
-        LEFT JOIN manimales a
-               ON a.mfundos_id = t.mfundos_id
-              AND a.status = 1
-              AND UPPER(BTRIM(a.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+        LEFT JOIN LATERAL (
+                  SELECT m.id, m.codigo_rgb_id_animal
+                    FROM manimales m
+                   WHERE m.mfundos_id = t.mfundos_id
+                     AND m.status = 1
+                     AND BTRIM(COALESCE(t.id_ternero, '')) <> ''
+                     AND UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+                   ORDER BY m.id
+                   LIMIT 1
+             ) a ON true
             WHERE t.mregnacimientos_id = " . $id_nac_crias . "
               AND t.mfundos_id = " . $fundo_crias . "
               AND t.status = 1

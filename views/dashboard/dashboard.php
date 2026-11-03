@@ -2,7 +2,18 @@
 include("../../lib/validar_session.php");
 ValidaSession("../login");
 require_once __DIR__ . '/../../lib/especie_helper.php';
+
 $mostrar_resumen_suscripciones = in_array((int)$_SESSION['rolx'], array(1, 4), true);
+
+/* MODO SOPORTE: el administrador conserva su rol (1/4) mientras trabaja
+   dentro de un fundo ajeno, pero el tablero debe mostrar SOLO los datos de
+   ese fundo. "Vigencias de suscripción" es información GLOBAL del sistema
+   (estado de las cuentas de todos los productores) y se estaba filtrando en
+   la vista de soporte. Se oculta mientras dure el modo soporte.
+   Equivale a lib/multifundo_helper.php → mf_modo_supervisor_activo(). */
+if ($mostrar_resumen_suscripciones && !empty($_SESSION['supervisor_mode'])) {
+    $mostrar_resumen_suscripciones = false;
+}
 ?>
 <?php include("../layouts/constantes.php") ?>
 <?php include_once("../layouts/cabecera.php") ?>
@@ -1348,7 +1359,7 @@ $(function() {
 
         chartNac.cursor = new am4charts.XYCursor();
 
-        /* ---- TOP VACAS ---- */
+        /* ---- TOP HEMBRAS ---- */
         chartTop = am4core.create("chartdivtop", am4charts.XYChart);
         chartTop.padding(0, 0, 0, 0);
         chartTop.tooltip.paddingTop = 8;

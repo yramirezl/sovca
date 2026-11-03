@@ -17,7 +17,7 @@ header('Content-Type: application/manifest+json; charset=utf-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
 /* Carpeta base de la aplicación tal como la ve el navegador:
-   '/bovs' cuando el archivo se sirve como /bovs/manifest.php. */
+   '/sovca' cuando el archivo se sirve como /sovca/manifest.php. */
 $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
 if ($base === '.' || $base === '/') {
     $base = '';

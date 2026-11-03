@@ -241,7 +241,7 @@ $eventos = bovs_mantenimiento_bitacora(30);
         Con el mantenimiento activo, solo los administradores del sistema pueden acceder.
         Los productores y ayudantes quedan bloqueados en la web y en la app sin conexión.
         Para navegar el sistema durante la ventana, entra a un fundo con <strong>Modo soporte</strong> desde
-        <a href="../fundos/?modo=soporte" style="color:#bbf7d0;text-decoration:underline;">Todos los Fundos</a>.
+        <a href="../fundos/?modo=soporte" style="color:#bbf7d0;text-decoration:underline;">Gestión de Fundos</a>.
       </p>
     </div>
     <?php if ($estado['vigente']): ?>

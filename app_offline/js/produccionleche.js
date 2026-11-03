@@ -69,15 +69,23 @@ const ProduccionLeche = {
       ? pendienteExistente.version_base
       : (registroLocal.version ?? null);
 
+    // Si la producción todavía NO está en el servidor hay que mandar el
+    // registro COMPLETO: con un payload parcial la API responde "Falta
+    // el campo requerido 'codigo_rgb_id_animal_hembra'" y el registro no
+    // sube nunca (mismo caso que servicios.js y nacimientos.js).
+    const datosAEnviar = pendienteExistente && pendienteExistente.version_base == null
+      ? datosParaEnviar(registroLocal)
+      : {
+          fecha_produccion: registroLocal.fecha_produccion,
+          cantidad_leche_m: registroLocal.cantidad_leche_m,
+          cantidad_leche_t: registroLocal.cantidad_leche_t,
+        };
+
     await Db.guardar('outbox', {
       uuid_local: uuidLocal,
       modulo: 'produccion_leche',
       version_base: versionBase,
-      datos: {
-        fecha_produccion: registroLocal.fecha_produccion,
-        cantidad_leche_m: registroLocal.cantidad_leche_m,
-        cantidad_leche_t: registroLocal.cantidad_leche_t,
-      },
+      datos: datosAEnviar,
       intentos: 0,
       creado: new Date().toISOString(),
     });

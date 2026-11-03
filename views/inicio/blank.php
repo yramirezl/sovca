@@ -1,9 +1,20 @@
 <?php
-include( '../layouts/constantes.php' );
-include_once( '../layouts/cabecera.php' );
-session_start();
+/* ============================================================
+   SOVCA | Contenido de la pantalla de inicio
+   ------------------------------------------------------------
+   La estructura (cabecera, menú lateral y pie) la aporta
+   views/inicio/index.php. Este archivo NO debe incluir
+   cabecera.php ni pie.php: al hacerlo se duplicaban <html>,
+   <body> y .content-wrapper, y en móvil quedaba un espacio en
+   blanco enorme debajo del banner.
+   ============================================================ */
+
+if ( session_status() !== PHP_SESSION_ACTIVE ) {
+    session_start();
+}
 
 require_once __DIR__ . '/../../lib/mantenimiento_helper.php';
+require_once __DIR__ . '/../../lib/texto_helper.php';
 
 /* MODO MANTENIMIENTO: los administradores (1/4) son los únicos que
    pueden estar aquí. Se les recuerda que el resto del sistema está
@@ -116,14 +127,181 @@ if ( $bovsMttoActivo && $bovsMttoAdmin && is_array( $bovsMttoEstado ) ) {
     <?php
 }
 
-if ( ( $_SESSION[ 'tipo_ganaderia' ] == 1 )||( $_SESSION[ 'tipo_ganaderia' ] == 0 ) ) {
-    include_once( '../layouts/carrusel_bovinos.php' );
+/* ---------- Datos de la sesión para el saludo ---------- */
+$biRol     = isset( $_SESSION[ 'rolx' ] ) ? (int) $_SESSION[ 'rolx' ] : 0;
+$biFundo   = isset( $_SESSION[ 'mfundos_id' ] ) ? (int) $_SESSION[ 'mfundos_id' ] : 0;
+$biTipo    = isset( $_SESSION[ 'tipo_ganaderia' ] ) ? (int) $_SESSION[ 'tipo_ganaderia' ] : 0;
+$biSoporte = function_exists( 'mf_modo_supervisor_activo' ) && mf_modo_supervisor_activo();
 
-} else if ( ( $_SESSION[ 'tipo_ganaderia' ] == 2 ) ) {
-    include_once( '../layouts/carrusel_bovideos.php' );
+$biNombre = isset( $_SESSION[ 'nombresx' ] ) ? trim( (string) $_SESSION[ 'nombresx' ] ) : '';
+if ( $biNombre === '' && isset( $_SESSION[ 'usuariox' ] ) ) {
+    $biNombre = trim( (string) $_SESSION[ 'usuariox' ] );
+}
+$biNombre = bovs_nombre_mostrar( $biNombre );
 
+/* Solo el primer nombre: el saludo se lee mejor y no se corta en móvil */
+$biPrimerNombre = '';
+if ( $biNombre !== '' ) {
+    $biPartes       = preg_split( '/\s+/u', $biNombre );
+    $biPrimerNombre = $biPartes[ 0 ];
+    /* Nombres guardados en MAYÚSCULAS → Título solo para el saludo */
+    if ( preg_match( '/^[\p{Lu}\s\.\'-]+$/u', $biPrimerNombre ) ) {
+        $biPrimerNombre = mb_convert_case( mb_strtolower( $biPrimerNombre, 'UTF-8' ), MB_CASE_TITLE, 'UTF-8' );
+    }
 }
 
-include_once( '../layouts/pie.php' );
+$biFundoNombre = isset( $_SESSION[ 'fundo_nombre' ] ) ? trim( (string) $_SESSION[ 'fundo_nombre' ] ) : '';
+$biFundoNombre = bovs_nombre_mostrar( $biFundoNombre );
 
+$biInicial = $biPrimerNombre !== ''
+    ? mb_strtoupper( mb_substr( $biPrimerNombre, 0, 1, 'UTF-8' ), 'UTF-8' )
+    : 'S';
+
+/* ---------- Banners del hero (según el tipo de ganadería) ----------
+   SOVCA es ovina y caprina: 1 = OVINA, 2 = CAPRINA, 3 = TODAS. */
+$biImgDir = ( $biTipo === 2 ) ? 'img/caprinos/carrusel' : 'img/ovinos/carrusel';
+$biSlides = array();
+for ( $i = 1; $i <= 4; $i++ ) {
+    $biSlides[] = $biImgDir . '/fondo_' . $i . '.jpg';
+}
+
+/* ---------- Accesos rápidos según el rol ---------- */
+$biAccesos = array();
+
+if ( $biRol === 3 ) {
+    /* Encargado: mismas opciones operativas de su menú */
+    $biAccesos = array(
+        array( '../animales/',         'fa-newspaper-o', 'Animales',     'Fichas y datos',      'verde' ),
+        array( '../nacimientos/',      'fa-book',        'Nacimientos',  'Registrar crías',     'verde' ),
+        array( '../prodleche/',        'fa-tint',        'Producción',   'Leche del día',       'azul'  ),
+        array( '../servicios/',        'fa-calendar',    'Servicios',    'Reproducción',        'rosa'  ),
+        array( '../controlsanitario/', 'fa-medkit',      'Sanitario',    'Controles y vacunas', 'rojo'  ),
+        array( '../consecutivopesos/', 'fa-line-chart',  'Pesos',        'Consecutivo',         'ambar' ),
+        array( '../potreros/',         'fa-table',       'Potreros',     'Rotación y aforo',    'verde' ),
+        array( '../movreb/',           'fa-th-list',     'Rebaño',       'Movimientos',         'gris'  ),
+    );
+} elseif ( $biSoporte || ( $biRol === 2 && $biFundo > 0 ) ) {
+    /* Productor con fundo activo y administrador en Modo soporte */
+    $biAccesos = array(
+        array( '../animales/',           'fa-newspaper-o', 'Animales',     'Fichas y datos',      'verde' ),
+        array( '../nacimientos/',        'fa-book',        'Nacimientos',  'Registrar crías',     'verde' ),
+        array( '../prodleche/',          'fa-tint',        'Producción',   'Leche del día',       'azul'  ),
+        array( '../servicios/',          'fa-calendar',    'Servicios',    'Reproducción',        'rosa'  ),
+        array( '../controlsanitario/',   'fa-medkit',      'Sanitario',    'Controles y vacunas', 'rojo'  ),
+        array( '../consecutivopesos/',   'fa-line-chart',  'Pesos',        'Consecutivo',         'ambar' ),
+        array( '../potreros/',           'fa-table',       'Potreros',     'Rotación y aforo',    'verde' ),
+        array( '../dashboard/dashboard', 'fa-bar-chart',   'Estadísticas', 'Indicadores',         'azul'  ),
+    );
+} elseif ( $biRol === 2 ) {
+    /* Productor que todavía no tiene fundo */
+    $biAccesos = array(
+        array( '../fundos/',         'fa-star',          'Mi fundo',    'Crea tu primer fundo', 'verde' ),
+        array( '../../app_offline/', 'fa-cloud-download','App offline', 'Trabaja sin internet', 'azul'  ),
+        array( '../inicio/perfil',   'fa-user',          'Mi perfil',   'Datos de la cuenta',   'gris'  ),
+    );
+} elseif ( $biRol === 1 || $biRol === 4 ) {
+    /* Administración del sistema */
+    $biAccesos = array(
+        array( '../usuarios/',           'fa-users',      'Usuarios',      'Cuentas y permisos', 'verde' ),
+        array( '../fundos/',             'fa-star',       'Fundos',        'Gestión de fincas',  'azul'  ),
+        /* ../dashboard/dashboard es el tablero de UN fundo (es del productor);
+           sin fundo activo el administrador lo ve vacío. Aquí se abre el
+           submenú de Estadísticas del administrador. */
+        array( '../estadisticas/',       'fa-bar-chart',  'Estadísticas',  'Registros y conexiones', 'ambar' ),
+        array( '../dispositivos/',       'fa-mobile',     'Dispositivos',  'App sin conexión',   'gris'  ),
+        array( '../mantenimiento/',      'fa-wrench',     'Mantenimiento', 'Modo y respaldos',   'rosa'  ),
+        array( '../mensajes/',           'fa-envelope-o', 'Mensajes',      'Comunicación',       'verde' ),
+    );
+}
 ?>
+
+<div class="bovs-inicio">
+
+  <!-- ==========================================================
+       HERO PUBLICITARIO
+       En móvil la imagen se recorta desde la izquierda, que es
+       donde está el mensaje, así que el texto queda legible.
+       ========================================================== -->
+  <section class="bovs-inicio-hero" role="region" aria-roledescription="carrusel"
+           aria-label="Novedades SOVCA" data-bovs-slide="1">
+    <?php foreach ( $biSlides as $i => $src ): ?>
+      <div class="bovs-inicio-hero__slide<?php echo $i === 0 ? ' is-active' : ''; ?>"
+           role="group" aria-roledescription="diapositiva"
+           aria-label="<?php echo ( $i + 1 ) . ' de ' . count( $biSlides ); ?>"
+           aria-hidden="<?php echo $i === 0 ? 'false' : 'true'; ?>">
+        <img <?php echo $i === 0
+                    ? 'src="' . htmlspecialchars( $src, ENT_QUOTES, 'UTF-8' ) . '" decoding="async" fetchpriority="high"'
+                    : 'data-src="' . htmlspecialchars( $src, ENT_QUOTES, 'UTF-8' ) . '" decoding="async"'; ?>
+             alt="SOVCA, gestión ovina y caprina"
+             draggable="false">
+      </div>
+    <?php endforeach; ?>
+
+    <div class="bovs-inicio-hero__velo" aria-hidden="true"></div>
+
+    <?php if ( $biFundoNombre !== '' ): ?>
+      <div class="bovs-inicio-hero__chip" title="<?php echo htmlspecialchars( $biFundoNombre, ENT_QUOTES, 'UTF-8' ); ?>">
+        <i class="fa fa-map-marker" aria-hidden="true"></i>
+        <span><?php echo htmlspecialchars( $biFundoNombre, ENT_QUOTES, 'UTF-8' ); ?></span>
+      </div>
+    <?php endif; ?>
+
+    <div class="bovs-inicio-hero__dots" role="group" aria-label="Elegir banner">
+      <?php foreach ( $biSlides as $i => $src ): ?>
+        <button type="button"
+                class="bovs-inicio-dot<?php echo $i === 0 ? ' is-active' : ''; ?>"
+                data-go="<?php echo $i; ?>"
+                aria-label="Ver banner <?php echo ( $i + 1 ) . ' de ' . count( $biSlides ); ?>"
+                <?php echo $i === 0 ? 'aria-current="true"' : ''; ?>></button>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SALUDO
+       ========================================================== -->
+  <section class="bovs-inicio-hola" aria-label="Sesión actual">
+    <div class="bovs-inicio-hola__avatar" aria-hidden="true"><?php echo htmlspecialchars( $biInicial, ENT_QUOTES, 'UTF-8' ); ?></div>
+    <div class="bovs-inicio-hola__txt">
+      <p class="bovs-inicio-hola__saludo"
+         data-bovs-saludo
+         data-nombre="<?php echo htmlspecialchars( $biPrimerNombre, ENT_QUOTES, 'UTF-8' ); ?>"><?php
+        echo $biPrimerNombre !== ''
+            ? 'Hola, ' . htmlspecialchars( $biPrimerNombre, ENT_QUOTES, 'UTF-8' )
+            : 'Hola';
+      ?></p>
+      <p class="bovs-inicio-hola__fecha" data-bovs-fecha><?php echo date( 'd-m-Y' ); ?></p>
+    </div>
+  </section>
+
+  <?php if ( !empty( $biAccesos ) ): ?>
+  <!-- ==========================================================
+       ACCESOS RÁPIDOS
+       ========================================================== -->
+  <section class="bovs-inicio-accesos" aria-labelledby="bovs-inicio-accesos-titulo">
+    <div class="bovs-inicio-seccion__cab">
+      <h2 class="bovs-inicio-seccion__titulo" id="bovs-inicio-accesos-titulo">Accesos rápidos</h2>
+      <span class="bovs-inicio-seccion__linea" aria-hidden="true"></span>
+    </div>
+
+    <div class="bovs-inicio-grid">
+      <?php foreach ( $biAccesos as $acc ): ?>
+        <a class="bovs-acceso bovs-acceso--<?php echo $acc[ 4 ]; ?>"
+           href="<?php echo htmlspecialchars( $acc[ 0 ], ENT_QUOTES, 'UTF-8' ); ?>">
+          <span class="bovs-acceso__ico" aria-hidden="true"><i class="fa <?php echo $acc[ 1 ]; ?>"></i></span>
+          <span class="bovs-acceso__txt">
+            <span class="bovs-acceso__titulo"><?php echo htmlspecialchars( $acc[ 2 ], ENT_QUOTES, 'UTF-8' ); ?></span>
+            <span class="bovs-acceso__sub"><?php echo htmlspecialchars( $acc[ 3 ], ENT_QUOTES, 'UTF-8' ); ?></span>
+          </span>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <p class="bovs-inicio-nota">
+    <i class="fa fa-bars" aria-hidden="true"></i>
+    <span>Abre el menú para ver todos los módulos</span>
+  </p>
+
+</div><!-- /.bovs-inicio -->

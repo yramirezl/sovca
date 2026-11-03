@@ -19,13 +19,14 @@ if ($mfundos_id > 0) {
                 COALESCE(t.peso_nacimiento, n.peso_nacimiento) AS peso_nacimiento,
                 COALESCE(t.aptitud, n.aptitud) AS aptitud,
                 n.mtiposervicios_id,
-                a.nro_arete AS arete_madre,
-                a.nombre AS nombre_madre,
+                /* La madre y su nombre ya vienen resueltos por la vista. Antes
+                   se volvía a unir a manimales aquí, sin filtrar status: si la
+                   madre tenía una fila activa y otra dada de baja, el mismo
+                   parto salía repetido en el reporte. */
+                n.nro_arete AS arete_madre,
+                n.nombre_h AS nombre_madre,
                 COALESCE(ts.nombre, '') AS tipo_servicio
             FROM Vmregnacimientos n
-            LEFT JOIN manimales a
-                ON a.codigo_rgb_id_animal = n.codigo_rgb_id_animal_hembra
-                AND a.mfundos_id = n.mfundos_id
             LEFT JOIN mtiposervicios ts ON ts.id = n.mtiposervicios_id
             LEFT JOIN mternerosxnacimientos t
                 ON t.mregnacimientos_id = n.id AND t.status = 1

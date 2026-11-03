@@ -103,11 +103,11 @@ VerificarAdmin($_SESSION['rolx']);
                     </div>
 
                     <div class="crud-form__field" id="grp_max_fundos" style="display:none;">
-                        <label for="max_fundos">Fundos permitidos por el plan</label>
-                        <input type="text" id="max_fundos" class="form-control" value="1" readonly
-                            style="background:#f5f6f7; cursor:not-allowed;">
+                        <label for="max_fundos">Fundos contratados en esta cuenta</label>
+                        <input type="number" id="max_fundos" class="form-control" value="1" min="1" step="1">
                         <small id="max_fundos_nota" style="color:#888; display:block; margin-top:4px;">
-                            El cupo de fundos lo define el plan seleccionado.
+                            El plan fija un TOPE de fundos, no la cantidad contratada. Empiece con 1 y
+                            súbalo solo si el productor compró el plan para más fincas (hasta el tope).
                         </small>
                     </div>
 
@@ -263,6 +263,40 @@ document.getElementById('rol').disabled = true;
 			$('#acceso_offline').prop('checked', planEsDiamante());
 		}
 
+		/* El plan fija el TOPE de fundos; la cuenta contrata cuántos quiere
+		   (por defecto 1). El campo es editable y el servidor lo vuelve a acotar
+		   con mf_normalizar_cupo_fundos(). */
+		function topeFundosPlan() {
+			var tope = parseInt($('#t_plan option:selected').attr('data-max-fundos'), 10);
+			return (isNaN(tope) || tope < 1) ? 0 : tope;
+		}
+
+		function actualizarCupoFundos() {
+			var tope = topeFundosPlan();
+			var actual = parseInt($('#max_fundos').val(), 10);
+			if (isNaN(actual) || actual < 1) { actual = 1; }
+			// Al cambiar de plan solo se recorta si el cupo supera el nuevo tope:
+			// el sistema nunca sube solo el cupo contratado.
+			if (tope > 0 && actual > tope) { actual = tope; }
+			if (tope > 0) { $('#max_fundos').attr('max', tope); } else { $('#max_fundos').removeAttr('max'); }
+			var multi = $('#es_multifundo').is(':checked');
+			$('#max_fundos').val(multi ? actual : 1);
+			$('#max_fundos_nota').text(multi
+				? 'El plan permite hasta ' + (tope > 0 ? tope : '—') + ' fundo(s). Indique cuántos contrató la cuenta (por defecto 1).'
+				: 'La cuenta no es multifundo: solo puede tener 1 fundo.');
+		}
+
+		/* Cupo que se envía al servidor: 1 sin multifundo y, con multifundo, el
+		   valor del campo acotado al tope del plan. */
+		function cupoFundosAEnviar() {
+			if (!$('#es_multifundo').is(':checked')) { return 1; }
+			var tope = topeFundosPlan();
+			var cupo = parseInt($('#max_fundos').val(), 10);
+			if (isNaN(cupo) || cupo < 1) { cupo = 1; }
+			if (tope > 0 && cupo > tope) { cupo = tope; }
+			return cupo;
+		}
+
 		function actualizarCamposPorRol() {
 			var rol = parseInt($('#rol').val(), 10) || 0;
 			var esProductor = rol === 2;
@@ -378,7 +412,7 @@ document.getElementById('rol').disabled = true;
 
 			// NUEVO: enviar campos multi-fundo
 			formData.append('es_multifundo', $("#es_multifundo").is(':checked') ? 1 : 0);
-			formData.append('max_fundos', $("#es_multifundo").is(':checked') ? ($("#max_fundos").val() || 1) : 1);
+			formData.append('max_fundos', cupoFundosAEnviar());
 			formData.append('acceso_offline', $("#acceso_offline").is(':checked') ? 1 : 0);
 
 			$.ajax({

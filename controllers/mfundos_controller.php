@@ -409,7 +409,8 @@ switch ($action) {
             echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
                 <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                 <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
-                Ha alcanzado el máximo de <strong>' . $max_f . '</strong> fundos permitidos.
+                Ha alcanzado el máximo de <strong>' . $max_f . '</strong> fundo(s) de su cuenta.
+                Si necesita más fincas, solicite al administrador que amplíe el cupo de su plan.
                 </div>'));
             break;
         }

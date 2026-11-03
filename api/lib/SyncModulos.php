@@ -147,8 +147,14 @@ class SyncModulos
                 'f_parto',
                 'sexo',
             ],
-            // `aptitud` es integer NOT NULL SIN default en `mregnacimientos`;
-            // si no viene se guarda 0 (ver crear_registro_nacimiento).
+            'campos_animal' => [
+                'codigo_rgb_id_animal_hembra',
+                'codigo_rgb_id_animal_macho',
+                'codigo_rgb_id_animal_dona',
+            ],
+            // `aptitud` es integer NOT NULL SIN default en
+            // `mregnacimientos`; si no viene se guarda 0 (ver
+            // crear_registro_nacimiento).
             'enteros_con_defecto' => [
                 'aptitud' => 0,
             ],
@@ -197,6 +203,11 @@ class SyncModulos
                 'responsable', 'observaciones',
             ],
             'campos_requeridos' => ['codigo_rgb_id_animal', 'fecha_control', 'evento'],
+            // Campos que referencian a un animal: si llegan con un código
+            // provisional ('-PEND-') el servidor los rechaza con un mensaje
+            // claro, en vez de guardar un registro huérfano apuntando a un
+            // código que no existe (ver rechazar_codigos_provisionales).
+            'campos_animal' => ['codigo_rgb_id_animal'],
         ],
 
         // Control sanitario aplicado a un LOTE completo (equivalente a
@@ -234,6 +245,7 @@ class SyncModulos
             ],
             'campos_texto_obligatorios_bd' => [],
             'campos_requeridos' => ['codigo_rgb_id_animal_hembra', 'fecha_produccion'],
+            'campos_animal' => ['codigo_rgb_id_animal_hembra'],
         ],
 
         'pesos' => [
@@ -246,6 +258,7 @@ class SyncModulos
             ],
             'campos_texto_obligatorios_bd' => [],
             'campos_requeridos' => ['codigo_rgb_id_animal', 'fecha_pesaje', 'peso'],
+            'campos_animal' => ['codigo_rgb_id_animal'],
         ],
 
         // Desincorporación (bajas): descarte, muerte, venta o extravío.
@@ -267,6 +280,7 @@ class SyncModulos
             'campos_requeridos' => ['codigo_rgb_id_animal', 'f_desincorporacion', 'tipo_desincorporacion'],
             'desincorpora_animal' => true,
             'solo_crear' => true,
+            'campos_animal' => ['codigo_rgb_id_animal'],
         ],
 
         // Movimiento de rebaño: mueve animales entre lotes y/o potreros.
@@ -324,13 +338,27 @@ class SyncModulos
                 'f_servicio',
                 'mservicios_id',
             ],
-            // Columnas integer NOT NULL SIN default en `mregservicios`. Igual
-            // que en animales: si el equipo no las manda (o manda null) se
-            // guarda 0 y se completan luego en la web, en vez de romper la
-            // sincronización con "null value in column".
+            'campos_animal' => [
+                'codigo_rgb_id_animal_hembra',
+                'codigo_rgb_id_animal_macho',
+                'codigo_rgb_id_animal_dona',
+            ],
+            // Columnas integer NOT NULL SIN default en `mregservicios`.
+            // Igual que en animales: si el equipo no las manda (o manda
+            // null) se guarda 0 y se completan luego en la web, en vez de
+            // romper la sincronización con "null value in column".
+            //
+            // nro_terneros / dnp / parto vienen en null desde el equipo
+            // (la app los manda así al crear el servicio, porque todavía
+            // no aplican: son del seguimiento); si se dejan pasar, el
+            // INSERT revienta con "null value in column nro_terneros" y
+            // el productor solo veía "No se pudo registrar el servicio".
             'enteros_con_defecto' => [
                 'aptitud'   => 0,
                 'mrazas_id' => 0,
+                'nro_terneros' => 0,
+                'dnp' => 0,
+                'parto' => 0,
             ],
             'usa_ciclo_reproductivo' => true,
             'correlativo' => [

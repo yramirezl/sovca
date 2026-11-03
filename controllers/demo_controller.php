@@ -54,7 +54,7 @@ function demo_responder($datos)
    se verifican cuentas demo. 'estado' y 'salir' siguen disponibles para
    que la pantalla pueda informar la situación y cerrar la sesión. */
 require_once __DIR__ . '/../lib/mantenimiento_helper.php';
-if (in_array($action, array('crear_cuenta', 'verificar_codigo', 'reenviar_codigo'), true)
+if (in_array($action, array('crear_cuenta', 'login', 'verificar_codigo', 'reenviar_codigo'), true)
     && bovs_mantenimiento_activo()) {
     demo_responder(array(
         'ok'            => false,
@@ -177,6 +177,72 @@ switch ($action) {
             'msg'     => isset($resultado['msg']) ? $resultado['msg'] : 'No se pudo reenviar el código.',
             'espera'  => isset($resultado['espera']) ? (int) $resultado['espera'] : 0,
             'minutos' => isset($resultado['minutos']) ? (int) $resultado['minutos'] : 0
+        ));
+        break;
+
+    /* =================================================================
+       INGRESAR CON UNA CUENTA DEMO QUE YA EXISTE
+       -----------------------------------------------------------------
+       Segunda visita: la persona ya creó su cuenta demo y quiere volver
+       a entrar. Se valida contra la base demo con el mismo hash que usa
+       el login del sistema (bovs_demo_autenticar) y se deja la sesión
+       marcada como demo.
+       ================================================================= */
+    case 'login':
+
+        if (!bovs_demo_activo()) {
+            demo_responder(array(
+                'ok'  => false,
+                'msg' => 'El acceso demostrativo está deshabilitado en este momento.'
+            ));
+        }
+
+        /* --- Captcha propio de este formulario --------------------- */
+        $token     = isset($_POST['captcha_token']) ? (string) $_POST['captcha_token'] : '';
+        $respuesta = isset($_POST['captcha_respuesta']) ? trim((string) $_POST['captcha_respuesta']) : '';
+
+        if (!bovs_captcha_validar($token, $respuesta, 'captcha_demo_login')) {
+            demo_responder(array(
+                'ok'      => false,
+                'msg'     => 'La verificación de seguridad no coincide. Intenta con la operación nueva.',
+                'captcha' => true
+            ));
+        }
+
+        $resultado = bovs_demo_autenticar(
+            isset($_POST['usuario']) ? $_POST['usuario'] : '',
+            isset($_POST['clave']) ? $_POST['clave'] : ''
+        );
+
+        if (empty($resultado['ok'])) {
+            $motivos = array(
+                'credenciales' => 'Usuario o contraseña incorrectos.',
+                'datos'        => 'Escribe tu usuario y tu contraseña.',
+                'vencida'      => 'Tu cuenta demo venció. Puedes crear una nueva cuando quieras.',
+                'sin_bd'       => 'La base de datos de pruebas no está disponible en este servidor.',
+            );
+
+            $clave = isset($resultado['error']) ? (string) $resultado['error'] : 'error';
+
+            demo_responder(array(
+                'ok'      => false,
+                'msg'     => isset($motivos[$clave])
+                    ? $motivos[$clave]
+                    : 'No se pudo iniciar la sesión demo. Intenta nuevamente.',
+                // El captcha es de un solo uso: si no fue un problema de
+                // infraestructura, hay que pedir otro.
+                'captcha' => $clave !== 'sin_bd',
+            ));
+        }
+
+        bovs_demo_iniciar_sesion($resultado['usuario']);
+
+        demo_responder(array(
+            'ok'       => true,
+            'msg'      => 'Bienvenido de nuevo.',
+            'usuario'  => $resultado['usuario']['username'],
+            'caduca'   => $resultado['usuario']['fecha_caduca'],
+            'redirect' => '../../views/inicio/'
         ));
         break;
 

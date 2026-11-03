@@ -24,10 +24,19 @@ if (($mfundos_id != '') && ($mfundos_id != ' ')) {
 		              COUNT(a.id) AS fichadas,
 		              STRING_AGG(NULLIF(t.id_ternero, ''), ', ' ORDER BY t.nro_ternero) AS ids_terneros
 		         FROM mternerosxnacimientos t
-		    LEFT JOIN manimales a
-		           ON a.mfundos_id = t.mfundos_id
-		          AND a.status = 1
-		          AND UPPER(BTRIM(a.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+		    /* Solo se considera fichada si la cría tiene ID: con el ID vacío el
+		       join `'' = ''` contaba como fichadas a todos los animales sin
+		       codigo_ternero del fundo. */
+		    LEFT JOIN LATERAL (
+		              SELECT m.id
+		                FROM manimales m
+		               WHERE m.mfundos_id = t.mfundos_id
+		                 AND m.status = 1
+		                 AND BTRIM(COALESCE(t.id_ternero, '')) <> ''
+		                 AND UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+		               ORDER BY m.id
+		               LIMIT 1
+		         ) a ON true
 		        WHERE t.status = 1
 		     GROUP BY t.mregnacimientos_id
 		  ) crias ON crias.mregnacimientos_id = n.id

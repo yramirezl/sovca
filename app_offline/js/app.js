@@ -13,6 +13,9 @@ let pesajeGuardando = false;
 let edicionServiciosUuid = null;
 let edicionNacimientosUuid = null;
 let servicioOrigenNacimiento = null;
+// La hembra pudo llegar preñada de otro fundo: no hay servicio gestante que
+// asociar y el parto se registra igual, pidiendo el tipo de servicio.
+let nacimientoSinServicio = false;
 let focoAnteriorModalNacimiento = null;
 let nacimientoParaFicharUuid = null;
 let deferredInstallPrompt = null;
@@ -163,14 +166,26 @@ async function calcularEstadoSync(pendientes) {
   const valida = ultima && !Number.isNaN(ultima.getTime()) ? ultima : null;
   const minutos = valida ? (Date.now() - valida.getTime()) / 60000 : Infinity;
 
+  // Registros que el servidor rechazó varias veces: necesitan una
+  // decisión del operario y no se resuelven solos con el tiempo, así
+  // que mandan sobre el resto de los estados.
+  let bloqueados = 0;
+  try {
+    const outbox = await Db.obtenerTodos('outbox');
+    bloqueados = outbox.filter((item) => item && item.bloqueado === true).length;
+  } catch (e) {
+    bloqueados = 0;
+  }
+
   // Con registros por subir el equipo NO está al día aunque la última
   // sincronización haya sido hace un minuto: eso lo deja en ámbar.
-  const estado = !valida ? 'error'
-    : total > 0 ? 'aviso'
-      : minutos < 60 ? 'ok'
-        : minutos < 24 * 60 ? 'aviso' : 'error';
+  const estado = bloqueados > 0 ? 'error'
+    : !valida ? 'error'
+      : total > 0 ? 'aviso'
+        : minutos < 60 ? 'ok'
+          : minutos < 24 * 60 ? 'aviso' : 'error';
 
-  return { total, valida, estado, fundo: (fundo && fundo.nombre) || '' };
+  return { total, valida, estado, bloqueados, fundo: (fundo && fundo.nombre) || '' };
 }
 
 /**
@@ -203,11 +218,16 @@ async function actualizarIndicadorSincronizacion(pendientes) {
   }
 
   // Al día el chip queda en "Todo sincronizado" (el tiempo exacto vive
-  // en la burbuja de detalle); si hay algo que hacer, se dice qué.
-  const textoNuevo = total > 0
-    ? (total === 1 ? '1 por subir' : total + ' por subir')
-    : (!valida ? 'Sin sincronizar'
-      : (datos.estado === 'ok' ? 'Todo sincronizado' : tiempoRelativo(valida)));
+  // en la burbuja de detalle); si hay algo que hacer, se dice qué. Los
+  // registros bloqueados se anuncian aparte porque necesitan una acción
+  // del operario, no sólo señal.
+  const bloqueados = datos.bloqueados || 0;
+  const textoNuevo = bloqueados > 0
+    ? (bloqueados === 1 ? '1 para revisar' : bloqueados + ' para revisar')
+    : total > 0
+      ? (total === 1 ? '1 por subir' : total + ' por subir')
+      : (!valida ? 'Sin sincronizar'
+        : (datos.estado === 'ok' ? 'Todo sincronizado' : tiempoRelativo(valida)));
 
   if (texto && texto.textContent !== textoNuevo) {
     // Cambio de texto con un desteñido corto en vez de un salto seco.
@@ -219,11 +239,13 @@ async function actualizarIndicadorSincronizacion(pendientes) {
     }, 150);
   }
 
-  const tituloNuevo = total > 0
-    ? total + ' registro(s) guardado(s) en el equipo sin subir al servidor. Toca para ver el detalle.'
-    : (valida
-      ? 'Última sincronización: ' + valida.toLocaleString() + '. Toca para ver el detalle.'
-      : 'Este equipo todavía no sincronizó este fundo con el servidor.');
+  const tituloNuevo = bloqueados > 0
+    ? bloqueados + ' registro(s) fueron rechazados por el servidor y necesitan tu revisión. Toca para ver el motivo.'
+    : total > 0
+      ? total + ' registro(s) guardado(s) en el equipo sin subir al servidor. Toca para ver el detalle.'
+      : (valida
+        ? 'Última sincronización: ' + valida.toLocaleString() + '. Toca para ver el detalle.'
+        : 'Este equipo todavía no sincronizó este fundo con el servidor.');
   if (chip.title !== tituloNuevo) chip.title = tituloNuevo;
 }
 
@@ -279,6 +301,28 @@ function construirListaPendientes(outbox) {
         + '<span>' + escaparHtml(etiqueta) + '</span>'
         + '</div>';
     }).join('');
+}
+
+/**
+ * Detalle de los registros que el servidor rechazó varias veces. Se
+ * muestran con su motivo para que el operario sepa qué corregir en vez
+ * de ver sólo "1 registro en error".
+ */
+function construirListaBloqueados(bloqueados) {
+  return bloqueados.map((item) => {
+    const modulo = item.modulo || 'animales';
+    const nombre = NOMBRES_MODULO_SINGULAR[modulo] || modulo;
+    const motivo = item.ultimo_error
+      ? escaparHtml(item.ultimo_error)
+      : 'El servidor rechazó este registro.';
+    const intentos = item.intentos
+      ? '<span class="popover-sync__intentos">' + item.intentos + ' intentos</span>'
+      : '';
+    return '<div class="popover-sync__fila popover-sync__fila--bloqueada">'
+      + '<span class="popover-sync__motivo"><strong>' + escaparHtml(nombre) + '</strong>'
+      + intentos + '<br>' + motivo + '</span>'
+      + '</div>';
+  }).join('');
 }
 
 /** Coloca la burbuja debajo del chip (o encima si no cabe). */
@@ -412,15 +456,36 @@ async function mostrarDetalleSincronizacion() {
   }
 
   if (datos.total > 0) {
+    // Registros que ya no se reintentan solos (rechazados varias veces) y
+    // registros que sólo esperan a que suba un animal recién creado.
+    const bloqueados = outbox.filter((item) => item && item.bloqueado === true);
+    const enEspera = outbox.filter((item) => item && item.espera_animal && item.bloqueado !== true);
+
     html.push('<p class="popover-sync__texto">Guardados en este equipo, todavía no están en el servidor:</p>');
     html.push('<div class="popover-sync__lista">' + construirListaPendientes(outbox) + '</div>');
     if (conflictos.length) {
       html.push('<p class="popover-sync__aviso"><strong>' + conflictos.length + ' conflicto'
         + (conflictos.length === 1 ? '' : 's') + '</strong> necesitan tu decisión. Resolvelos en la pestaña <strong>Animales</strong>.</p>');
     }
-    html.push('<p class="popover-sync__nota">' + (navigator.onLine
-      ? 'Se envían solos en la próxima sincronización (modo <strong>gestión</strong>).'
-      : 'Se enviarán solos cuando vuelva la señal.') + '</p>');
+    if (enEspera.length) {
+      html.push('<p class="popover-sync__nota">' + enEspera.length + ' esperan a que termine de subir un animal creado sin conexión. Se envían solos apenas eso ocurra: no hace falta hacer nada.</p>');
+    }
+    if (bloqueados.length) {
+      html.push('<p class="popover-sync__aviso"><strong>' + bloqueados.length + ' registro'
+        + (bloqueados.length === 1 ? ' necesita' : 's necesitan') + ' tu revisión.</strong> '
+        + 'El servidor los rechazó varias veces y ya no se reintentan solos.</p>');
+      html.push('<div class="popover-sync__lista">' + construirListaBloqueados(bloqueados) + '</div>');
+      html.push('<p class="popover-sync__nota">Revisá el motivo, corregí el dato en su pestaña y volvé a intentar. Si el registro ya no corresponde, borralo desde ahí.</p>');
+      html.push('<div class="popover-sync__acciones">'
+        + '<button id="boton-reintentar-bloqueados" type="button" class="popover-sync__boton popover-sync__boton--secundario">Reintentar ahora</button>'
+        + '<button id="boton-descargar-atascados" type="button" class="popover-sync__boton popover-sync__boton--secundario">Descargar para soporte</button>'
+        + '</div>');
+      html.push('<p class="popover-sync__nota">Si no lográs que suban, descargá el archivo y envíaselo a soporte: tiene todo lo necesario para recuperarlos sin volver a cargarlos.</p>');
+    } else {
+      html.push('<p class="popover-sync__nota">' + (navigator.onLine
+        ? 'Se envían solos en la próxima sincronización (modo <strong>gestión</strong>).'
+        : 'Se enviarán solos cuando vuelva la señal.') + '</p>');
+    }
   } else if (datos.valida) {
     html.push('<p class="popover-sync__nota">' + (datos.estado === 'ok'
       ? 'No hay registros esperando.'
@@ -446,6 +511,8 @@ async function mostrarDetalleSincronizacion() {
   if (cuerpo) cuerpo.innerHTML = html.join('');
 
   adjuntarAccionesRespaldo();
+  adjuntarAccionReintentarBloqueados();
+  adjuntarAccionDescargarAtascados();
 
   abrirPopoverSync();
 }
@@ -602,6 +669,147 @@ function adjuntarAccionesRespaldo() {
       await restaurarRespaldoLocal(seleccionado);
     });
   }
+}
+
+/**
+ * Reintenta los registros que quedaron bloqueados. El usuario confirma
+ * que revisó el motivo: se limpian los contadores y se manda la
+ * sincronización de inmediato.
+ */
+function adjuntarAccionReintentarBloqueados() {
+  const boton = el('boton-reintentar-bloqueados');
+  if (!boton) return;
+
+  boton.addEventListener('click', async () => {
+    boton.disabled = true;
+    boton.textContent = 'Reintentando…';
+    let rearmados = 0;
+    try {
+      const outbox = await Db.obtenerTodos('outbox');
+      for (const item of outbox) {
+        if (item.bloqueado !== true) continue;
+        const almacen = item.modulo || 'animales';
+        delete item.bloqueado;
+        delete item.bloqueado_en;
+        delete item.proximo_intento;
+        item.intentos = 0;
+        await Db.guardar('outbox', item);
+
+        const registro = await Db.obtener(almacen, item.uuid_local).catch(() => null);
+        if (registro && registro.estado_sync === 'error') {
+          registro.estado_sync = 'pendiente';
+          delete registro.ultimo_error;
+          await Db.guardar(almacen, registro);
+        }
+        rearmados++;
+      }
+    } catch (e) {
+      console.warn('[Sync] no se pudo rearmar los registros bloqueados:', e);
+      boton.disabled = false;
+      boton.textContent = 'Reintentar ahora';
+      return;
+    }
+
+    await actualizarContadorPendientes();
+    cerrarPopoverSync();
+
+    if (!rearmados) return;
+    if (!navigator.onLine) {
+      alert('Sin conexión. Los ' + rearmados + ' registro(s) se enviarán solos cuando vuelva la señal.');
+      return;
+    }
+    Sync.sincronizar();
+  });
+}
+
+/**
+ * Estrategia de recuperación: descarga en un archivo todo lo que quedó
+ * atascado en el equipo (registros que el servidor rechazó y conflictos
+ * sin resolver), con sus datos completos y el motivo del rechazo.
+ *
+ * Sirve para dos cosas:
+ *   · que el productor no pierda el trabajo hecho en el campo si el
+ *     registro no se puede arreglar desde el teléfono;
+ *   · que soporte pueda revisar y volver a cargar los datos sin pedirle
+ *     al productor que los tipee de nuevo.
+ */
+function nombreArchivoAtascados(fundoId) {
+  const hoy = new Date();
+  const sello = hoy.getFullYear()
+    + String(hoy.getMonth() + 1).padStart(2, '0')
+    + String(hoy.getDate()).padStart(2, '0')
+    + '-' + String(hoy.getHours()).padStart(2, '0') + String(hoy.getMinutes()).padStart(2, '0');
+  return 'sovca-registros-atascados-f' + fundoId + '-' + sello + '.json';
+}
+
+async function descargarRegistrosAtascados() {
+  const fundoId = Db.fundoActivo();
+  const sesion = await Db.obtenerSesion().catch(() => null);
+  const outbox = await Db.obtenerTodos('outbox').catch(() => []);
+  const conflictos = await Db.obtenerTodos('conflictos').catch(() => []);
+
+  const atascados = outbox.filter((item) => item.bloqueado === true
+    || item.ultimo_error
+    || item.estado_sync === 'error');
+
+  if (!atascados.length && !conflictos.length) {
+    alert('No hay registros atascados en este equipo.');
+    return;
+  }
+
+  const registros = [];
+  for (const item of atascados) {
+    const almacen = item.modulo || 'animales';
+    const copiaLocal = await Db.obtener(almacen, item.uuid_local).catch(() => null);
+    registros.push({
+      modulo: almacen,
+      uuid_local: item.uuid_local,
+      intentos: Number(item.intentos || 0),
+      bloqueado: item.bloqueado === true,
+      espera_animal: item.espera_animal || null,
+      motivo_rechazo: item.ultimo_error || (copiaLocal && copiaLocal.ultimo_error) || '',
+      datos_enviados: item.datos || {},
+      registro_local: copiaLocal,
+    });
+  }
+
+  const fundo = el('fundo-activo');
+  const version = leerVersionLocal();
+  const paquete = {
+    app: 'SOVCA Offline',
+    tipo: 'registros_atascados',
+    formato: 1,
+    generado: new Date().toISOString(),
+    version_app: (version && version.version_app) || '',
+    fundo_id: Number(fundoId) || null,
+    fundo_nombre: fundo ? fundo.textContent.trim() : '',
+    usuario: (sesion && sesion.usuario) || '',
+    dispositivo_id: Dispositivo.obtenerId(),
+    total_registros: registros.length,
+    total_conflictos: conflictos.length,
+    registros,
+    conflictos,
+  };
+
+  try {
+    const blob = new Blob([JSON.stringify(paquete, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombreArchivoAtascados(fundoId || 0);
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    alert('No se pudo generar el archivo: ' + (e && e.message ? e.message : 'error'));
+  }
+}
+
+function adjuntarAccionDescargarAtascados() {
+  const boton = el('boton-descargar-atascados');
+  if (!boton) return;
+  boton.addEventListener('click', () => { descargarRegistrosAtascados(); });
 }
 
 /**
@@ -1555,7 +1763,12 @@ async function pintarSelectorFundo() {
     for (const fundo of lista) {
       const opcion = document.createElement('option');
       opcion.value = String(fundo.id);
-      opcion.textContent = normalizarMayusculas(fundo.nombre);
+      // Un fundo puede quedar en el equipo después de que la cuenta perdió
+      // el acceso en el servidor: sus datos locales se pueden ver, pero no
+      // sincronizan. Se aclara en el selector en vez de dejar que el
+      // usuario descubra el problema en la línea de estado.
+      opcion.textContent = normalizarMayusculas(fundo.nombre)
+        + (fundo.sin_acceso ? ' (sin acceso)' : '');
       if (fundo.id === activo) opcion.selected = true;
       select.appendChild(opcion);
     }
@@ -3165,11 +3378,17 @@ function filtrarListaAnimales() {
   if (!buscador || !contenedor) return;
 
   const termino = buscador.value.trim().toLowerCase();
+  /* Los aretes se guardan como 'SN-2', pero el operario escribe 'sn 2' o
+     'sn2': se compara también sin separadores. */
+  const terminoCompacto = termino.replace(/[^0-9a-zñü]+/g, '');
   const tarjetas = contenedor.querySelectorAll('.chapeta');
   let visibles = 0;
 
   tarjetas.forEach((tarjeta) => {
-    const coincide = !termino || (tarjeta.dataset.busqueda || '').includes(termino);
+    const busca = tarjeta.dataset.busqueda || '';
+    const coincide = !termino
+      || busca.includes(termino)
+      || (!!terminoCompacto && busca.replace(/[^0-9a-zñü]+/g, '').includes(terminoCompacto));
     tarjeta.classList.toggle('oculto', !coincide);
     if (coincide) visibles++;
   });
@@ -3456,7 +3675,7 @@ async function resolverConflicto(uuid, accion) {
       await Db.eliminar('conflictos', uuid);
     } else if (accion === 'corregir_arete') {
       const input = document.getElementById('arete-nuevo-' + uuid);
-      const nuevoArete = input ? input.value.trim() : '';
+      const nuevoArete = normalizarArete(input ? input.value : '');
 
       if (!nuevoArete) {
         alert('Escribe el nuevo número de arete antes de continuar.');
@@ -3594,6 +3813,13 @@ async function actualizarContadorPendientes() {
   await actualizarIndicadorSincronizacion(total);
   await refrescarPendientesParaSalida();
 
+  // El inicio muestra los mismos pendientes y los eventos próximos: se
+  // vuelve a pintar si es el panel a la vista (sin costo cuando no lo es).
+  const panelInicio = el('panel-inicio');
+  if (panelInicio && !panelInicio.classList.contains('oculto')) {
+    await renderizarPanelInicio();
+  }
+
   // Si el aviso de versión nueva está a la vista, se actualiza el texto
   // de pendientes y el rótulo del botón ("Sincronizar y actualizar").
   const aviso = el('aviso-actualizacion');
@@ -3604,6 +3830,123 @@ async function actualizarContadorPendientes() {
 
 
 let _infoVersionFrontend = null;
+
+// Última versión que se pudo leer del servidor en ESTE equipo.
+// Se guarda para que el badge siga diciendo algo útil cuando la app se
+// abre sin conexión: antes mostraba "FE ?", que no le dice nada al
+// productor (y es justo el momento en que más se mira la etiqueta).
+const CLAVE_VERSION_LOCAL = 'bovs_version_instalada';
+
+function leerVersionLocal() {
+  try {
+    const crudo = localStorage.getItem(CLAVE_VERSION_LOCAL);
+    const datos = crudo ? JSON.parse(crudo) : null;
+    return (datos && typeof datos === 'object') ? datos : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function guardarVersionLocal(info) {
+  if (!info || !info.version_app) return;
+  try {
+    localStorage.setItem(CLAVE_VERSION_LOCAL, JSON.stringify({
+      version_app: String(info.version_app),
+      fecha: info.fecha || null,
+      notas: Array.isArray(info.notas) ? info.notas.slice(0, 5) : [],
+      historial: Array.isArray(info.historial) ? info.historial.slice(0, 10) : [],
+      hash_tecnico: info.hash_tecnico || null,
+      cargado_en: info.cargado_en || new Date().toISOString(),
+    }));
+  } catch (e) { /* sin localStorage: el badge se resuelve con el servidor */ }
+}
+
+/** Fecha corta (dd-mm-aaaa) para textos de una sola línea. */
+function fechaCortaVersion(valor) {
+  if (!valor) return '';
+  const d = new Date(String(valor).length === 10 ? valor + 'T00:00:00' : valor);
+  if (isNaN(d.getTime())) return '';
+  return String(d.getDate()).padStart(2, '0') + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+    + d.getFullYear();
+}
+
+/**
+ * Texto que se ve al pasar el mouse (o mantener pulsado) sobre el badge.
+ * Es el "detalle de la versión instalada": número, fecha de despliegue,
+ * si se pudo verificar y las primeras novedades. El detalle completo
+ * sigue estando al tocar la etiqueta (mostrarInfoVersion).
+ */
+function tituloBadgeVersion(info, verificado) {
+  const numero = info && info.version_app && info.version_app !== '?'
+    ? String(info.version_app).replace(/^v/i, '')
+    : '';
+
+  if (!numero) {
+    return verificado
+      ? 'Versión de la aplicación\nEl servidor no informó la versión instalada.\n\nToca para ver el detalle.'
+      : 'Versión de la aplicación\nTodavía no se conoce la versión en este equipo (hace falta abrirla una vez con internet).\n\nToca para ver el detalle.';
+  }
+
+  const lineas = ['Versión instalada en este equipo: ' + etiquetaVersion(numero) + sufijoNumeracion(numero)];
+
+  const fecha = fechaCortaVersion(info.fecha);
+  if (fecha) lineas.push('Desplegada el ' + fecha);
+
+  if (verificado) {
+    lineas.push('Verificada ahora contra el servidor.');
+  } else {
+    const vista = fechaCortaVersion(info.cargado_en);
+    lineas.push(vista
+      ? 'Sin conexión: última verificación el ' + vista + '.'
+      : 'Sin conexión: no se pudo verificar contra el servidor.');
+  }
+
+  if (Array.isArray(info.notas) && info.notas.length) {
+    lineas.push('', 'Novedades de esta versión:');
+    info.notas.slice(0, 3).forEach((n) => lineas.push('· ' + String(n)));
+    if (info.notas.length > 3) lineas.push('· …');
+  }
+
+  lineas.push('', 'Toca para ver el detalle.');
+  return lineas.join('\n');
+}
+
+/**
+ * Etiqueta visible de la versión de la app offline.
+ *
+ * Esquema: V1.nnnnn — la "V" y el 1 identifican esta app (versión 1) y
+ * lo que sigue es la REVISIÓN (1.00053, 1.00054…). Antes se mostraba el
+ * mismo número que la web (4.52), lo que daba la impresión de que la PWA
+ * ya iba por la cuarta versión cuando en realidad es la primera.
+ */
+function etiquetaVersion(numero) {
+  const limpio = String(numero === null || numero === undefined ? '' : numero)
+    .replace(/^v/i, '')
+    .trim();
+  if (!limpio || limpio === '?') return 'versión sin verificar';
+  return 'V' + limpio;
+}
+
+/**
+ * Pinta el badge del encabezado.
+ *
+ * @param {object|null} info       Datos de versión (del servidor o locales).
+ * @param {boolean}     verificado true si se acaba de confirmar con el servidor.
+ */
+function pintarBadgeVersion(info, verificado) {
+  const badge = el('etiqueta-version-frontend');
+  if (!badge) return;
+
+  const numero = info && info.version_app && info.version_app !== '?'
+    ? String(info.version_app).replace(/^v/i, '')
+    : '';
+
+  // Con número se muestra "V1.00054"; sin número, la palabra "Versión"
+  // en vez del viejo "FE ?", que no significaba nada para el productor.
+  badge.textContent = numero ? etiquetaVersion(numero) : 'Versión';
+  badge.title = tituloBadgeVersion(info, verificado);
+}
 
 // Versión con la que se abrió esta pantalla. Es la referencia para
 // saber si el servidor ya tiene una mejora que este equipo todavía no
@@ -3639,6 +3982,17 @@ function versionEsDistinta(nueva, actual) {
 async function cargarVersionFrontend() {
   const badge = el('etiqueta-version-frontend');
   if (!badge) return;
+
+  // 1) Antes de consultar al servidor, mostrar lo último que se sabe en
+  //    este equipo. Así, sin conexión (o con el servidor lento), la
+  //    etiqueta ya dice la versión en vez de quedar en "FE ?".
+  const versionLocal = leerVersionLocal();
+  if (versionLocal && versionLocal.version_app) {
+    _infoVersionFrontend = _infoVersionFrontend || versionLocal;
+    pintarBadgeVersion(versionLocal, false);
+  } else {
+    pintarBadgeVersion(_infoVersionFrontend, false);
+  }
 
   try {
     const resp = await fetch('version.php?_=' + Date.now(), { cache: 'no-store' });
@@ -3682,13 +4036,20 @@ async function cargarVersionFrontend() {
       _hashAlAbrir = _infoVersionFrontend.hash_tecnico;
     }
 
-    badge.textContent = 'v' + String(versionApp);
-    badge.title = 'Ver versión y novedades';
+    // Guardar para la próxima apertura sin conexión y pintar el badge
+    // con el detalle completo en el tooltip.
+    guardarVersionLocal(_infoVersionFrontend);
+    pintarBadgeVersion(_infoVersionFrontend, true);
   } catch (e) {
-    _infoVersionFrontend = _infoVersionFrontend || {
-      version_app: '?',
-      error: e && e.message ? e.message : 'error_desconocido',
-    };
+    // Se conserva lo que ya se sabía (del servidor en una apertura
+    // anterior, leído desde localStorage) y solo se marca que esta vez
+    // no se pudo verificar.
+    _infoVersionFrontend = Object.assign(
+      {},
+      _infoVersionFrontend || { version_app: '?' },
+      { error: e && e.message ? e.message : 'error_desconocido' }
+    );
+    pintarBadgeVersion(_infoVersionFrontend, false);
     console.warn('No se pudo cargar la versión del frontend:', e);
   }
 }
@@ -3744,6 +4105,32 @@ async function verificarNuevaVersion() {
   mostrarAvisoActualizacion();
 }
 
+/**
+ * ¿El número corresponde a la numeración ANTERIOR de la app (2.x, 3.x, 4.x)?
+ *
+ * Se usa para el salto 4.51 → V1.00053: en pantalla parecía que la app
+ * "bajaba" de la 4 a la 1, cuando en realidad empieza su propia
+ * numeración (V1 + revisión). El aviso lo explica en vez de dejar al
+ * productor con la duda de si está instalando algo viejo.
+ */
+function esNumeracionAnterior(valor) {
+  const partes = partesDeVersion(valor);
+  return partes.length > 0 && partes[0] > 1;
+}
+
+/**
+ * Aclara a qué numeración pertenece un número de versión.
+ *
+ * Las 2.x/3.x/4.x corresponden a la etapa de DEMOSTRACIÓN del modo
+ * offline; desde V1.nnnnn la numeración es la OFICIAL. Ponerlo al lado
+ * del número es lo que justifica que un equipo pase de la V4 a la V1
+ * sin que parezca una degradación.
+ */
+function sufijoNumeracion(valor) {
+  if (!valor) return '';
+  return esNumeracionAnterior(valor) ? ' (demo)' : ' (versión oficial)';
+}
+
 /** Pinta el aviso con la versión nueva y el estado de pendientes. */
 function mostrarAvisoActualizacion() {
   const aviso = el('aviso-actualizacion');
@@ -3762,18 +4149,34 @@ function mostrarAvisoActualizacion() {
   const boton = el('boton-actualizar-app');
   const badge = el('etiqueta-version-frontend');
 
+  // El equipo trae la numeración anterior (4.51) y el servidor ya usa la
+  // nueva (1.00053): hay que decirlo, o parece que la versión baja.
+  const cambioDeNumeracion = !nueva.solo_correccion
+    && esNumeracionAnterior(_versionAlAbrir)
+    && !esNumeracionAnterior(nueva.version_app);
+
   if (titulo) {
     titulo.textContent = nueva.solo_correccion
       ? 'Hay una corrección nueva de la app'
-      : 'Hay una versión nueva de la app (v' + nueva.version_app + ')';
+      : (cambioDeNumeracion
+        ? 'Ya está disponible la versión oficial ' + etiquetaVersion(nueva.version_app)
+        : 'Hay una versión nueva de la app (' + etiquetaVersion(nueva.version_app) + ')');
   }
 
   if (detalle) {
-    detalle.textContent = nueva.solo_correccion
-      ? 'Se publicó una corrección para la v' + _versionAlAbrir
-        + ' que este equipo todavía no aplicó. Tus datos guardados no se pierden.'
-      : 'Usás la v' + _versionAlAbrir + ' y en el servidor está la v'
-        + nueva.version_app + '. Tus datos guardados no se pierden.';
+    if (nueva.solo_correccion) {
+      detalle.textContent = 'Se publicó una corrección para la ' + etiquetaVersion(_versionAlAbrir)
+        + ' que este equipo todavía no aplicó. Tus datos guardados no se pierden.';
+    } else if (cambioDeNumeracion) {
+      detalle.textContent = 'Usás la ' + etiquetaVersion(_versionAlAbrir) + ' (demo)'
+        + ' y ahora estás en la ' + etiquetaVersion(nueva.version_app) + ' (versión oficial). '
+        + 'La numeración V4.x era la de la etapa de demostración del modo sin conexión, '
+        + 'así que pasar a la V1 no es una degradación: es la primera versión oficial de esta app. '
+        + 'Tus datos guardados no se pierden.';
+    } else {
+      detalle.textContent = 'Usás la ' + etiquetaVersion(_versionAlAbrir) + ' y en el servidor está la '
+        + etiquetaVersion(nueva.version_app) + '. Tus datos guardados no se pierden.';
+    }
   }
 
   if (notas) {
@@ -3796,7 +4199,17 @@ function mostrarAvisoActualizacion() {
     boton.textContent = porSubir > 0 ? 'Sincronizar y actualizar' : 'Actualizar ahora';
   }
 
-  if (badge) badge.classList.add('etiqueta-version-frontend--nueva');
+  if (badge) {
+    badge.classList.add('etiqueta-version-frontend--nueva');
+    // El tooltip cambia mientras el aviso está pendiente: si el productor
+    // posa el mouse sobre la versión, lo que necesita saber es que hay
+    // una nueva, no las novedades de la vieja.
+    badge.title = 'Hay una versión nueva disponible (' + etiquetaVersion(nueva.version_app) + ').\n'
+      + 'Este equipo tiene la ' + etiquetaVersion(_versionAlAbrir)
+      + (cambioDeNumeracion ? ' (demo; la nueva es la versión oficial)' : '')
+      + '.\n\n'
+      + 'Toca para actualizar.';
+  }
 
   aviso.classList.remove('oculto');
 }
@@ -3805,7 +4218,13 @@ function ocultarAvisoActualizacion() {
   const aviso = el('aviso-actualizacion');
   if (aviso) aviso.classList.add('oculto');
   const badge = el('etiqueta-version-frontend');
-  if (badge) badge.classList.remove('etiqueta-version-frontend--nueva');
+  if (badge) {
+    badge.classList.remove('etiqueta-version-frontend--nueva');
+    pintarBadgeVersion(
+      _infoVersionFrontend,
+      !!(_infoVersionFrontend && !_infoVersionFrontend.error)
+    );
+  }
 }
 
 /**
@@ -3944,21 +4363,34 @@ function programarVerificacionDeVersion() {
 
 
 async function mostrarInfoVersion() {
-  const badge = el('etiqueta-version-frontend');
-  const versionActual = badge ? badge.textContent : 'v?';
-
-  if (!_infoVersionFrontend) {
+  // Si todavía no se pudo verificar contra el servidor (o solo se tiene
+  // lo guardado en el equipo), se intenta una lectura nueva antes de
+  // mostrar la ficha: así el productor ve el número real cuando hay red.
+  if (!_infoVersionFrontend || !_infoVersionFrontend.cargado_en || _infoVersionFrontend.error) {
     await cargarVersionFrontend();
   }
 
   const info = _infoVersionFrontend || {};
+  const numero = info.version_app && info.version_app !== '?'
+    ? String(info.version_app).replace(/^v/i, '')
+    : '';
   const bloques = [];
 
   // Bloque principal: número de versión + fecha de despliegue.
   bloques.push(
     '<div style="background:#f5f5f5; padding:12px 14px; border-radius:8px; margin-bottom:14px;">'
-      + '<div style="font-weight:700; color:#1f2937; font-size:18px;">Versión '
-      + escaparHtml(String(info.version_app || versionActual).replace(/^v/i, '')) + '</div>'
+      + '<div style="font-weight:700; color:#1f2937; font-size:18px;">'
+      + (numero
+          ? escaparHtml(etiquetaVersion(numero))
+          : 'Versión no verificada')
+      + '</div>'
+      + (numero
+          ? '<div style="color:#5d676d; font-size:12px; margin-top:2px;">'
+            + (esNumeracionAnterior(numero)
+                ? 'Numeración de la etapa de demostración (la versión oficial es V1.nnnnn)'
+                : 'Versión oficial de la app sin conexión')
+            + '</div>'
+          : '')
       + (info.fecha
           ? '<div style="color:#5d676d; font-size:12px; margin-top:4px;">Desplegada el '
             + escaparHtml(formatearFechaHora(info.fecha + 'T00:00:00')) + '</div>'
@@ -4064,7 +4496,9 @@ function formatearFechaHora(valor) {
 async function poblarSelectsCatalogos() {
   await poblarSelect('campo-raza', await Db.obtenerCatalogo('razas'), 'Selecciona…');
   await poblarSelect('campo-aptitud', await Db.obtenerCatalogo('aptitudes'), 'Selecciona…');
+  await poblarSelect('campo-servicio', await Db.obtenerCatalogo('tipos_servicio'), 'Selecciona...');
   await poblarSelect('campo-lote', await Db.obtenerCatalogo('lotes'), 'Sin asignar');
+  await poblarEstatusAnimalPorSexo();
   await poblarSelectsCategoriaPorSexo();
   await poblarSelect('servicios-aptitud', await Db.obtenerCatalogo('aptitudes'), 'Selecciona...');
   await poblarSelect('servicios-raza', await Db.obtenerCatalogo('razas'), 'Selecciona...');
@@ -4089,6 +4523,42 @@ async function poblarSelectsCategoriaPorSexo() {
   await poblarSelect('campo-categoria-futura', filtradas, 'Sin categoria');
 }
 
+/**
+ * Estatus del animal: catálogo fijo que depende del SEXO (mismo criterio
+ * que bovs_estatus_animal_lista() en la web). Se usa para los conteos del
+ * plan y para saber si el animal puede entrar como donador/donadora en
+ * los servicios reproductivos, así que no debe quedar fuera del alta.
+ */
+const ESTATUS_ANIMAL_POR_SEXO = {
+  1: [
+    { id: 1, nombre: 'Activo' },
+    { id: 4, nombre: 'Donadora activo' },
+    { id: 5, nombre: 'Donadora' },
+  ],
+  2: [
+    { id: 1, nombre: 'Activo' },
+    { id: 2, nombre: 'Donador activo' },
+    { id: 3, nombre: 'Donador' },
+  ],
+};
+
+async function poblarEstatusAnimalPorSexo() {
+  const campo = el('campo-estatus');
+  if (!campo) return;
+
+  const sexo = String((el('campo-sexo') && el('campo-sexo').value) || '1');
+  const opciones = ESTATUS_ANIMAL_POR_SEXO[sexo] || ESTATUS_ANIMAL_POR_SEXO[1];
+  const valorPrevio = Number(campo.value) || 1;
+
+  campo.innerHTML = opciones
+    .map((opcion) => '<option value="' + opcion.id + '">' + escaparHtml(opcion.nombre) + '</option>')
+    .join('');
+
+  // Se conserva el estatus si sigue siendo válido para el sexo elegido; si
+  // deja de serlo (ej. era Donadora y se cambió a macho) cae a Activo.
+  campo.value = opciones.some((opcion) => opcion.id === valorPrevio) ? String(valorPrevio) : '1';
+}
+
 async function poblarSelectAnimalesControlSanitario() {
   const animales = await Animales.listar();
   BuscadorAnimal.poblar('cs-animal', animales, 'Selecciona...');
@@ -4107,17 +4577,60 @@ async function poblarSelectAnimalesPesos() {
 
 async function poblarSelectAnimalesServicios() {
   const animales = await Animales.listar();
-  const hembras = animales.filter((animal) => String(animal.sexo) === '1' && Number(animal.mestatus_id ?? 1) === 1);
+  const parametros = (await Db.obtenerCatalogo('parametros_servicios')) || {};
+  // Edad mínima del macho: parámetro editable en la web
+  // (Parámetros → Períodos → "EDAD MINIMA DEL MACHO PARA SERVICIO").
+  // Antes la app no miraba la edad y dejaba elegir un becerro de 6 meses
+  // como toro de monta.
+  const edadMinimaMachoDias = Number(parametros.edad_minima_macho_dias) || 365;
+  const servicios = await Servicios.listar();
+
+  const hembrasActivas = animales.filter(
+    (animal) => String(animal.sexo) === '1' && esAnimalActivo(animal)
+  );
+
+  // Solo se ofrecen hembras que pueden recibir un servicio NUEVO: con la
+  // edad mínima cumplida y sin un ciclo abierto. Antes aparecían todas y el
+  // rechazo recién llegaba al guardar ("La hembra ya tiene un servicio
+  // activo…"), después de cargar todo el formulario.
+  const hembras = hembrasActivas.filter((animal) => {
+    const meses = mesesCompletosDesde(animal.f_nacimiento);
+    if (meses === null || meses < EDAD_MINIMA_HEMBRA_MESES) return false;
+    return !hembraTieneServicioAbierto(animal.codigo_rgb_id_animal, servicios);
+  });
+
   const tipoServicio = Number(el('servicios-tipo')?.value || 0);
-  let machos = animales.filter((animal) => String(animal.sexo) === '2' && Number(animal.mestatus_id ?? 1) === 1);
+  let machos = animales.filter((animal) => String(animal.sexo) === '2'
+    && esAnimalActivo(animal)
+    && edadAlcanzaMinimoMacho(animal, edadMinimaMachoDias));
   if (tipoServicio === 1) machos = machos.filter((animal) => Number(animal.estatus_animal) === 1);
   else if (tipoServicio === 2) machos = machos.filter((animal) => [2, 3].includes(Number(animal.estatus_animal)));
   else if (tipoServicio === 3) machos = [];
-  const donadoras = hembras.filter((animal) => [4, 5].includes(Number(animal.estatus_animal)));
+
+  // La donadora se insemina justamente para producir el embrión: su estado
+  // reproductivo no la inhabilita (igual criterio que la web).
+  const donadoras = hembrasActivas.filter((animal) => [4, 5].includes(Number(animal.estatus_animal)));
 
   poblarSelectAnimalesDesdeLista('servicios-hembra', hembras, 'Selecciona...');
   poblarSelectAnimalesDesdeLista('servicios-macho', machos, 'Selecciona...');
   poblarSelectAnimalesDesdeLista('servicios-dona', donadoras, 'Selecciona donadora...');
+}
+
+/** Edad mínima de la hembra para servicio (meses). Misma regla que la web. */
+const EDAD_MINIMA_HEMBRA_MESES = 12;
+
+/**
+ * ¿Esta hembra ya tiene un ciclo abierto? Misma regla que
+ * numeroServicioParaHembra(): un servicio sin cerrar, o uno creado en este
+ * equipo que todavía no subió. Una vez que el control quedó en Aborto (4) o
+ * Vacía (5) la hembra vuelve a estar disponible.
+ */
+function hembraTieneServicioAbierto(codigoHembra, servicios) {
+  if (!codigoHembra) return false;
+  return (servicios || []).some((servicio) => servicio.codigo_rgb_id_animal_hembra === codigoHembra
+    && (Number(servicio.estatus_ciclo) === 1
+      || (Number(servicio.version || 0) === 0 && servicio.estado_sync !== 'conflicto'))
+    && ![4, 5].includes(Number(servicio.medofisiologicos_id)));
 }
 
 function mesesCompletosDesde(valorFecha) {
@@ -4131,6 +4644,44 @@ function mesesCompletosDesde(valorFecha) {
   let meses = (hoy.getFullYear() - partes[0]) * 12 + hoy.getMonth() + 1 - partes[1];
   if (hoy.getDate() < partes[2]) meses--;
   return meses;
+}
+
+/**
+ * Días cumplidos desde la fecha de nacimiento. Se usa para comparar contra
+ * la edad mínima del macho, que se configura en DÍAS
+ * (Parámetros → Períodos → "EDAD MINIMA DEL MACHO PARA SERVICIO").
+ * Devuelve null cuando no hay fecha válida: en ese caso la edad no se puede
+ * comprobar y el animal NO se bloquea (hay toros históricos sin fecha).
+ */
+function diasDesdeNacimiento(valorFecha) {
+  const fechaTexto = typeof valorFecha === 'object' && valorFecha && valorFecha.date
+    ? valorFecha.date
+    : String(valorFecha || '').slice(0, 10);
+  const partes = fechaTexto.split('-').map(Number);
+  if (partes.length !== 3 || partes.some((parte) => !parte)) return null;
+
+  const nacimiento = new Date(partes[0], partes[1] - 1, partes[2]);
+  if (Number.isNaN(nacimiento.getTime())) return null;
+
+  const hoy = new Date();
+  const dias = Math.floor((hoy.getTime() - nacimiento.getTime()) / 86400000);
+  return dias > 0 ? dias : null;
+}
+
+/** Mismo valor en meses, para los mensajes al productor. */
+function mesesDesdeDias(dias) {
+  return Math.max(0, Math.floor(Number(dias || 0) / 30.4375));
+}
+
+/**
+ * ¿El macho alcanza la edad mínima? Sin fecha de nacimiento la edad no se
+ * puede comprobar, así que NO se descarta (hay toros y donadores históricos
+ * sin fecha; bloquearlos impediría registrar servicios válidos).
+ */
+function edadAlcanzaMinimoMacho(animal, edadMinimaDias) {
+  const dias = diasDesdeNacimiento(animal && animal.f_nacimiento);
+  if (dias === null) return true;
+  return dias >= Number(edadMinimaDias || 0);
 }
 
 function animalesPorCodigo(animales, codigo) {
@@ -4191,6 +4742,56 @@ function fechaProbablePalpacion(fechaServicio, dias) {
   const fecha = new Date(anio, mes - 1, dia);
   fecha.setDate(fecha.getDate() + dias);
   return [fecha.getFullYear(), String(fecha.getMonth() + 1).padStart(2, '0'), String(fecha.getDate()).padStart(2, '0')].join('-');
+}
+
+/**
+ * Fecha probable de parto = fecha de servicio + días de gestación del
+ * fundo (Parámetros → Períodos, código PGB).
+ *
+ * La web lo calcula igual al marcar a la hembra como gestante; en la app
+ * el campo quedaba vacío y obligaba a elegir la fecha en el calendario,
+ * que es justo el dato que el sistema ya puede deducir.
+ *
+ * Solo se completa si la hembra está GESTANTE y hay fecha de servicio.
+ * El campo sigue siendo editable: si el parto se adelantó o se atrasó,
+ * el productor puede corregirlo y no se vuelve a pisar.
+ */
+async function calcularFechaProbablePartoServicio(soloSiVacio = false) {
+  const campo = el('servicios-fecha-probable-parto');
+  if (!campo) return;
+
+  const ayuda = el('servicios-fecha-probable-parto-ayuda');
+  const estado = Number(el('servicios-estado-fisiologico').value);
+  const fechaServicio = el('servicios-fecha').value;
+  const parametros = (await Db.obtenerCatalogo('parametros_servicios')) || {};
+  const dias = Number(parametros.periodo_gestacion_dias);
+
+  // 1 = Gestante (ver mestadofisiologicos).
+  const gestante = estado === 1;
+  if (ayuda) ayuda.classList.toggle('oculto', !gestante);
+
+  if (!gestante) return;
+
+  if (!dias || dias < 1) {
+    if (ayuda) {
+      ayuda.textContent = 'No está descargado el período de gestación de este fundo: podés escribir la fecha a mano.';
+    }
+    return;
+  }
+  if (!fechaServicio) {
+    if (ayuda) ayuda.textContent = 'Indicá primero la fecha de servicio para calcular la fecha probable de parto.';
+    return;
+  }
+
+  const calculada = fechaProbablePalpacion(fechaServicio, dias);
+  if (!calculada) return;
+  if (soloSiVacio && campo.value) return;
+
+  campo.value = calculada;
+  if (ayuda) {
+    ayuda.textContent = 'Calculada con la fecha de servicio (' + formatearFecha(fechaServicio)
+      + ') más ' + dias + ' días de gestación. Podés cambiarla si el parto se adelantó o se atrasó.';
+  }
 }
 
 async function actualizarDatosDerivadosServicio() {
@@ -4261,6 +4862,19 @@ async function validarNuevoServicioOffline(datosFormulario) {
         : true;
     if (!esAnimalActivo(macho) || Number(macho.sexo) !== 2 || !estatusMachoValido) {
       return 'El macho no está activo o no cumple el estatus requerido para el tipo de servicio seleccionado.';
+    }
+
+    // Edad mínima del macho (parámetro de la web). Un becerro de 6 meses no
+    // está en condiciones de montar: se rechaza con el dato concreto para que
+    // el productor vea qué corregir.
+    const parametros = (await Db.obtenerCatalogo('parametros_servicios')) || {};
+    const edadMinimaDias = Number(parametros.edad_minima_macho_dias) || 365;
+    const diasMacho = diasDesdeNacimiento(macho.f_nacimiento);
+    if (diasMacho !== null && diasMacho < edadMinimaDias) {
+      const nombreMacho = macho.nombre ? ' · ' + macho.nombre : '';
+      return 'El macho ' + macho.codigo_rgb_id_animal + nombreMacho
+        + ' tiene ' + mesesDesdeDias(diasMacho) + ' meses y la edad mínima para servicio es de '
+        + mesesDesdeDias(edadMinimaDias) + ' meses. La edad mínima se ajusta en la web, en Parámetros → Períodos.';
     }
   }
 
@@ -4553,7 +5167,6 @@ async function alternarFormulario(mostrar) {
       el('form-animal').reset();
       el('form-animal-titulo').textContent = 'Nuevo animal';
       el('form-animal-codigo').classList.add('oculto');
-      el('grupo-fecha-nacimiento-animal').classList.toggle('oculto', !nacimientoParaFicharUuid);
       el('campo-arete').disabled = false;
     }
     await poblarSelectsCatalogos();
@@ -4563,7 +5176,6 @@ async function alternarFormulario(mostrar) {
     el('form-animal-titulo').textContent = 'Nuevo animal';
     el('form-animal-mensaje').textContent = '';
     el('form-animal-codigo').classList.add('oculto');
-    el('grupo-fecha-nacimiento-animal').classList.add('oculto');
     el('campo-codigo-ternero').value = '';
     el('campo-arete').disabled = false;
     restaurarFormularioASuLugar('form-animal-contenedor', 'form-animal-anchor');
@@ -4940,7 +5552,10 @@ async function alternarFormularioNacimientos(mostrar) {
       el('modal-nacimiento-slot').appendChild(el('form-nacimientos-contenedor'));
       overlay.classList.remove('oculto');
       document.body.classList.add('modal-nacimiento-abierto');
-      el('nacimientos-origen-tipo').focus();
+      // El formulario del parto es largo: siempre se abre desde arriba,
+      // con el título y el botón Cancelar a la vista.
+      overlay.scrollTop = 0;
+      el('nacimientos-origen-tipo').focus({ preventScroll: true });
     }
   } else {
     edicionNacimientosUuid = null;
@@ -4985,15 +5600,28 @@ function configurarBusquedaOrigenNacimiento() {
   el('nacimientos-busqueda-madre-grupo').classList.toggle('oculto', modoServicio || servicioSeleccionado);
   el('nacimientos-madre-servicio-resumen').classList.toggle('oculto', !servicioSeleccionado);
   el('nacimientos-cancelar-origen').classList.toggle('oculto', !servicioSeleccionado || modoEdicion);
-  el('nacimientos-datos-contenedor').classList.toggle('oculto', !servicioSeleccionado && !modoEdicion);
+  // Con servicio seleccionado, o cuando la madre no tiene servicio gestante
+  // (nacimientoSinServicio), se muestran los datos del parto.
+  el('nacimientos-datos-contenedor').classList.toggle(
+    'oculto',
+    !servicioSeleccionado && !modoEdicion && !nacimientoSinServicio
+  );
+}
+
+/** Muestra u oculta el aviso de que hace falta elegir el tipo de servicio. */
+function aplicarAvisoTipoServicio(requerido) {
+  const aviso = el('nacimientos-tipo-servicio-aviso');
+  if (aviso) aviso.classList.toggle('oculto', !requerido);
 }
 
 function limpiarDatosServicioNacimiento(limpiarMadre = true) {
   servicioOrigenNacimiento = null;
+  nacimientoSinServicio = false;
   if (limpiarMadre) BuscadorAnimal.seleccionar('nacimientos-hembra', '');
   BuscadorAnimal.seleccionar('nacimientos-macho', '');
   BuscadorAnimal.seleccionar('nacimientos-dona', '');
   el('nacimientos-tipo-servicio').value = '';
+  aplicarAvisoTipoServicio(false);
   el('nacimientos-madre-servicio-resumen').textContent = '';
   configurarBusquedaOrigenNacimiento();
 }
@@ -5003,10 +5631,13 @@ async function mostrarServicioEnNacimiento(servicio) {
     uuid_local: servicio.uuid_local,
     id: servicio.id || null,
   };
+  nacimientoSinServicio = false;
   BuscadorAnimal.seleccionar('nacimientos-hembra', servicio.codigo_rgb_id_animal_hembra || '');
   BuscadorAnimal.seleccionar('nacimientos-macho', servicio.codigo_rgb_id_animal_macho || '');
   BuscadorAnimal.seleccionar('nacimientos-dona', servicio.codigo_rgb_id_animal_dona || '');
   el('nacimientos-tipo-servicio').value = servicio.mservicios_id ? String(servicio.mservicios_id) : '';
+  // Servicio viejo sin tipo: el productor debe elegirlo (la web hace lo mismo).
+  aplicarAvisoTipoServicio(!servicio.mservicios_id);
   // La aptitud del servicio se propone en el primer ternero (la web
   // también la usa como valor inicial de la cría), pero se puede cambiar
   // por ternero.
@@ -5041,17 +5672,59 @@ async function mostrarServicioEnNacimiento(servicio) {
   configurarBusquedaOrigenNacimiento();
 }
 
-function servicioAptoParaNacimiento(servicio, animales) {
+/**
+ * Meses de gestación con los que se puede registrar un parto.
+ *
+ * Es la MISMA regla que aplica el servidor en
+ * validar_servicio_apto_para_nacimiento(): "El servicio debe tener entre
+ * siete y doce meses de gestación". Si la app deja elegir un servicio
+ * fuera de ese rango, el registro sube y el servidor lo rechaza siempre,
+ * que es justo el bucle que hay que evitar.
+ */
+const MESES_MIN_GESTACION = 7;
+const MESES_MAX_GESTACION = 12;
+
+/**
+ * Motivo por el que un servicio NO sirve como origen de un parto, o
+ * null si sirve.
+ *
+ * Replica la validación del servidor (y además comprueba la madre en el
+ * equipo) para que el productor no pueda elegir un servicio que después
+ * va a ser rechazado al sincronizar.
+ */
+function motivoServicioNoElegible(servicio, animales) {
+  if (Number(servicio.status ?? 1) !== 1) return 'El servicio está anulado.';
+  if (Number(servicio.estatus_ciclo ?? 1) !== 1) return 'El ciclo de ese servicio ya está cerrado.';
+  if (Number(servicio.estado_servicio ?? 1) === 2) return 'El ciclo de ese servicio ya está cerrado.';
+  if (Number(servicio.medofisiologicos_id) !== 1) {
+    return 'En ese servicio la hembra no quedó gestante (la palpación no se registró o dio negativa).';
+  }
+  if (Number(servicio.parto || 0) === 1) return 'Ese servicio ya tiene un parto registrado.';
+
+  const meses = mesesCompletosDesde(servicio.f_servicio);
+  if (meses === null || Number.isNaN(Number(meses))) {
+    return 'El servicio no tiene una fecha válida para calcular la gestación.';
+  }
+  if (meses < MESES_MIN_GESTACION || meses > MESES_MAX_GESTACION) {
+    return 'La gestación es de ' + meses + ' mes(es) y para registrar el parto debe estar entre '
+      + MESES_MIN_GESTACION + ' y ' + MESES_MAX_GESTACION + ' meses.';
+  }
+
   const madre = animalesPorCodigo(animales, servicio.codigo_rgb_id_animal_hembra);
-  return esAnimalActivo(madre)
-    && Number(madre.sexo) === 1
-    && Number(servicio.status ?? 1) === 1
-    && Number(servicio.estado_servicio ?? 1) !== 2
-    && Number(servicio.estatus_ciclo ?? 1) === 1
-    && Number(servicio.medofisiologicos_id) === 1
-    && Number(servicio.parto || 0) === 0
-    && mesesCompletosDesde(servicio.f_servicio) >= 7
-    && mesesCompletosDesde(servicio.f_servicio) <= 10;
+  if (!esAnimalActivo(madre)) return 'La madre no figura activa en este equipo.';
+  if (Number(madre.sexo) !== 1) return 'El animal del servicio no figura como hembra.';
+
+  return null;
+}
+
+function servicioAptoParaNacimiento(servicio, animales) {
+  return motivoServicioNoElegible(servicio, animales) === null;
+}
+
+/** ¿La gestación está dentro de la ventana en que se registra el parto? */
+function gestacionEnVentanaNacimiento(servicio) {
+  const meses = mesesCompletosDesde(servicio.f_servicio);
+  return meses >= MESES_MIN_GESTACION && meses <= MESES_MAX_GESTACION;
 }
 
 function servicioActivoMasRecienteNacimiento(servicios, codigoMadre) {
@@ -5066,27 +5739,43 @@ async function vincularServicioActivoDeMadre(codigoMadre) {
   if (!codigoMadre || edicionNacimientosUuid) return;
   const [servicios, animales] = await Promise.all([Servicios.listar(), Animales.listar()]);
   const servicio = servicioActivoMasRecienteNacimiento(servicios, codigoMadre);
-  if (servicio && servicioAptoParaNacimiento(servicio, animales)) {
+  const motivo = servicio ? motivoServicioNoElegible(servicio, animales) : null;
+
+  if (servicio && !motivo) {
     await mostrarServicioEnNacimiento(servicio);
     return;
   }
 
+  /* Sin servicio utilizable el parto se registra igual: la hembra pudo
+     llegar preñada de otro fundo, o el servicio no se cargó en el
+     equipo. Se deja la madre cargada, se pide el tipo de servicio y se
+     muestran los datos del parto. */
   limpiarDatosServicioNacimiento(false);
-  el('nacimientos-origen-mensaje').textContent = 'No hay un servicio gestante elegible entre los meses 7 y 10. No se puede registrar el nacimiento sin asociarlo a un servicio.';
+  nacimientoSinServicio = true;
+  aplicarAvisoTipoServicio(true);
+  el('nacimientos-origen-mensaje').textContent = servicio
+    ? 'El último servicio de esta hembra no se puede usar: ' + motivo + ' Puedes registrar el parto igual indicando el tipo de servicio.'
+    : 'Esta hembra no tiene un servicio registrado en este equipo. Puedes registrar el parto igual indicando el tipo de servicio.';
+  configurarBusquedaOrigenNacimiento();
 }
 
 async function poblarMadresCandidatasNacimiento() {
   const [animales, servicios] = await Promise.all([Animales.listar(), Servicios.listar()]);
-  const candidatas = animales.filter((madre) => {
-    if (!esAnimalActivo(madre) || Number(madre.sexo) !== 1) return false;
+  const servicioAptoDe = (madre) => {
     const servicioActivo = servicioActivoMasRecienteNacimiento(servicios, madre.codigo_rgb_id_animal);
     return !!servicioActivo && servicioAptoParaNacimiento(servicioActivo, animales);
-  });
+  };
+  const hembras = animales.filter((madre) => esAnimalActivo(madre) && Number(madre.sexo) === 1);
+  /* Primero las que tienen un servicio gestante elegible y después las demás:
+     una hembra pudo llegar preñada de otro fundo y aun así hay que registrar
+     el parto (ver vincularServicioActivoDeMadre). */
+  const candidatas = hembras.filter(servicioAptoDe)
+    .concat(hembras.filter((madre) => !servicioAptoDe(madre)));
   BuscadorAnimal.poblar('nacimientos-hembra', candidatas, 'Selecciona madre...');
   if (!candidatas.length) {
-    el('nacimientos-origen-mensaje').textContent = 'No hay madres con un servicio gestante elegible en este dispositivo. Sincroniza los servicios para actualizar la búsqueda.';
+    el('nacimientos-origen-mensaje').textContent = 'No hay hembras activas en este dispositivo. Sincroniza los animales para actualizar la búsqueda.';
   } else {
-    el('nacimientos-origen-mensaje').textContent = 'Selecciona una madre; se cargará su servicio gestante elegible.';
+    el('nacimientos-origen-mensaje').textContent = 'Selecciona una madre; se cargará su servicio gestante elegible si lo tiene.';
   }
 }
 
@@ -5097,43 +5786,84 @@ async function buscarServiciosParaNacimiento() {
   const servicios = await Servicios.listar();
   const animales = await Animales.listar();
   const indice = construirIndiceAnimales(animales);
-  const candidatas = servicios.filter((servicio) =>
-    servicioActivoMasRecienteNacimiento(servicios, servicio.codigo_rgb_id_animal_hembra)?.uuid_local === servicio.uuid_local
-      && servicioAptoParaNacimiento(servicio, animales)
-  );
-  const coincidentes = candidatas.filter((servicio) => {
-    const hembra = indice[servicio.codigo_rgb_id_animal_hembra];
-    const texto = [servicio.codigo_servicio, servicio.codigo_rgb_id_animal_hembra, hembra && hembra.nombre, hembra && hembra.nro_arete]
-      .filter(Boolean).join(' ').toLowerCase();
-    return !termino || texto.includes(termino);
-  }).slice(0, 12);
 
-  lista.innerHTML = '';
-  if (!coincidentes.length) {
-    const vacio = document.createElement('div');
-    vacio.className = 'buscador-animal__vacio';
-    vacio.textContent = 'No hay servicios que coincidan en este dispositivo. Puedes cambiar a búsqueda por madre.';
-    lista.appendChild(vacio);
-    lista.classList.remove('oculto');
-    return;
+  // Solo el servicio abierto más reciente de cada madre: un mismo animal
+  // no puede parir dos veces del mismo ciclo.
+  const candidatos = servicios.filter((servicio) =>
+    servicioActivoMasRecienteNacimiento(servicios, servicio.codigo_rgb_id_animal_hembra)?.uuid_local === servicio.uuid_local
+  );
+
+  const elegibles = [];
+  const descartados = [];
+  for (const servicio of candidatos) {
+    const motivo = motivoServicioNoElegible(servicio, animales);
+    const hembra = indice[servicio.codigo_rgb_id_animal_hembra];
+    const texto = [servicio.codigo_servicio, servicio.codigo_rgb_id_animal_hembra,
+      hembra && hembra.nombre, hembra && hembra.nro_arete]
+      .filter(Boolean).join(' ').toLowerCase();
+    if (termino && !texto.includes(termino)) continue;
+    (motivo ? descartados : elegibles).push({ servicio, motivo });
   }
 
-  for (const servicio of coincidentes) {
+  // Primero los servicios con más gestación (los más próximos al parto).
+  elegibles.sort((a, b) => String(a.servicio.f_servicio || '').localeCompare(String(b.servicio.f_servicio || '')));
+
+  lista.innerHTML = '';
+
+  const mostrar = elegibles.slice(0, 12);
+  for (const { servicio } of mostrar) {
+    const hembra = indice[servicio.codigo_rgb_id_animal_hembra];
+    const mesesGestacion = mesesCompletosDesde(servicio.f_servicio);
     const opcion = document.createElement('button');
     opcion.type = 'button';
     opcion.className = 'buscador-animal__item';
     opcion.dataset.servicioUuid = servicio.uuid_local;
-    const hembra = indice[servicio.codigo_rgb_id_animal_hembra];
-    const mesesGestacion = mesesCompletosDesde(servicio.f_servicio);
     opcion.innerHTML = '<span class="buscador-animal__codigo">'
       + escaparHtml((hembra && hembra.nombre) || 'Hembra sin nombre')
       + '</span><span class="buscador-animal__detalle">Código '
       + escaparHtml(servicio.codigo_rgb_id_animal_hembra || '—')
       + ' · Arete ' + escaparHtml((hembra && hembra.nro_arete) || '—')
-      + ' · Gestación ' + escaparHtml(String(mesesGestacion)) + ' meses</span>';
+      + ' · Servicio ' + escaparHtml(formatearFecha(servicio.f_servicio) || '—')
+      + ' · Gestación ' + escaparHtml(String(mesesGestacion)) + ' meses'
+      + '</span>';
     opcion.addEventListener('click', () => seleccionarServicioParaNacimiento(servicio.uuid_local));
     lista.appendChild(opcion);
   }
+
+  if (!mostrar.length) {
+    const vacio = document.createElement('div');
+    vacio.className = 'buscador-animal__vacio';
+    if (descartados.length) {
+      // Se explica POR QUÉ no aparece: antes solo decía "no hay servicios".
+      const motivo = descartados[0].motivo;
+      vacio.textContent = 'El servicio de esa hembra no se puede usar: ' + motivo
+        + ' Puedes registrar el parto cambiando a búsqueda por madre.';
+    } else if (termino) {
+      vacio.textContent = 'Ningún servicio coincide con "' + input.value.trim()
+        + '". Probá con el arete de la madre o cambiá a búsqueda por madre.';
+    } else if (servicios.length) {
+      vacio.textContent = 'Ninguna hembra tiene un servicio gestante de entre '
+        + MESES_MIN_GESTACION + ' y ' + MESES_MAX_GESTACION
+        + ' meses. Cambiá a búsqueda por madre para registrar el parto igual.';
+    } else {
+      vacio.textContent = 'Este equipo todavía no tiene servicios descargados. Cambiá a búsqueda por madre.';
+    }
+    lista.appendChild(vacio);
+    lista.classList.remove('oculto');
+    return;
+  }
+
+  // Si hay hembras con servicio pero descartado, se aclara debajo de la lista.
+  if (descartados.length) {
+    const nota = document.createElement('div');
+    nota.className = 'buscador-animal__vacio';
+    nota.textContent = descartados.length === 1
+      ? 'Otro servicio no se puede usar: ' + descartados[0].motivo
+      : descartados.length + ' servicios más no se pueden usar (ciclo cerrado, sin palpación positiva, fuera de los '
+        + MESES_MIN_GESTACION + '–' + MESES_MAX_GESTACION + ' meses de gestación, o con parto registrado).';
+    lista.appendChild(nota);
+  }
+
   lista.classList.remove('oculto');
 }
 
@@ -5280,6 +6010,7 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
 
   el('nacimientos-fecha-parto').value = comoFechaInput(registro.f_parto);
   el('nacimientos-tipo-servicio').value = registro.mtiposervicios_id ? String(registro.mtiposervicios_id) : '';
+  aplicarAvisoTipoServicio(!registro.mtiposervicios_id);
   el('nacimientos-nro-parto').value = registro.nro_parto ?? '';
   el('nacimientos-proposito').value = (function () {
     /* Compatibilidad: los registros viejos guardaban 1 = Lactancia. */
@@ -5287,6 +6018,9 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
     return String(guardado === 1 ? 2 : guardado);
   })();
   el('nacimientos-fecha-secado').value = comoFechaInput(registro.f_secado);
+  // Si entra en lactancia y el registro no tiene fecha de secado, se
+  // calcula con el período del fundo (no se pisa una fecha ya guardada).
+  await calcularFechaSecadoNacimiento(true);
   el('nacimientos-observaciones').value = registro.observaciones || '';
 
   // Terneros: se usa el detalle del parto si vino del servidor; si el
@@ -5393,6 +6127,8 @@ async function manejarFicharNacimiento() {
   el('campo-peso').value = nacimiento.peso_nacimiento || '';
   el('campo-observaciones').value = nacimiento.observaciones || '';
   el('campo-fecha-nacimiento').value = comoFechaInput(nacimiento.f_parto);
+  el('campo-estatus').value = '1';
+  el('campo-servicio').value = String(nacimiento.mtiposervicios_id || '');
   el('campo-codigo-ternero').value = nacimiento.codigo_ternero || '';
   el('form-animal-mensaje').textContent = 'Completa o confirma nombre, arete, raza y aptitud para crear la ficha.';
   snapshotsFormulario['form-animal'] = capturarSnapshotFormulario('form-animal');
@@ -5413,6 +6149,64 @@ async function manejarCancelarFormularioAnimal() {
   await alternarFormulario(false);
   mostrarTab('nacimientos');
   await abrirEdicionNacimiento(nacimientoUuid);
+}
+
+/**
+ * Fecha de secado del nacimiento = fecha de parto + período del fundo.
+ *
+ * "Entrar en lactancia = Sí" se guarda con propósito 2 (producción de
+ * leche) y el servidor usa el período PPL; el propósito 1 (registros
+ * viejos de "Lactancia") usa PBL. Antes el campo quedaba vacío y había
+ * que elegir la fecha en el calendario, aunque el dato se puede deducir
+ * con los mismos períodos que aplica el servidor.
+ */
+async function calcularFechaSecadoNacimiento(soloSiVacio = false) {
+  const campo = el('nacimientos-fecha-secado');
+  if (!campo) return;
+  const ayuda = el('nacimientos-fecha-secado-ayuda');
+
+  const proposito = Number(el('nacimientos-proposito').value);
+  const fechaParto = el('nacimientos-fecha-parto').value;
+  const parametros = (await Db.obtenerCatalogo('parametros_servicios')) || {};
+  const esLactancia = proposito === 1;
+  const dias = esLactancia
+    ? Number(parametros.periodo_lactancia_dias)
+    : Number(parametros.periodo_produccion_dias);
+  const nombrePeriodo = esLactancia ? 'lactancia (PBL)' : 'producción de leche (PPL)';
+
+  // Solo aplica cuando el ternero entra en lactancia o en producción.
+  if (![1, 2].includes(proposito)) {
+    if (ayuda) ayuda.classList.add('oculto');
+    return;
+  }
+
+  if (!dias || dias < 1) {
+    if (ayuda) {
+      ayuda.classList.remove('oculto');
+      ayuda.textContent = 'No está configurado el período de ' + nombrePeriodo
+        + ' del fundo: podés escribir la fecha de secado a mano.';
+    }
+    return;
+  }
+
+  if (!fechaParto) {
+    if (ayuda) {
+      ayuda.classList.remove('oculto');
+      ayuda.textContent = 'Indicá la fecha de parto para calcular la fecha de secado.';
+    }
+    return;
+  }
+
+  const calculada = fechaProbablePalpacion(fechaParto, dias);
+  if (!calculada) return;
+  if (soloSiVacio && campo.value) return;
+
+  campo.value = calculada;
+  if (ayuda) {
+    ayuda.classList.remove('oculto');
+    ayuda.textContent = 'Calculada con la fecha de parto (' + formatearFecha(fechaParto)
+      + ') más ' + dias + ' días del período de ' + nombrePeriodo + '. Podés cambiarla si hace falta.';
+  }
 }
 
 async function manejarGuardarNacimientos(evento) {
@@ -5470,8 +6264,13 @@ async function manejarGuardarNacimientos(evento) {
     return;
   }
 
-  if (!edicionNacimientosUuid && !servicioOrigenNacimiento) {
-    el('form-nacimientos-mensaje').textContent = 'Selecciona un servicio gestante válido para registrar el nacimiento.';
+  if (!edicionNacimientosUuid && !servicioOrigenNacimiento && !datosFormulario.mtiposervicios_id) {
+    el('form-nacimientos-mensaje').textContent = 'Selecciona el tipo de servicio: la hembra no tiene un servicio gestante asociado (pudo llegar preñada de otro fundo).';
+    return;
+  }
+
+  if (!datosFormulario.mtiposervicios_id) {
+    el('form-nacimientos-mensaje').textContent = 'Selecciona el tipo de servicio para registrar el parto.';
     return;
   }
 
@@ -5507,11 +6306,23 @@ async function abrirEdicionAnimal(uuidLocal, tarjetaEl) {
   el('campo-aptitud').value = String(registro.aptitud || '');
   el('campo-lote').value = registro.mlotes_id ? String(registro.mlotes_id) : '';
   el('campo-peso').value = registro.peso_nacimiento || '';
+  el('campo-alzada').value = registro.alza || '';
+  el('campo-rena').value = registro.rena || '';
+  el('campo-procedencia').value = registro.procedencia || '';
+  el('campo-madre-codigo').value = registro.rgd_madre || '';
+  el('campo-madre-nombre').value = registro.nombre_madre || '';
+  el('campo-padre-codigo').value = registro.rgd_padre || '';
+  el('campo-padre-nombre').value = registro.nombre_padre || '';
+  el('campo-fecha-nacimiento').value = comoFechaInput(registro.f_nacimiento);
+  el('campo-fecha-ingreso').value = comoFechaInput(registro.f_ingreso);
   el('campo-observaciones').value = registro.observaciones || '';
   el('form-animal-mensaje').textContent = '';
   await alternarFormulario(true);
+  el('campo-estatus').value = String(registro.estatus_animal || 1);
+  el('campo-servicio').value = registro.servicio ? String(registro.servicio) : '';
   el('campo-categoria-ingreso').value = registro.categoria_ingreso_id ? String(registro.categoria_ingreso_id) : '';
   el('campo-categoria-futura').value = registro.categoria_futura_id ? String(registro.categoria_futura_id) : '';
+  snapshotsFormulario['form-animal'] = capturarSnapshotFormulario('form-animal');
   el('form-animal-contenedor').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -5640,6 +6451,9 @@ async function abrirEdicionServicios(uuidLocal, tarjetaEl) {
   el('servicios-fecha-secado').value = comoFechaInput(registro.f_secado);
   alternarCamposPartoServicio();
   el('grupo-seguimiento-servicio').classList.remove('oculto');
+  // Si la hembra ya figura gestante y el registro todavía no tiene fecha
+  // probable de parto, se calcula (no se pisa un dato ya guardado).
+  await calcularFechaProbablePartoServicio(true);
 
   el('form-servicios-mensaje').textContent = '';
   alternarFormularioServicios(true);
@@ -5651,6 +6465,37 @@ function alternarCamposPartoServicio() {
   el('grupo-datos-parto-servicio').classList.toggle('oculto', !marcado);
 }
 
+/**
+ * Completa el nombre de la madre/padre cuando el código o arete escrito
+ * coincide con un animal del hato: ahorra teclearlo y deja el parentesco
+ * apuntando al código SOVCA real (mismo criterio que usa la web). Si el
+ * animal no está en el hato —comprado, de otra finca— se escribe el
+ * nombre a mano y se conserva tal cual.
+ */
+async function completarNombreProgenitor(idCodigo, idNombre) {
+  const campoCodigo = el(idCodigo);
+  const campoNombre = el(idNombre);
+  if (!campoCodigo || !campoNombre) return;
+
+  const buscado = campoCodigo.value.trim();
+  if (!buscado) return;
+
+  const objetivo = buscado.toUpperCase();
+  const animales = await Animales.listar();
+  const encontrado = animales.find((animal) => {
+    const codigo = String(animal.codigo_rgb_id_animal || '').trim().toUpperCase();
+    const arete = String(animal.nro_arete || '').trim().toUpperCase();
+    return codigo === objetivo || arete === objetivo;
+  });
+
+  if (!encontrado) return;
+
+  campoCodigo.value = encontrado.codigo_rgb_id_animal || buscado;
+  if (!campoNombre.value.trim() && encontrado.nombre) {
+    campoNombre.value = encontrado.nombre;
+  }
+}
+
 async function manejarGuardarAnimal(evento) {
   evento.preventDefault();
   const sesion = await Db.obtenerSesion();
@@ -5658,9 +6503,20 @@ async function manejarGuardarAnimal(evento) {
   const datosFormulario = {
     nombre: el('campo-nombre').value.trim(),
     sexo: el('campo-sexo').value,
-    nro_arete: el('campo-arete').value.trim(),
+    nro_arete: normalizarArete(el('campo-arete').value),
     aptitud: el('campo-aptitud').value,
     mrazas_id: el('campo-raza').value,
+    estatus_animal: el('campo-estatus').value,
+    servicio: el('campo-servicio').value,
+    f_nacimiento: el('campo-fecha-nacimiento').value || null,
+    f_ingreso: el('campo-fecha-ingreso').value || null,
+    rena: el('campo-rena').value.trim(),
+    alza: el('campo-alzada').value.trim(),
+    procedencia: el('campo-procedencia').value.trim(),
+    rgd_madre: el('campo-madre-codigo').value.trim(),
+    nombre_madre: el('campo-madre-nombre').value.trim(),
+    rgd_padre: el('campo-padre-codigo').value.trim(),
+    nombre_padre: el('campo-padre-nombre').value.trim(),
     mlotes_id: el('campo-lote').value || null,
     categoria_ingreso_id: el('campo-categoria-ingreso').value || null,
     categoria_futura_id: el('campo-categoria-futura').value || null,
@@ -5696,6 +6552,13 @@ async function manejarGuardarAnimal(evento) {
 
   if (!datosFormulario.nombre || !datosFormulario.nro_arete || !datosFormulario.aptitud || !datosFormulario.mrazas_id) {
     el('form-animal-mensaje').textContent = 'Completa al menos nombre, arete, aptitud y raza.';
+    return;
+  }
+
+  // Misma exigencia que la web: el tipo de servicio define si el animal
+  // puede entrar como reproductor en Servicios, así que no se deja vacío.
+  if (!datosFormulario.servicio) {
+    el('form-animal-mensaje').textContent = 'Selecciona el tipo de servicio del animal.';
     return;
   }
 
@@ -7198,7 +8061,11 @@ async function manejarGuardarServicios(evento) {
       return;
     }
     await Servicios.crear(sesion, datosFormulario);
-    mostrarToast('Servicio guardado');
+    // Se recuerda al productor la fecha probable de palpación: es el dato
+    // que después genera la notificación en el sistema.
+    mostrarToast(datosFormulario.f_probable_palpacion
+      ? 'Servicio guardado · palpación probable: ' + formatearFecha(datosFormulario.f_probable_palpacion)
+      : 'Servicio guardado');
   }
 
   alternarFormularioServicios(false);
@@ -7275,11 +8142,15 @@ function filtrarListaPorAnimal(idBuscador, idContenedor, idContador) {
   if (!buscador || !contenedor) return;
 
   const termino = buscador.value.trim().toLowerCase();
+  const terminoCompacto = termino.replace(/[^0-9a-zñü]+/g, '');
   const tarjetas = contenedor.querySelectorAll('.chapeta');
   let visibles = 0;
 
   tarjetas.forEach((tarjeta) => {
-    const coincide = !termino || (tarjeta.dataset.busqueda || '').includes(termino);
+    const busca = tarjeta.dataset.busqueda || '';
+    const coincide = !termino
+      || busca.includes(termino)
+      || (!!terminoCompacto && busca.replace(/[^0-9a-zñü]+/g, '').includes(terminoCompacto));
     tarjeta.classList.toggle('oculto', !coincide);
     if (coincide) visibles++;
   });
@@ -7827,6 +8698,10 @@ function mostrarTab(nombreTab) {
   // centra para que quede a la vista.
   desplazarPestanaActiva();
 
+  // El inicio resume pendientes y eventos: se recalcula cada vez que se
+  // entra, porque los datos cambian con lo que se registra en el campo.
+  if (nombreTab === 'inicio') renderizarPanelInicio();
+
   // Al cambiar de módulo se vuelve al inicio; antes quedabas a mitad de
   // la lista del módulo nuevo.
   try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch (e) { window.scrollTo(0, 0); }
@@ -7866,6 +8741,7 @@ function desplazarPestanaActiva() {
  * duplicar la lista.
  */
 const ORDEN_MODULOS = [
+  'inicio',
   'animales',
   'nacimientos',
   'servicios',
@@ -7906,6 +8782,8 @@ function prepararCabecerasModulos() {
     if (panel.querySelector('.panel__cabecera')) return;
 
     const modulo = panel.id.replace('panel-', '');
+    // El panel de inicio ya trae su propio encabezado (saludo y estado).
+    if (modulo === 'inicio') return;
     const tab = document.querySelector('.tab[data-tab="' + modulo + '"]');
     if (!tab) return;
 
@@ -7933,6 +8811,269 @@ function prepararCabecerasModulos() {
     cabecera.appendChild(cajaIcono);
     cabecera.appendChild(titulo);
     panel.insertBefore(cabecera, panel.firstChild);
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Panel de INICIO: accesos directos y tareas pendientes             */
+/* ---------------------------------------------------------------- */
+
+/** Módulos que aparecen como acceso directo en el inicio. */
+const ACCESOS_INICIO = [
+  'animales', 'nacimientos', 'servicios', 'control_sanitario',
+  'produccion_leche', 'pesos', 'movimiento_rebano', 'desincorporacion', 'reportes',
+];
+
+/**
+ * Íconos del tablero de inicio.
+ *
+ * Los de la tira de pestañas tienen proporciones distintas entre sí
+ * (40×32, 48×32, 24×24) y, al llevarlos a la grilla, se deformaban y no
+ * se entendía qué módulo representaban. Acá va un juego propio, todo en
+ * 24×24, con un dibujo que alude a la tarea de cada módulo.
+ */
+const ICONOS_INICIO = {
+  // Cabeza de vacuno: orejas, ojos y hocico.
+  animales: '<circle cx="12" cy="13.2" r="5.6"/>'
+    + '<path d="M6.6 6.2c.6 2 1.9 3.2 3.5 3.4"/><path d="M17.4 6.2c-.6 2-1.9 3.2-3.5 3.4"/>'
+    + '<circle cx="10" cy="12.2" r=".9" fill="currentColor" stroke="none"/>'
+    + '<circle cx="14" cy="12.2" r=".9" fill="currentColor" stroke="none"/>'
+    + '<path d="M10.3 16h3.4"/>',
+  // Madre con la cría al lado: parto / nacimiento.
+  nacimientos: '<circle cx="9.2" cy="12.4" r="4.8"/>'
+    + '<path d="M5.3 6.8c.6 1.7 1.8 2.7 3.1 2.8"/><path d="M13.1 6.8c-.6 1.7-1.8 2.7-3.1 2.8"/>'
+    + '<circle cx="7.6" cy="11.5" r=".8" fill="currentColor" stroke="none"/>'
+    + '<circle cx="10.8" cy="11.5" r=".8" fill="currentColor" stroke="none"/>'
+    + '<path d="M8.2 14.7h2"/>'
+    + '<circle cx="17.7" cy="17" r="3"/>'
+    + '<circle cx="16.5" cy="16.3" r=".65" fill="currentColor" stroke="none"/>'
+    + '<circle cx="18.9" cy="16.3" r=".65" fill="currentColor" stroke="none"/>',
+  // Corazón: servicio reproductivo / gestación.
+  servicios: '<path d="M12 20.2c-1.6-1-6.6-4.3-6.6-8.6A3.7 3.7 0 0 1 12 8.8a3.7 3.7 0 0 1 6.6 2.8c0 4.3-5 7.6-6.6 8.6z"/>'
+    + '<path d="M9.3 12.1h1.6l.9-1.6 1.1 3.1.8-1.5h1.6"/>',
+  // Frasco de medicamento con cruz: aplicación sanitaria.
+  control_sanitario: '<path d="M9.8 3.4h4.4"/><path d="M10.6 3.4v2.9h2.8V3.4"/>'
+    + '<path d="M8.5 6.3h7a1.6 1.6 0 0 1 1.6 1.6v9.8a2.8 2.8 0 0 1-2.8 2.8h-4.6a2.8 2.8 0 0 1-2.8-2.8V7.9a1.6 1.6 0 0 1 1.6-1.6z"/>'
+    + '<path d="M12 10.4v5.4"/><path d="M9.3 13.1h5.4"/>',
+  // Tarro de leche con asa.
+  produccion_leche: '<path d="M9.8 3.2h4.4"/>'
+    + '<path d="M10.3 3.2c0 1.4-.4 2.1-.9 2.9-.5.9-.9 1.5-.9 2.9v9.1c0 1.3 1 2.3 2.3 2.3h2.4c1.3 0 2.3-1 2.3-2.3V9c0-1.4-.4-2-.9-2.9-.5-.8-.9-1.5-.9-2.9"/>'
+    + '<path d="M8.6 12.2h7.2"/>',
+  // Balanza de platillos: pesaje.
+  pesos: '<path d="M12 4.8v14.8"/><path d="M6.8 19.6h10.4"/><path d="M4.6 8.2h14.8"/>'
+    + '<path d="M4.6 8.2 2.6 13.1a2.3 2.3 0 0 0 4.4 0z"/>'
+    + '<path d="M19.4 8.2l2 4.9a2.3 2.3 0 0 1-4.4 0z"/>'
+    + '<circle cx="12" cy="4.8" r="1.1"/>',
+  // Flechas opuestas: traslado del rebaño entre potreros.
+  movimiento_rebano: '<path d="M4.2 8.6h12.6"/><path d="M13.9 5.7l2.9 2.9-2.9 2.9"/>'
+    + '<path d="M19.8 15.4H7.2"/><path d="M10.1 12.5l-2.9 2.9 2.9 2.9"/>',
+  // Ficha con una X: animal que sale del hato (baja).
+  desincorporacion: '<path d="M14 3.8H6.6c-.9 0-1.6.7-1.6 1.6v13.2c0 .9.7 1.6 1.6 1.6h10.8c.9 0 1.6-.7 1.6-1.6v-7.4"/>'
+    + '<path d="M14.7 4l5.3 5.3"/><path d="M9.6 12.6l5 5"/><path d="M14.6 12.6l-5 5"/>',
+  // Barras: reportes.
+  reportes: '<path d="M3.8 20.2h16.4"/><path d="M6.9 20.2v-6.4"/>'
+    + '<path d="M12 20.2V7.6"/><path d="M17.1 20.2v-4.2"/>',
+};
+
+/** Días de anticipación con que se avisa una palpación o un parto. */
+const DIAS_AVISO_PALPACION = 15;
+const DIAS_AVISO_PARTO = 30;
+
+/** Cuenta cuántos días faltan (negativo si ya pasó) para una fecha. */
+function diasHastaFecha(valorFecha) {
+  const fecha = comoFechaInput(valorFecha);
+  if (!fecha) return null;
+  const marca = Date.parse(fecha + 'T00:00:00');
+  if (!Number.isFinite(marca)) return null;
+  const hoy = new Date();
+  const arranqueHoy = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return Math.round((marca - arranqueHoy) / 86400000);
+}
+
+/**
+ * Tareas y avisos que el equipo puede calcular sin conexión: registros
+ * sin subir, palpaciones y partos próximos. Es lo que el productor
+ * necesita ver al abrir la app en el campo.
+ */
+async function tareasDelInicio() {
+  const tareas = [];
+
+  // 1. Sincronización: lo que está atascado manda.
+  let outbox = [];
+  try {
+    outbox = await Db.obtenerTodos('outbox');
+  } catch (e) {
+    outbox = [];
+  }
+  const bloqueados = outbox.filter((item) => item && item.bloqueado === true).length;
+  const porSubir = outbox.length;
+
+  if (bloqueados > 0) {
+    tareas.push({
+      tipo: 'urgente',
+      icono: '⚠',
+      texto: bloqueados === 1
+        ? '1 registro necesita tu revisión'
+        : bloqueados + ' registros necesitan tu revisión',
+      detalle: 'El servidor los rechazó varias veces. Toca el estado de sincronización (arriba) para ver el motivo.',
+    });
+  }
+  if (porSubir > 0 && bloqueados !== porSubir) {
+    tareas.push({
+      tipo: 'aviso',
+      icono: '↻',
+      texto: porSubir === 1 ? '1 registro esperando para subir' : porSubir + ' registros esperando para subir',
+      detalle: navigator.onLine
+        ? 'Se envían solos en la próxima sincronización.'
+        : 'Se enviarán solos cuando vuelva la señal.',
+    });
+  }
+
+  // 2. Eventos reproductivos próximos, calculados con los datos del equipo.
+  let servicios = [];
+  let animales = [];
+  try {
+    [servicios, animales] = await Promise.all([Servicios.listar(), Animales.listar()]);
+  } catch (e) {
+    servicios = [];
+    animales = [];
+  }
+
+  const nombreHembra = (codigo) => {
+    const hembra = animalesPorCodigo(animales, codigo);
+    return (hembra && hembra.nombre) || codigo || 'Hembra';
+  };
+
+  const abiertos = servicios.filter((servicio) =>
+    Number(servicio.status ?? 1) === 1
+    && Number(servicio.estatus_ciclo ?? 1) === 1
+    && Number(servicio.estado_servicio ?? 1) !== 2
+    && Number(servicio.parto || 0) === 0);
+
+  for (const servicio of abiertos) {
+    const diasPalpacion = diasHastaFecha(servicio.f_probable_palpacion);
+    if (diasPalpacion !== null && diasPalpacion >= -3 && diasPalpacion <= DIAS_AVISO_PALPACION
+      && ![1, 4, 5].includes(Number(servicio.medofisiologicos_id))) {
+      tareas.push({
+        tipo: diasPalpacion < 0 ? 'urgente' : 'aviso',
+        icono: '🔍',
+        texto: 'Palpación de ' + nombreHembra(servicio.codigo_rgb_id_animal_hembra),
+        detalle: (diasPalpacion < 0
+          ? 'Estaba prevista para el ' + formatearFecha(servicio.f_probable_palpacion) + ' (hace ' + Math.abs(diasPalpacion) + ' días).'
+          : (diasPalpacion === 0
+            ? 'Es hoy (' + formatearFecha(servicio.f_probable_palpacion) + ').'
+            : 'Faltan ' + diasPalpacion + ' días (' + formatearFecha(servicio.f_probable_palpacion) + ').')),
+        modulo: 'servicios',
+      });
+    }
+
+    const diasParto = diasHastaFecha(servicio.f_probable_parto);
+    if (diasParto !== null && diasParto >= -7 && diasParto <= DIAS_AVISO_PARTO) {
+      tareas.push({
+        tipo: diasParto < 0 ? 'urgente' : 'aviso',
+        icono: '🐄',
+        texto: 'Parto probable de ' + nombreHembra(servicio.codigo_rgb_id_animal_hembra),
+        detalle: (diasParto < 0
+          ? 'Estaba previsto para el ' + formatearFecha(servicio.f_probable_parto) + ' (hace ' + Math.abs(diasParto) + ' días). Registra el nacimiento.'
+          : (diasParto === 0
+            ? 'Es hoy (' + formatearFecha(servicio.f_probable_parto) + ').'
+            : 'Faltan ' + diasParto + ' días (' + formatearFecha(servicio.f_probable_parto) + ').')),
+        modulo: 'nacimientos',
+      });
+    }
+  }
+
+  // Primero lo urgente, después los avisos.
+  const peso = { urgente: 0, aviso: 1 };
+  tareas.sort((a, b) => (peso[a.tipo] ?? 2) - (peso[b.tipo] ?? 2));
+  return tareas.slice(0, 6);
+}
+
+/** Dibuja el panel de inicio con los accesos directos y las tareas. */
+async function renderizarPanelInicio() {
+  const contenedor = el('inicio-contenido');
+  if (!contenedor) return;
+
+  const usuario = el('etiqueta-usuario');
+  const fundo = el('fundo-activo');
+  const sesion = await Db.obtenerSesion().catch(() => null);
+  const nombreUsuario = (sesion && (sesion.nombre || sesion.usuario)) || (usuario ? usuario.textContent.trim() : '');
+  const nombreFundo = fundo && !fundo.classList.contains('oculto') ? fundo.textContent.trim() : '';
+
+  let outbox = [];
+  try {
+    outbox = await Db.obtenerTodos('outbox');
+  } catch (e) {
+    outbox = [];
+  }
+  const pendientesPorModulo = {};
+  for (const item of outbox) {
+    const modulo = item.modulo || 'animales';
+    pendientesPorModulo[modulo] = (pendientesPorModulo[modulo] || 0) + 1;
+  }
+
+  const tareas = await tareasDelInicio();
+
+  const html = [];
+
+  html.push('<div class="inicio-saludo">'
+    + '<p class="inicio-saludo__titulo">' + escaparHtml(nombreUsuario ? 'Hola, ' + nombreUsuario : 'SOVCA Offline') + '</p>'
+    + '<p class="inicio-saludo__texto">'
+    + (nombreFundo ? 'Fundo ' + escaparHtml(nombreFundo) + ' · ' : '')
+    + 'Elegí un módulo para registrar el trabajo del día.'
+    + '</p>'
+    + '</div>');
+
+  // Tareas pendientes (lo que el productor debe atender hoy).
+  html.push('<section class="inicio-seccion">');
+  html.push('<p class="inicio-seccion__titulo">Pendientes y avisos</p>');
+  if (!tareas.length) {
+    html.push('<p class="inicio-vacio">No hay tareas pendientes ni eventos próximos. Todo al día.</p>');
+  } else {
+    html.push('<div class="inicio-tareas">');
+    tareas.forEach((tarea, indice) => {
+      html.push('<div class="inicio-tarea inicio-tarea--' + escaparHtml(tarea.tipo) + '">'
+        + '<span class="inicio-tarea__icono" aria-hidden="true">' + escaparHtml(tarea.icono) + '</span>'
+        + '<span class="inicio-tarea__texto">' + escaparHtml(tarea.texto)
+        + '<span class="inicio-tarea__detalle">' + escaparHtml(tarea.detalle) + '</span></span>'
+        + (tarea.modulo
+          ? '<button type="button" class="inicio-tarea__accion" data-inicio-ir="' + escaparHtml(tarea.modulo) + '" data-inicio-tarea="' + indice + '">Ir</button>'
+          : '')
+        + '</div>');
+    });
+    html.push('</div>');
+  }
+  html.push('</section>');
+
+  // Accesos directos a los módulos (los mismos de la tira de pestañas).
+  html.push('<section class="inicio-seccion">');
+  html.push('<p class="inicio-seccion__titulo">Módulos</p>');
+  html.push('<div class="inicio-accesos">');
+  for (const modulo of ACCESOS_INICIO) {
+    const tab = document.querySelector('.tab[data-tab="' + modulo + '"]');
+    const nombre = tab ? tab.querySelector('.tab__texto').textContent.trim() : modulo;
+    const pendientes = pendientesPorModulo[modulo] || 0;
+    // Ícono propio del inicio (24×24). Si faltara, se usa el de la
+    // pestaña como respaldo para no dejar el hueco.
+    const propio = ICONOS_INICIO[modulo];
+    const icono = propio
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + propio + '</svg>'
+      : (tab && tab.querySelector('.tab__icono') ? tab.querySelector('.tab__icono').innerHTML : '');
+    html.push('<button type="button" class="inicio-acceso" data-inicio-ir="' + escaparHtml(modulo) + '">'
+      + '<span class="inicio-acceso__icono" aria-hidden="true">' + icono + '</span>'
+      + '<span>' + escaparHtml(nombre) + '</span>'
+      + (pendientes ? '<span class="inicio-acceso__contador">' + pendientes + '</span>' : '')
+      + '</button>');
+  }
+  html.push('</div>');
+  html.push('</section>');
+
+  contenedor.innerHTML = html.join('');
+
+  contenedor.querySelectorAll('[data-inicio-ir]').forEach((boton) => {
+    boton.addEventListener('click', () => {
+      mostrarTab(boton.dataset.inicioIr);
+    });
   });
 }
 
@@ -8054,9 +9195,20 @@ async function manejarEventoSync(detalle) {
     const modulosConError = Array.isArray(detalle.modulos_con_error) ? detalle.modulos_con_error : [];
     if (modulosConError.length) {
       const resumenModulos = modulosConError
-        .map((m) => m.modulo + ' (' + m.fase + ')')
+        .map((m) => (m.fase === 'fundo'
+          ? 'fundo ' + m.modulo
+          : m.modulo + ' (' + m.fase + ')'))
         .join(', ');
-      partes.push('falló: ' + resumenModulos);
+      // Se agrega el motivo que devolvió el servidor: sin él, un fallo de
+      // sincronización es indistinguible (dispositivo desvinculado, fundo
+      // sin permiso, error de base de datos…) y solo se veía "falló:
+      // animales (pull)". Si todos los módulos fallan por lo mismo se
+      // muestra ese motivo una sola vez.
+      const motivos = [...new Set(
+        modulosConError.map((m) => String(m.mensaje || '').trim()).filter(Boolean)
+      )];
+      const motivo = motivos.length === 1 ? ' — ' + motivos[0] : '';
+      partes.push('falló: ' + resumenModulos + motivo);
     }
     if (!partes.length && detalle.errores) {
       partes.push(detalle.errores + ' con error');
@@ -8088,6 +9240,11 @@ async function manejarEventoSync(detalle) {
     // Sí hubo movimiento: se informa y se repintan las listas con los
     // datos nuevos.
     escribirEstado('Sincronizado: ' + partes.join(', ') + '.');
+
+    // El selector de fundo se vuelve a pintar porque la sincronización
+    // puede haber marcado un fundo como "sin acceso" (o haberlo
+    // rehabilitado) y eso se refleja en el desplegable.
+    await pintarSelectorFundo();
 
     const sesionActual = await Db.obtenerSesion();
     if (sesionActual && sesionActual.usuario_login) {
@@ -8178,16 +9335,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const botonCerrarSync = el('popover-sync-cerrar');
   if (botonCerrarSync) botonCerrarSync.addEventListener('click', cerrarPopoverSync);
-  el('etiqueta-version-frontend').addEventListener('click', () => {
-    // Si hay una versión nueva esperando, tocar la versión reabre el
-    // aviso accionable en vez de la ficha informativa.
-    if (_versionNuevaDisponible) {
-      _omitirAvisoDeVersion = null;
-      mostrarAvisoActualizacion();
-      return;
-    }
-    mostrarInfoVersion();
-  });
+  const badgeVersion = el('etiqueta-version-frontend');
+  if (badgeVersion) {
+    // Mismo camino para mouse y teclado: la etiqueta es un botón
+    // (role=button) que abre el detalle de la versión instalada.
+    const abrirDetalleVersion = () => {
+      // Si hay una versión nueva esperando, tocar la versión reabre el
+      // aviso accionable en vez de la ficha informativa.
+      if (_versionNuevaDisponible) {
+        _omitirAvisoDeVersion = null;
+        mostrarAvisoActualizacion();
+        return;
+      }
+      mostrarInfoVersion();
+    };
+
+    badgeVersion.addEventListener('click', abrirDetalleVersion);
+    badgeVersion.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Enter' || evento.key === ' ') {
+        evento.preventDefault();
+        abrirDetalleVersion();
+      }
+    });
+  }
 
   // Aviso de versión nueva: actualizar o posponer.
   const botonActualizar = el('boton-actualizar-app');
@@ -8214,7 +9384,10 @@ document.addEventListener('DOMContentLoaded', () => {
     edicionAnimalUuid = null;
     alternarFormulario(true);
   });
-  el('campo-sexo').addEventListener('change', () => poblarSelectsCategoriaPorSexo());
+  el('campo-sexo').addEventListener('change', () => {
+    poblarSelectsCategoriaPorSexo();
+    poblarEstatusAnimalPorSexo();
+  });
 
   if (el('buscador-animales')) {
     let temporizadorBusqueda = null;
@@ -8226,10 +9399,17 @@ document.addEventListener('DOMContentLoaded', () => {
   el('boton-cancelar-form').addEventListener('click', manejarCancelarFormularioAnimal);  el('form-animal').addEventListener('submit', conGuardiaDeEnvio('form-animal', manejarGuardarAnimal));
   el('campo-arete').addEventListener('input', programarValidacionLocalArete);
   el('campo-arete').addEventListener('blur', () => {
+    /* Formato canónico (mayúsculas, guiones, máx. 15) antes de validar. */
+    el('campo-arete').value = normalizarArete(el('campo-arete').value);
     clearTimeout(temporizadorValidacionArete);
     validarAreteIngresado();
   });
-  el('campo-sexo').addEventListener('change', poblarSelectsCategoriaPorSexo);
+  el('campo-sexo').addEventListener('change', () => {
+    poblarSelectsCategoriaPorSexo();
+    poblarEstatusAnimalPorSexo();
+  });
+  el('campo-madre-codigo')?.addEventListener('blur', () => completarNombreProgenitor('campo-madre-codigo', 'campo-madre-nombre'));
+  el('campo-padre-codigo')?.addEventListener('blur', () => completarNombreProgenitor('campo-padre-codigo', 'campo-padre-nombre'));
 
   [
     ['buscador-control-sanitario', 'lista-control-sanitario', 'buscador-control-sanitario-contador'],
@@ -8336,7 +9516,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   el('servicios-fecha').max = new Date().toISOString().slice(0, 10);
-  el('servicios-fecha').addEventListener('change', calcularFechaProbablePalpacionServicio);
+  el('servicios-fecha').addEventListener('change', async () => {
+    await calcularFechaProbablePalpacionServicio();
+    // La fecha probable de parto depende de la fecha de servicio: si el
+    // productor la corrige, se recalcula sola.
+    await calcularFechaProbablePartoServicio();
+  });
+  // Al indicar que la hembra está gestante, la fecha probable de parto se
+  // completa con servicio + gestación (antes había que elegirla a mano).
+  el('servicios-estado-fisiologico').addEventListener('change', () => {
+    calcularFechaProbablePartoServicio();
+  });
   window.addEventListener('bovs:animal_seleccionado', (evento) => {
     if (evento.detail && evento.detail.idBase === 'servicios-hembra'
       && !edicionServiciosUuid
@@ -8361,6 +9551,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('keydown', manejarEscapeModalNacimiento);
   el('nacimientos-origen-tipo').addEventListener('change', cambiarModoBusquedaNacimiento);
+  // Fecha de secado automática: se recalcula al elegir el propósito
+  // (entrar en lactancia) y al cambiar la fecha de parto.
+  el('nacimientos-proposito').addEventListener('change', () => {
+    calcularFechaSecadoNacimiento();
+  });
+  el('nacimientos-fecha-parto').addEventListener('change', () => {
+    calcularFechaSecadoNacimiento();
+  });
   el('nacimientos-servicio-buscar').addEventListener('input', buscarServiciosParaNacimiento);
   el('nacimientos-servicio-buscar').addEventListener('focus', buscarServiciosParaNacimiento);
   el('nacimientos-servicio-buscar').addEventListener('keydown', (evento) => {

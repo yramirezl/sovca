@@ -5,3 +5,10 @@
 # Configuración local de la base de datos de cada servidor.
 # En el servidor se crea desde config/db.local.example.php.
 config/db.local.php
+
+# Configuración local de la firma digital (clave HMAC y URL pública).
+# En el servidor se crea desde lib/firma.local.example.php.
+lib/firma.local.php
+
+# Respaldos locales con datos de producción.
+file/sovca_espejo.sql

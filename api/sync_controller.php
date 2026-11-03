@@ -32,6 +32,7 @@
 require_once __DIR__ . '/config/bootstrap.php';
 require_once __DIR__ . '/lib/SyncModulos.php';
 require_once __DIR__ . '/../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/arete_helper.php';
 require_once __DIR__ . '/../models/Musuario.php';
 require_once __DIR__ . '/../models/Vusuario.php';
 require_once __DIR__ . '/../models/MregnacimientoSync.php';
@@ -57,22 +58,35 @@ $input = leer_json_input();
 $action = $input['action'] ?? null;
 $usuario = \Api\ApiAuth::requerirAutenticacion($input);
 
-switch ($action) {
+// RESUMEN DE SINCRONIZACIONES: se abre el registro antes de atender la
+// acción. La fila se escribe en el shutdown, así también quedan anotados
+// los rechazos (403/422/500) que cortan la respuesta con ApiResponse.
+require_once __DIR__ . '/lib/SyncLogger.php';
+\Api\SyncLogger::iniciar($input, $usuario);
 
-    case 'pull':
-        accion_pull($input, $usuario);
-        break;
+try {
+    switch ($action) {
 
-    case 'push':
-        accion_push($input, $usuario);
-        break;
+        case 'pull':
+            accion_pull($input, $usuario);
+            break;
 
-    case 'subir_foto':
-        accion_subir_foto($input, $usuario);
-        break;
+        case 'push':
+            accion_push($input, $usuario);
+            break;
 
-    default:
-        \Api\ApiResponse::error('Acción no reconocida.', 404);
+        case 'subir_foto':
+            accion_subir_foto($input, $usuario);
+            break;
+
+        default:
+            \Api\ApiResponse::error('Acción no reconocida.', 404);
+    }
+} catch (\Throwable $e) {
+    // Se anota el mensaje REAL antes de que el manejador global lo
+    // convierta en el genérico "Error interno del servidor.".
+    \Api\SyncLogger::falloPeticion('Error interno: ' . $e->getMessage(), 500);
+    throw $e;
 }
 
 // ===========================================================================
@@ -171,6 +185,18 @@ function accion_pull(array $input, array $usuario): void
         }
     }
 
+    // RESUMEN DE SINCRONIZACIONES: un pull vacío es la revisión periódica
+    // normal y no se registra (ver SyncLogger::volcar); uno que trae datos
+    // deja constancia de qué módulo y cuántos registros bajaron.
+    \Api\SyncLogger::anotar([
+        'accion'  => 'pull',
+        'modulo'  => $modulo,
+        'total'   => count($filas),
+        'exitos'  => count($filas),
+        'mensaje' => 'Descarga de ' . \Api\SyncLogger::etiquetaModulo($modulo)
+                   . ': ' . count($filas) . ' registro(s)',
+    ]);
+
     \Api\ApiResponse::ok([
         'modulo' => $modulo,
         'fundo_id' => (int) $usuario['fundo_id'],
@@ -212,11 +238,103 @@ function accion_push(array $input, array $usuario): void
         $resultados[] = procesar_cambio($cambio, $config, $modeloClase, $usuario);
     }
 
+    // RESUMEN DE SINCRONIZACIONES: se cuentan los resultados del lote y se
+    // guarda el detalle de lo que no entró (registro + motivo), que es lo
+    // que la pantalla web muestra como "dónde falló".
+    $exitos = 0;
+    $conflictos = 0;
+    $errores = 0;
+    foreach ($resultados as $indice => $resultado) {
+        $tipo = isset($resultado['resultado']) ? $resultado['resultado'] : 'error';
+
+        if ($tipo === 'conflicto') {
+            $conflictos++;
+        } elseif ($tipo === 'error') {
+            $errores++;
+        } else {
+            $exitos++;
+        }
+
+        if ($tipo === 'conflicto' || $tipo === 'error') {
+            $cambioOrigen = isset($cambios[$indice]) ? $cambios[$indice] : [];
+            \Api\SyncLogger::itemFallido([
+                'tipo'       => $tipo,
+                'modulo'     => $modulo,
+                'referencia' => referencia_cambio($cambioOrigen, $modulo),
+                'uuid_local' => isset($resultado['uuid_local']) ? $resultado['uuid_local'] : null,
+                'mensaje'    => isset($resultado['mensaje']) ? $resultado['mensaje']
+                                : ($tipo === 'conflicto' ? 'Conflicto de versión: el registro cambió en el servidor.' : ''),
+                'codigo'     => isset($resultado['tipo']) ? $resultado['tipo'] : '',
+            ]);
+        }
+    }
+
+    $mensajeResumen = 'Envío de ' . \Api\SyncLogger::etiquetaModulo($modulo)
+        . ': ' . $exitos . ' de ' . count($cambios) . ' registro(s)';
+    if ($conflictos > 0) {
+        $mensajeResumen .= ' · ' . $conflictos . ' en conflicto';
+    }
+    if ($errores > 0) {
+        $mensajeResumen .= ' · ' . $errores . ' rechazado(s)';
+    }
+
+    \Api\SyncLogger::anotar([
+        'accion'      => 'push',
+        'modulo'      => $modulo,
+        'total'       => count($cambios),
+        'exitos'      => $exitos,
+        'conflictos'  => $conflictos,
+        'errores'     => $errores,
+        'mensaje'     => $mensajeResumen,
+    ]);
+
     \Api\ApiResponse::ok([
         'modulo' => $modulo,
         'fundo_id' => (int) $usuario['fundo_id'],
         'resultados' => $resultados,
     ]);
+}
+
+/**
+ * Arma una etiqueta corta para identificar el registro que falló dentro
+ * del resumen de sincronizaciones: código del animal, código del
+ * servicio, fecha del pesaje, etc. Sin esto, el administrador solo vería
+ * un UUID y no sabría QUÉ registro rechazó el servidor.
+ */
+function referencia_cambio(array $cambio, string $modulo): string
+{
+    $datos = isset($cambio['datos']) && is_array($cambio['datos']) ? $cambio['datos'] : array();
+
+    $claves = array(
+        'codigo_rgb_id_animal',
+        'codigo_rgb_id_animal_hembra',
+        'codigo_servicio',
+        'codigo_lote',
+        'codigo',
+        'nro_arete',
+        'nombre',
+    );
+
+    foreach ($claves as $clave) {
+        if (!empty($datos[$clave]) && is_scalar($datos[$clave])) {
+            return \Api\SyncLogger::etiquetaModulo($modulo) . ' · ' . (string) $datos[$clave];
+        }
+    }
+
+    if (!empty($datos['animales']) && is_array($datos['animales'])) {
+        $animales = array_slice(array_filter($datos['animales'], 'is_scalar'), 0, 3);
+        if ($animales) {
+            return \Api\SyncLogger::etiquetaModulo($modulo) . ' · ' . implode(', ', $animales);
+        }
+    }
+
+    foreach (array('fecha', 'fecha_pesaje', 'fecha_control', 'fecha_servicio', 'fecha_movimiento') as $clave) {
+        if (!empty($datos[$clave]) && is_scalar($datos[$clave])) {
+            return \Api\SyncLogger::etiquetaModulo($modulo) . ' · ' . (string) $datos[$clave];
+        }
+    }
+
+    return \Api\SyncLogger::etiquetaModulo($modulo);
 }
 
 /**
@@ -315,6 +433,14 @@ function accion_subir_foto(array $input, array $usuario): void
         [(int) $animal->id]
     )->fetch();
 
+    \Api\SyncLogger::anotar([
+        'accion'  => 'subir_foto',
+        'modulo'  => 'fotos',
+        'total'   => 1,
+        'exitos'  => 1,
+        'mensaje' => 'Foto de ' . $codigo . ' subida correctamente',
+    ]);
+
     \Api\ApiResponse::ok([
         'codigo_rgb_id_animal' => $codigo,
         'imagen' => $fila['imagen'],
@@ -372,6 +498,16 @@ function verificar_vinculo_dispositivo(array $input, array $usuario, string $mod
     }
 
     $modo = $vinculo->modo_offline ?: 'gestion';
+
+    // El resumen de sincronizaciones muestra el nombre y el modo reales
+    // del equipo, tomados del vínculo validado en esta misma petición.
+    \Api\SyncLogger::anotar([
+        'dispositivo_id'     => $dispositivoId,
+        'nombre_dispositivo' => $vinculo->nombre_dispositivo,
+        'modo_offline'       => $modo,
+        'musuarios_id'       => (int) $vinculo->musuarios_id,
+        'mfundos_id'         => (int) $vinculo->mfundos_id,
+    ]);
 
     if ($modoRequerido === 'escritura' && $modo !== 'gestion') {
         \Api\ApiResponse::error(
@@ -453,25 +589,58 @@ function procesar_cambio(array $cambio, array $config, string $modeloClase, arra
     } catch (\Throwable $e) {
         error_log('[SYNC PUSH] ' . $e->getMessage());
 
-        /* El SQL nunca se le muestra al usuario: se traduce a algo que se
-           pueda accionar en el equipo. */
-        $mensaje = $e->getMessage();
-        $amigable = '';
-
-        if (preg_match('/null value in column "([a-z_]+)"/i', $mensaje, $m)) {
-            $amigable = 'Falta un dato obligatorio («' . $m[1] . '»). Complete la ficha en el sistema y vuelva a sincronizar.';
-        } elseif (preg_match('/duplicate key/i', $mensaje) || strpos($mensaje, '23505') !== false) {
-            $amigable = 'Este registro ya existe en el sistema. Revise si quedó duplicado en el equipo.';
-        } elseif (stripos($mensaje, 'SQLSTATE') !== false) {
-            $amigable = 'El servidor no pudo guardar este registro. Revise los datos en el equipo y vuelva a sincronizar; si persiste, contacte al administrador.';
-        }
 
         return [
             'uuid_local' => $uuid,
             'resultado' => 'error',
-            'mensaje' => $amigable !== '' ? $amigable : 'No se pudo procesar el cambio: ' . $mensaje,
+            'mensaje' => mensaje_error_guardado($e),
         ];
     }
+}
+
+/**
+ * Traduce el error de la base a un mensaje accionable para el equipo,
+ * sin mostrarle el SQL al productor. El detalle técnico completo queda
+ * en el log del servidor (`[SYNC PUSH]` / `[SYNC servicios]`).
+ *
+ * Antes, cualquier falla dentro de crear_registro_servicio se reportaba
+ * como "No se pudo registrar el servicio. Verifica los datos de la
+ * hembra y el macho", que mandaba a revisar animales cuando el problema
+ * real era, por ejemplo, un campo del seguimiento en null.
+ */
+function mensaje_error_guardado(\Throwable $e): string
+{
+    $detalle = $e->getMessage();
+
+    if (preg_match('/null value in column "([a-z_0-9]+)"/i', $detalle, $m)) {
+        return 'Falta un dato obligatorio («' . $m[1] . '») en este registro. '
+             . 'Complételo en el equipo y vuelva a sincronizar.';
+    }
+    if (preg_match('/value too long for type character varying\((\d+)\)/i', $detalle, $m)) {
+        return 'Un dato de este registro es más largo de lo que acepta el servidor (máximo '
+             . $m[1] . ' caracteres). Corríjalo en el equipo y vuelva a sincronizar.';
+    }
+    if (stripos($detalle, 'violates foreign key constraint') !== false) {
+        return 'Este registro usa un dato que no existe en el servidor (animal, tipo de servicio o raza). '
+             . 'Revíselo en el equipo y vuelva a sincronizar.';
+    }
+    if (stripos($detalle, 'duplicate key value') !== false) {
+        if (stripos($detalle, 'Código del Ternero') !== false) {
+            return 'El servidor ya tiene otro nacimiento con ese código de ternero. '
+                 . 'El equipo volverá a intentarlo con el siguiente número; si se repite, '
+                 . 'normalice el contador de terneros del fundo (scripts/migracion_correlativos_contador.sql).';
+        }
+        return 'Este registro ya existe en el servidor con los mismos datos. '
+             . 'Actualice el equipo y vuelva a intentarlo.';
+    }
+
+    if (strpos($detalle, 'correlativo_sin_codigo_libre') !== false) {
+        return 'No quedan códigos libres para este registro en el servidor. '
+             . 'Avisá al administrador: hay que normalizar los correlativos del fundo.';
+    }
+
+    return 'El servidor no pudo guardar este registro. '
+         . 'Revise los datos en el equipo y vuelva a sincronizar; si persiste, contacte al administrador.';
 }
 
 /**
@@ -814,6 +983,8 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
     }
 
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
+    $datos = formatear_campos_especiales($datos);
+    quitar_valores_nulos($datos);
     $productosAplicados = [];
     if (!empty($config['sincroniza_productos_aplicados'])) {
         [$productosAplicados, $errorProductos] = validar_productos_control_sanitario(
@@ -828,6 +999,11 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
     $errorCampos = validar_campos_requeridos($datos, $config['campos_requeridos']);
     if ($errorCampos) {
         return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorCampos];
+    }
+
+    $errorProvisional = rechazar_codigos_provisionales($datos, $config);
+    if ($errorProvisional) {
+        return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorProvisional];
     }
 
     // Un segundo registro del mismo animal en la misma fecha: misma
@@ -980,6 +1156,13 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
 
     } catch (\Throwable $e) {
         if ($transaccionNecesaria) $conexion->rollBack();
+
+        /* Si dos equipos subieron el mismo arete casi al mismo tiempo, la
+           validación previa no lo vio pero el índice único de la base sí.
+           Se devuelve como conflicto para que el operario lo resuelva. */
+        $conflictoArete = conflicto_arete_por_indice($e, $datos, $usuario, $uuid);
+        if ($conflictoArete) return $conflictoArete;
+
         throw $e; // lo maneja el catch genérico de procesar_cambio()
     }
 
@@ -1028,9 +1211,20 @@ function crear_registro_servicio(string $uuid, array $cambio, array $config, str
 {
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
 
+    /* El equipo manda en null los campos del seguimiento (nro_terneros,
+       dnp, f_palpacion, ...) porque todavía no aplican. Un null explícito
+       gana sobre el default de la tabla y rompe el INSERT con "null value
+       in column": se descartan para que la base use su valor por defecto. */
+    quitar_valores_nulos($datos);
+
     $errorCampos = validar_campos_requeridos($datos, $config['campos_requeridos']);
     if ($errorCampos) {
         return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorCampos];
+    }
+
+    $errorProvisional = rechazar_codigos_provisionales($datos, $config);
+    if ($errorProvisional) {
+        return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorProvisional];
     }
 
     completar_textos_obligatorios($datos, $config['campos_texto_obligatorios_bd']);
@@ -1099,7 +1293,7 @@ function crear_registro_servicio(string $uuid, array $cambio, array $config, str
         return [
             'uuid_local' => $uuid,
             'resultado' => 'error',
-            'mensaje' => 'No se pudo registrar el servicio. Verifica los datos de la hembra y el macho.',
+            'mensaje' => mensaje_error_guardado($e),
         ];
     }
 }
@@ -1270,6 +1464,27 @@ function validar_y_completar_servicio_nuevo(array $datos, array $usuario, $conex
 }
 
 /**
+ * Corrige el tipo de servicio de un servicio gestante que quedó en 0.
+ *
+ * Nunca pisa un tipo ya definido (la condición COALESCE(mservicios_id,0)=0)
+ * y respeta el fundo del usuario. Es la misma regla que
+ * nac_corregir_tipo_servicio() en la app web.
+ */
+function corregir_tipo_servicio_servicio(int $servicioId, int $tipoId, int $fundoId, int $usuarioId): bool
+{
+    if ($servicioId <= 0 || $tipoId <= 0) {
+        return false;
+    }
+    Mregservicio::connection()->query(
+        'UPDATE mregservicios
+            SET mservicios_id = ?, updated = NOW(), user_modify = ?
+          WHERE id = ? AND mfundos_id = ? AND COALESCE(mservicios_id, 0) = 0',
+        [$tipoId, $usuarioId, $servicioId, $fundoId]
+    );
+    return true;
+}
+
+/**
  * Crear un nacimiento tiene dos cosas que crear_registro() genérico
  * no sabe hacer:
  *   1. Calcular f_servicio (fecha probable de celo/servicio siguiente)
@@ -1291,6 +1506,9 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
 {
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
     $servicioUuid = trim((string) ($cambio['datos']['servicio_uuid_local'] ?? ''));
+    // El cliente puede no mandar servicio: en ese caso se autodetecta por la
+    // madre (cómodidad) y, si no sirve, el parto se registra igual sin él.
+    $servicioExplicito = ($servicioUuid !== '') || !empty($datos['mregservicios_id']);
     $servicioRelacionado = null;
 
     if ($servicioUuid !== '') {
@@ -1323,9 +1541,12 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
         }
     }
 
-    if (!$servicioRelacionado) {
-        return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'Todo nacimiento debe estar asociado a un servicio gestante activo.'];
-    }
+    /* Tipo de servicio informado por la app. Se valida una sola vez: se usa
+       igual cuando el servicio gestante quedó en 0 y cuando el parto va sin
+       servicio (hembra preñada en otro fundo). */
+    $tipoInformado = (int) ($datos['mtiposervicios_id'] ?? 0);
+    $tipoInformadoValido = ($tipoInformado > 0)
+        && (bool) Mtiposervicio::find('first', ['conditions' => ['id = ? and status = 1', $tipoInformado]]);
 
     if ($servicioRelacionado) {
         $errorServicio = validar_servicio_apto_para_nacimiento(
@@ -1334,14 +1555,60 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
             Musuario::connection()
         );
         if ($errorServicio) {
-            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorServicio];
+            /* El servicio se autodetectó por la madre (el cliente no lo mandó):
+               si el productor ya indicó el tipo, el parto se registra sin
+               servicio en vez de bloquear la carga. */
+            if ($servicioExplicito || !$tipoInformadoValido) {
+                return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorServicio];
+            }
+            $servicioRelacionado = null;
         }
+    }
 
+    if (!$servicioRelacionado) {
+        /* NORMATIVA (igual que la app web): si la hembra llegó preñada de otro
+           fundo no hay servicio que asociar, pero el parto se registra igual.
+           El tipo de servicio es obligatorio: sin él el nacimiento no aparece
+           en los listados. */
+        if (!$tipoInformadoValido) {
+            return [
+                'uuid_local' => $uuid,
+                'resultado'  => 'error',
+                'mensaje'    => 'Indica el tipo de servicio (monta, inseminación o transferencia). '
+                              . 'Si la hembra llegó preñada de otro fundo no hay servicio gestante que asociar.',
+            ];
+        }
+        $datos['mregservicios_id']  = null;
+        $datos['mtiposervicios_id'] = $tipoInformado;
+    } else {
         $datos['mregservicios_id'] = (int) $servicioRelacionado->id;
         $datos['codigo_rgb_id_animal_hembra'] = (string) $servicioRelacionado->codigo_rgb_id_animal_hembra;
         $datos['codigo_rgb_id_animal_macho'] = (string) $servicioRelacionado->codigo_rgb_id_animal_macho;
         $datos['codigo_rgb_id_animal_dona'] = (string) ($servicioRelacionado->codigo_rgb_id_animal_dona ?? '');
-        $datos['mtiposervicios_id'] = (int) $servicioRelacionado->mservicios_id;
+
+        /* El tipo del servicio manda. Si el servicio quedó sin tipo (dato
+           viejo), se usa el que eligió el productor en el parto y se corrige
+           el servicio —solo si estaba en 0—, igual que hace la web. */
+        $tipoServicio = (int) $servicioRelacionado->mservicios_id;
+        if ($tipoServicio <= 0) {
+            if (!$tipoInformadoValido) {
+                return [
+                    'uuid_local' => $uuid,
+                    'resultado'  => 'error',
+                    'mensaje'    => 'El servicio gestante no tiene tipo de servicio. '
+                                  . 'Selecciona el tipo para registrar el parto.',
+                ];
+            }
+            corregir_tipo_servicio_servicio(
+                (int) $servicioRelacionado->id,
+                $tipoInformado,
+                (int) $usuario['fundo_id'],
+                (int) $usuario['usuario_id']
+            );
+            $tipoServicio = $tipoInformado;
+        }
+        $datos['mtiposervicios_id'] = $tipoServicio;
+
         if (empty($datos['aptitud'])) $datos['aptitud'] = $servicioRelacionado->aptitud;
     }
 
@@ -1446,7 +1713,11 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
         $registro->created = date('Y-m-d H:i:s');
         $registro->user_create = $usuario['usuario_id'];
         $registro->origen_dispositivo = $usuario['dispositivo'];
-        $registro->fichado = (bool) $animalFicha;
+        // 0/1 y no false: el driver de PostgreSQL de Active Record serializa
+        // `false` como cadena vacía y la columna boolean lo rechaza ('invalid
+        // input syntax for type boolean: ""'), lo que impedía sincronizar
+        // cualquier parto que todavía no tuviera ficha de animal.
+        $registro->fichado = $animalFicha ? 1 : 0;
 
         if (!$registro->save()) {
             $conexion->rollback();
@@ -1544,10 +1815,15 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
     } catch (\Throwable $e) {
         $conexion->rollback();
         error_log('[SYNC nacimientos] ' . $e->getMessage());
+        $mensaje = 'No se pudo registrar el nacimiento. Verifica los datos.';
+        if (stripos($e->getMessage(), 'duplicate key') !== false
+            || strpos($e->getMessage(), 'correlativo_sin_codigo_libre') !== false) {
+            $mensaje = mensaje_error_guardado($e);
+        }
         return [
             'uuid_local' => $uuid,
             'resultado' => 'error',
-            'mensaje' => 'No se pudo registrar el nacimiento. Verifica los datos.',
+            'mensaje' => $mensaje,
         ];
     }
 }
@@ -2406,8 +2682,10 @@ function validar_animales_movimiento_rebano(
     ]);
 
     $validos = [];
-    $fueraDeOrigen = 0;
-    $inactivos = 0;
+    // Se guardan los códigos, no sólo el total: el mensaje de error los
+    // nombra para que el operario sepa cuál revisar.
+    $codigosFuera = [];
+    $codigosInactivos = [];
 
     // 3 MUERTO, 4 VENDIDO, 5 EXTRAVIADO, 7 MIGRADO: no se mueven.
     $noMovibles = [3, 4, 5, 7];
@@ -2416,34 +2694,89 @@ function validar_animales_movimiento_rebano(
         $codigo = (string) $animal->codigo_rgb_id_animal;
 
         if (in_array((int) $animal->mestatus_id, $noMovibles, true)) {
-            $inactivos++;
+            $codigosInactivos[] = $codigo;
             continue;
         }
 
         if ($usaLote && (int) $animal->mlotes_id !== (int) $loteOrigen->id) {
-            $fueraDeOrigen++;
+            $codigosFuera[] = $codigo;
             continue;
         }
 
         if ($usaPotrero && (int) $animal->mpotreros_id !== (int) $potreroOrigen->id) {
-            $fueraDeOrigen++;
+            $codigosFuera[] = $codigo;
             continue;
         }
 
         $validos[] = ['animal' => $animal, 'codigo' => $codigo];
     }
 
-    if (!$validos) {
-        if ($fueraDeOrigen > 0) {
-            return [[], 'Los animales seleccionados no pertenecen al origen elegido. Actualizá la lista y volvé a intentar.'];
+    // Códigos pedidos que el servidor no encontró activos en el fundo.
+    $encontrados = [];
+    foreach ($filas as $animal) {
+        $encontrados[strtoupper((string) $animal->codigo_rgb_id_animal)] = true;
+    }
+    $faltantes = [];
+    $provisionales = [];
+    foreach (array_keys($codigos) as $codigo) {
+        if (isset($encontrados[$codigo])) {
+            continue;
         }
-        if ($inactivos > 0) {
-            return [[], 'Los animales seleccionados están dados de baja y no se pueden mover.'];
+        $faltantes[] = $codigo;
+        if (strpos($codigo, '-PEND-') !== false) {
+            $provisionales[] = $codigo;
         }
-        return [[], 'Ninguno de los animales seleccionados está activo en este fundo.'];
+    }
+
+    // El movimiento se aplica COMPLETO o no se aplica.
+    // Antes, si una parte de los animales no era válida, se creaba el
+    // movimiento sólo con los válidos: el registro subía bien y el
+    // operario nunca se enteraba de que el resto del rebaño se había
+    // quedado en el potrero de origen.
+    if ($faltantes || $codigosInactivos || $codigosFuera) {
+        $motivos = [];
+        if ($faltantes) {
+            $motivos[] = 'No se encontraron en el servidor: ' . resumen_codigos($faltantes) . '.';
+            if ($provisionales) {
+                $motivos[] = 'Los códigos con "-PEND-" son animales creados sin conexión que todavía no subieron.';
+            }
+        }
+        if ($codigosInactivos) {
+            $motivos[] = 'Están dados de baja (muerto, vendido, extraviado o migrado): '
+                . resumen_codigos($codigosInactivos) . '.';
+        }
+        if ($codigosFuera) {
+            $motivos[] = 'No están en el origen elegido: ' . resumen_codigos($codigosFuera) . '.';
+        }
+
+        $cabecera = $validos
+            ? 'No se movió ningún animal: el movimiento se rechazó completo.'
+            : 'Ninguno de los animales seleccionados está activo en este fundo.';
+
+        return [[], $cabecera . ' ' . implode(' ', $motivos) . ' Sincronizá el equipo, recargá la lista de animales y volvé a intentar.'];
     }
 
     return [$validos, null];
+}
+
+/**
+ * Arma una lista corta de códigos para los mensajes de error:
+ * "A, B, C y 2 más".
+ */
+function resumen_codigos(array $codigos, int $maximo = 4): string
+{
+    $codigos = array_values(array_unique($codigos));
+    $total = count($codigos);
+    if ($total === 0) {
+        return '';
+    }
+    if ($total <= $maximo) {
+        return implode(', ', $codigos);
+    }
+
+    $resto = $total - $maximo;
+    return implode(', ', array_slice($codigos, 0, $maximo))
+        . ($resto === 1 ? ' y 1 más' : ' y ' . $resto . ' más');
 }
 
 /**
@@ -2766,25 +3099,73 @@ function resolver_correlativo(array $datos, array $config, array $usuario, $cone
     }
 
     $conexion = $conexion ?? Musuario::connection();
-    $fila = $conexion->query(
-        'SELECT * FROM ' . $correlativo['funcion_sql'] . '(?, ?)',
-        [$usuario['fundo_id'], 1]
-    )->fetch();
-    $numero = (int) $fila['desde'];
 
-    $datos[$campo] = $correlativo['prefijo'] . '-0' . $usuario['fundo_id'] . '-0' . str_pad((string) $numero, 2, '0', STR_PAD_LEFT);
+    // El contador del fundo (manimalxfundos_contador, mnacimientoxfundos_
+    // contador, mserviciosxfundos_contador) puede quedar POR DETRÁS de los
+    // códigos que ya existen: cargas manuales, importaciones, restauraciones o
+    // registros hechos desde la web con otro criterio. En ese caso la función
+    // SQL entrega un número ya usado.
+    //
+    // En terneros es fatal: `mregnacimientos.codigo_ternero` tiene un índice
+    // ÚNICO GLOBAL (constraint "Código del Ternero"), así que el INSERT revienta
+    // y el productor veía "No se pudo registrar el nacimiento" sin forma de
+    // resolverlo desde el equipo (2026-11-01: contador 15 con MA-02-016 ya
+    // guardado). En servicios el choque es silencioso. Se pide el siguiente
+    // número hasta encontrar uno libre.
+    $tabla = (string) ($config['tabla'] ?? '');
+    $intentosMaximos = 25;
 
-    return [$datos, $esProvisional ? $valorActual : null];
+    for ($intento = 1; $intento <= $intentosMaximos; $intento++) {
+        $fila = $conexion->query(
+            'SELECT * FROM ' . $correlativo['funcion_sql'] . '(?, ?)',
+            [$usuario['fundo_id'], 1]
+        )->fetch();
+        $numero = (int) ($fila['desde'] ?? 0);
+        $codigo = $correlativo['prefijo'] . '-0' . $usuario['fundo_id'] . '-0'
+            . str_pad((string) $numero, 2, '0', STR_PAD_LEFT);
+
+        $ocupado = false;
+        if ($tabla !== '') {
+            $existe = $conexion->query(
+                "SELECT 1 FROM {$tabla} WHERE {$campo} = ? LIMIT 1",
+                [$codigo]
+            )->fetch();
+            $ocupado = (bool) $existe;
+        }
+
+        if (!$ocupado) {
+            $datos[$campo] = $codigo;
+            return [$datos, $esProvisional ? $valorActual : null];
+        }
+
+        error_log('[SYNC correlativo] ' . $campo . ' = ' . $codigo
+            . ' ya existe; se pide el siguiente (' . $intento . '/' . $intentosMaximos . ')');
+    }
+
+    throw new \RuntimeException('correlativo_sin_codigo_libre: ' . $campo);
+}
+
+/**
+ * Deja en su forma canónica los campos que tienen formato propio antes de
+ * validar y guardar. Hoy: `nro_arete` — mayúsculas, símbolos y espacios como
+ * guion, máximo 15 caracteres (ver lib/arete_helper.php). El cliente (web u
+ * offline) ya lo formatea; esto es la garantía del servidor.
+ */
+function formatear_campos_especiales(array $datos): array
+{
+    if (array_key_exists('nro_arete', $datos)) {
+        $datos['nro_arete'] = bovs_arete_formatear($datos['nro_arete']);
+    }
+
+    return $datos;
 }
 
 /**
  * Comprueba la unicidad de los campos declarados en
  * config['campos_unicos'] para este fundo. Devuelve null si no hay
  * choque, o un arreglo con la info del registro existente que ya usa
- * ese valor. El campo se compara en MAYÚSCULAS contra UPPER(columna)
- * porque la app web original normaliza con strtoupper() al guardar —
- * así "abc-123" y "ABC-123" cuentan como el mismo arete, igual que en
- * search_nro_arete de manimales_controller.php.
+ * ese valor. `nro_arete` se compara con la regla única de
+ * lib/arete_helper.php (mayúsculas, guiones, máximo 15).
  *
  * Solo contra registros con status=1: un animal dado de baja libera su
  * arete, así que no debe bloquear.
@@ -2793,6 +3174,39 @@ function resolver_correlativo(array $datos, array $config, array $usuario, $cone
  * editando, para no encontrarse a sí mismo como duplicado si el
  * payload incluye un campo único sin haberlo cambiado.
  */
+/**
+ * Si la base rechazó el guardado por el índice único del N° de arete (dos
+ * equipos subieron el mismo arete casi al mismo tiempo), devuelve el cambio
+ * como CONFLICTO 'arete_duplicado' —que el operario sabe resolver desde la
+ * pantalla de conflictos— en vez de un error genérico que se reintentaría sin
+ * solución.
+ */
+function conflicto_arete_por_indice(\Throwable $e, array $datos, array $usuario, string $uuid): ?array
+{
+    $mensaje = $e->getMessage();
+    $esChoque = (stripos($mensaje, '23505') !== false)
+             || (stripos($mensaje, 'duplicate key') !== false);
+
+    if (!$esChoque || stripos($mensaje, 'arete') === false) {
+        return null;
+    }
+    if (empty($datos['nro_arete'])) {
+        return null;
+    }
+
+    $existente = bovs_arete_existente((int) $usuario['fundo_id'], $datos['nro_arete']);
+
+    return [
+        'uuid_local' => $uuid,
+        'resultado'  => 'conflicto',
+        'tipo'       => 'arete_duplicado',
+        'campo'      => 'nro_arete',
+        'mensaje'    => 'El N° de arete ya está registrado en otro animal activo de este fundo.',
+        'servidor'   => $existente ?: null,
+        'tuyo'       => $datos,
+    ];
+}
+
 function validar_campos_unicos(array $datos, array $config, array $usuario, string $modeloClase, ?int $idExcluir = null): ?array
 {
     $camposUnicos = $config['campos_unicos'] ?? [];
@@ -2801,7 +3215,27 @@ function validar_campos_unicos(array $datos, array $config, array $usuario, stri
     foreach ($camposUnicos as $campo => $tipoConflicto) {
         if (!array_key_exists($campo, $datos)) continue;
         $valor = trim((string) $datos[$campo]);
+        if ($campo === 'nro_arete') {
+            $valor = bovs_arete_normalizar($valor);
+        }
         if ($valor === '') continue;
+
+        /* nro_arete: se compara con la MISMA regla que la web y la app
+           offline (lib/arete_helper.php) — mayúsculas y espacios
+           normalizados, solo animales con status=1 del fundo. */
+        if ($campo === 'nro_arete') {
+            $existenteArete = bovs_arete_existente($usuario['fundo_id'], $valor, array(
+                'excluir_id' => $idExcluir,
+            ));
+            if ($existenteArete) {
+                return array(
+                    'campo' => $campo,
+                    'tipo' => $tipoConflicto,
+                    'existente' => $existenteArete,
+                );
+            }
+            continue;
+        }
 
         $condiciones = ['UPPER(TRIM(' . $campo . ')) = ? and status = 1 and mfundos_id = ?'];
         $valores = [strtoupper($valor), $usuario['fundo_id']];
@@ -2834,6 +3268,35 @@ function validar_campos_requeridos(array $datos, array $requeridos): ?string
             return "Falta el campo requerido '$campo'.";
         }
     }
+    return null;
+}
+
+/**
+ * Rechaza registros que apunten a un animal con código PROVISIONAL
+ * ('SOVCA-0x-PEND-…').
+ *
+ * Ese código lo inventa el dispositivo cuando no tiene rango reservado y
+ * solo significa algo DENTRO del equipo: si el alta del animal todavía no
+ * subió, guardar el control sanitario, el pesaje o el servicio con ese
+ * código deja un registro huérfano (apunta a un animal que en el servidor
+ * no existe) que además nadie puede relacionar después. Es preferible
+ * rechazarlo con una instrucción clara: primero sincronizar el alta.
+ */
+function rechazar_codigos_provisionales(array $datos, array $config): ?string
+{
+    foreach ($config['campos_animal'] ?? [] as $campo) {
+        $valor = $datos[$campo] ?? '';
+        if (!is_string($valor) || $valor === '') {
+            continue;
+        }
+        if (stripos($valor, '-PEND-') === false) {
+            continue;
+        }
+
+        return 'Este registro apunta a un animal que todavía no tiene código definitivo en el servidor. '
+             . 'Sincronice el equipo para que suba el alta del animal y vuelva a intentarlo.';
+    }
+
     return null;
 }
 
@@ -2894,6 +3357,26 @@ function completar_valores_por_defecto(array &$datos, array $defaults): void
  * Se usa SOLO al crear: al editar hay que respetar lo que ya está guardado
  * (ver limpiar_enteros_nulos()).
  */
+/**
+ * Descarta del payload los campos que llegan en null.
+ *
+ * En la creación desde el equipo (crear_registro / crear_registro_servicio)
+ * un null explícito se escribe tal cual en el INSERT y gana sobre el
+ * DEFAULT de la tabla, así que un campo del seguimiento que la app manda
+ * en null (`nro_terneros`, `dnp`, `f_palpacion`, ...) tumbaba la
+ * sincronización con "null value in column ... violates not-null
+ * constraint". Al no enviar la columna, la base aplica su default (0 para
+ * los enteros) o la deja en null si la columna lo permite.
+ */
+function quitar_valores_nulos(array &$datos): void
+{
+    foreach ($datos as $campo => $valor) {
+        if ($valor === null) {
+            unset($datos[$campo]);
+        }
+    }
+}
+
 function completar_enteros_con_defecto(array &$datos, array $defaults): void
 {
     foreach ($defaults as $campo => $valorDefault) {
@@ -2954,6 +3437,28 @@ function actualizar_registro($existente, array $cambio, array $config, array $us
     }
 
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
+    $datos = formatear_campos_especiales($datos);
+
+    /* Nacimientos: el tipo de servicio es obligatorio (ver
+       crear_registro_nacimiento). Si el cliente manda el campo vacío se
+       rechaza la edición en vez de dejar el parto sin tipo, que lo haría
+       desaparecer de los listados. Cuando el campo no viene (cliente viejo)
+       no se toca el valor guardado. */
+    if (($config['tabla'] ?? '') === 'mregnacimientos' && array_key_exists('mtiposervicios_id', $datos)) {
+        $tipoNac = (int) $datos['mtiposervicios_id'];
+        $tipoNacOk = ($tipoNac > 0)
+            && (bool) Mtiposervicio::find('first', ['conditions' => ['id = ? and status = 1', $tipoNac]]);
+        if (!$tipoNacOk) {
+            return [
+                'uuid_local' => $uuid,
+                'resultado'  => 'error',
+                'mensaje'    => 'Selecciona el tipo de servicio del parto.',
+            ];
+        }
+    }
+
+    /* Enteros NOT NULL (aptitud, mrazas_id, servicio): si llegan en null o
+       vacíos se quitan del UPDATE para NO pisar el valor ya guardado. */
     limpiar_enteros_nulos($datos, $config['enteros_con_defecto'] ?? []);
 
     // Al editar también se controla el duplicado por animal + fecha
@@ -3124,6 +3629,10 @@ function actualizar_registro($existente, array $cambio, array $config, array $us
         if ($conexionDetalles) $conexionDetalles->commit();
     } catch (\Throwable $e) {
         if ($conexionDetalles) $conexionDetalles->rollBack();
+
+        $conflictoArete = conflicto_arete_por_indice($e, $datos, $usuario, $uuid);
+        if ($conflictoArete) return $conflictoArete;
+
         throw $e;
     }
 

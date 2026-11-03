@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../lib/especie_helper.php';
+require_once __DIR__ . '/../lib/edad_macho_helper.php';
 require_once '../models/Mregservicio.php';
 require_once '../models/Vdesincorporacione.php';
 require_once '../models/Manimale.php';
@@ -488,22 +489,36 @@ switch ($action) {
                 $condicion   = 'Toro de monta';
             }
 
+            /* Edad mínima del macho: parámetro configurable
+               (Parámetros → Períodos → "EDAD MINIMA DEL MACHO PARA
+               SERVICIO"). Un becerro de 6 meses no debe aparecer como
+               candidato a monta. */
+            $minimo_dias = bovs_edad_minima_macho_dias($mfundos_id, intval($_SESSION['tipo_ganaderia']));
+
             $datos = Manimale::find_by_sql("select codigo_rgb_id_animal, nro_arete, nombre, estatus_animal,
                                                    (extract(year from age(current_date, f_nacimiento)) * 12
-                                                    + extract(month from age(current_date, f_nacimiento)))::int as edad_meses
+                                                    + extract(month from age(current_date, f_nacimiento)))::int as edad_meses,
+                                                   case when f_nacimiento is null then null
+                                                        else (current_date - f_nacimiento) end as edad_dias
                                               from manimales
                                              where mfundos_id=" . $mfundos_id . " and mestatus_id=1 and sexo=2
                                                    $cad_estatus
                                              order by nombre, codigo_rgb_id_animal;");
 
             foreach ($datos as $rs) {
+                $edad_dias = $rs->edad_dias;
+                // Sin fecha de nacimiento no se puede comprobar la edad: se
+                // ofrece igual (hay toros históricos sin fecha) para no
+                // bloquear servicios legítimos.
+                $disponible = ($edad_dias === null || intval($edad_dias) >= $minimo_dias) ? 1 : 0;
+
                 $filas[] = array(
                     'codigo'       => $rs->codigo_rgb_id_animal,
                     'nro_arete'    => ($rs->nro_arete === null) ? '' : $rs->nro_arete,
                     'nombre'       => ($rs->nombre === null) ? '' : $rs->nombre,
                     'edad_meses'   => ($rs->edad_meses === null) ? '' : intval($rs->edad_meses),
-                    'condicion'    => $condicion,
-                    'disponible'   => 1,
+                    'condicion'    => ($disponible == 1) ? $condicion : 'Muy joven',
+                    'disponible'   => $disponible,
                     'nro_servicio' => 0
                 );
             }
@@ -589,7 +604,20 @@ switch ($action) {
 
     case 'add':
 
-        if ($cod_animal_h == '') {
+        /* Normativa: todo servicio nuevo debe indicar su tipo. Antes quedaba en
+           0 y después el nacimiento se guardaba sin tipo, no aparecía en el
+           listado (la vista une con mtiposervicios) y no se podía unificar. */
+        if ((string) $tipo_servicio === '' || (int) $tipo_servicio <= 0) {
+
+            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-warning"></i>
+        Alerta!
+        </h4>
+        Seleccione el Tipo de Servicio (MONTAS, INSEMINACIÓN o TRANSFERENCIA).
+        </div>');
+        } else if ($cod_animal_h == '') {
 
             $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
         <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
@@ -618,6 +646,24 @@ switch ($action) {
         Alerta!
         </h4>
         Ingrese El Código del Macho.
+        </div>');
+        } else if (($tipo_servicio != 3)
+            && ($error_edad_macho = bovs_error_edad_macho(
+                $cod_animal_m,
+                intval($_SESSION['mfundos_id']),
+                intval($_SESSION['tipo_ganaderia'])
+            )) !== '') {
+
+            /* Última barrera: el listado y la búsqueda ya filtran por edad,
+               pero el servicio también puede llegar con un código escrito a
+               mano. La edad mínima es configurable (Parámetros → Períodos). */
+            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-ban"></i>
+        Alerta!
+        </h4>
+        ' . $error_edad_macho . '
         </div>');
         } else {
             //( A ) si se escribe un nombre se consulta si ya existe...
@@ -750,7 +796,18 @@ switch ($action) {
 
 
 
-        if ($fecha_servicio == '' && $usuario_id) {
+        /* Un servicio no puede quedarse sin tipo: de él depende el nacimiento. */
+        if ((string) $tipo_servicio === '' || (int) $tipo_servicio <= 0) {
+
+            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-warning"></i>
+        Alerta!
+        </h4>
+        Seleccione el Tipo de Servicio (MONTAS, INSEMINACIÓN o TRANSFERENCIA).
+        </div>');
+        } else if ($fecha_servicio == '' && $usuario_id) {
 
             $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning alert-dismissable">
         <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
@@ -1089,6 +1146,22 @@ switch ($action) {
 
                     $estatus = $rs->estatus;
                     if ($estatus == 1) {
+                        /* Edad mínima del macho (parámetro configurable).
+                           Se valida acá porque el formulario también acepta
+                           un código escrito a mano. */
+                        $error_edad = bovs_error_edad_macho($rs->cod_animal_m, $mfundos_id, intval($_SESSION['tipo_ganaderia']));
+                        if ($error_edad !== '') {
+                            $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
+                <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+                <h4>
+                <i class="icon fa fa-ban"></i>
+                Alerta!
+                </h4>
+                ' . $error_edad . '
+                </div>');
+                            break;
+                        }
+
                         $nombre = $rs->cod_animal_m . '*' . $rs->nombre_m;
                         $resp = $nombre;
                     } else {

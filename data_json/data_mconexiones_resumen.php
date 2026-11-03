@@ -75,7 +75,7 @@ agg AS (
 ),
 ult AS (
     SELECT DISTINCT ON (musuarios_id) musuarios_id, ip, pais, ciudad, fecha,
-           ultima_actividad, fecha_fin
+           ultima_actividad, fecha_fin, cerrada
       FROM base
      ORDER BY musuarios_id, fecha DESC
 ),
@@ -115,6 +115,7 @@ SELECT u.id                                AS musuarios_id,
        ab.cierre_solicitado_at             AS sesion_cierre_at,
        CASE WHEN ab.id IS NOT NULL THEN 'activa'
             WHEN a.ultima IS NULL    THEN 'sin_datos'
+            WHEN NOT ult.cerrada     THEN 'caducada'
             ELSE 'cerrada' END             AS sesion_estado,
        (a.ultima AT TIME ZONE 'America/Caracas')::date AS ultima_dia,
        ((a.ultima AT TIME ZONE 'America/Caracas')::date

@@ -38,6 +38,15 @@ $cap_a     = $cap['a'];
 $cap_b     = $cap['b'];
 $cap_signo = $cap['signo'];
 $cap_token = $cap['token'];
+
+/* Captcha propio del formulario de ingreso (segunda visita): va en otro
+   espacio de sesión para que refrescar uno no invalide el otro. */
+$capLogin       = bovs_captcha_generar('captcha_demo_login');
+$capLogin_token = $capLogin['token'];
+
+/* `?ingresar=1` abre directamente la pestaña de ingreso (lo usa el enlace
+   "Ya tengo cuenta demo" del login del sistema). */
+$abrirIngreso = isset($_GET['ingresar']) && (string) $_GET['ingresar'] !== '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -245,6 +254,68 @@ $cap_token = $cap['token'];
     }
 
     .demo-card__title i { color: #C2610C; }
+
+    /* ---------- Pestañas: crear cuenta · ya tengo cuenta ---------- */
+    .demo-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      margin: 0 0 18px;
+      border-radius: 12px;
+      background: #f1f6f2;
+      box-shadow: inset 0 0 0 1px #dfeae2;
+    }
+
+    .demo-tab {
+      flex: 1 1 0;
+      min-width: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #55705f;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .18s, color .18s, box-shadow .18s;
+    }
+
+    .demo-tab:hover { color: #234e35; }
+
+    .demo-tab.is-active {
+      background: #ffffff;
+      color: #1b3a24;
+      box-shadow: 0 1px 3px rgba(20, 50, 32, .12), inset 0 0 0 1px #cfe4d6;
+    }
+
+    .demo-tab i { color: #2c8a56; }
+
+    /* Enlace de cambio de pestaña al pie de cada panel */
+    .demo-cambiar {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 6px;
+      border: 0;
+      background: none;
+      color: #2c6e46;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
+    .demo-cambiar:hover { color: #1b3a24; }
 
     .demo-card__sub {
       font-size: 11.5px;
@@ -668,6 +739,24 @@ $cap_token = $cap['token'];
          ============================================================ -->
     <section class="demo-card">
 
+      <!-- Dos caminos: crear la cuenta demo o VOLVER A ENTRAR con una que
+           ya existe (segunda visita). -->
+      <div class="demo-tabs" role="tablist" aria-label="Acceso demostrativo">
+        <button type="button" class="demo-tab<?= $abrirIngreso ? '' : ' is-active' ?>"
+                id="tab-crear" role="tab" aria-selected="<?= $abrirIngreso ? 'false' : 'true' ?>"
+                aria-controls="panel-crear">
+          <i class="fa fa-user-plus"></i> Crear cuenta
+        </button>
+        <button type="button" class="demo-tab<?= $abrirIngreso ? ' is-active' : '' ?>"
+                id="tab-ingresar" role="tab" aria-selected="<?= $abrirIngreso ? 'true' : 'false' ?>"
+                aria-controls="panel-ingresar">
+          <i class="fa fa-right-to-bracket"></i> Ya tengo cuenta
+        </button>
+      </div>
+
+      <div id="panel-crear" role="tabpanel" aria-labelledby="tab-crear"
+           <?= $abrirIngreso ? 'hidden' : '' ?>>
+
       <h2 class="demo-card__title">
         <i class="fa fa-user-plus"></i>
         Crear cuenta de demostración
@@ -870,6 +959,89 @@ $cap_token = $cap['token'];
           Cambiar mis datos
         </button>
       </div>
+
+      <button type="button" class="demo-cambiar" id="ir-a-ingresar">
+        ¿Ya tienes una cuenta demo? Ingresar
+      </button>
+
+      </div><!-- /panel-crear -->
+
+      <!-- ============================================================
+           INGRESO CON UNA CUENTA DEMO EXISTENTE
+           Segunda visita: la cuenta ya se creó y el correo ya se verificó,
+           así que acá solo se pide usuario y contraseña.
+           ============================================================ -->
+      <div id="panel-ingresar" role="tabpanel" aria-labelledby="tab-ingresar"
+           <?= $abrirIngreso ? '' : 'hidden' ?>>
+
+        <h2 class="demo-card__title">
+          <i class="fa fa-right-to-bracket"></i>
+          Ingresar a mi cuenta demo
+        </h2>
+        <p class="demo-card__sub">
+          Usa el usuario y la contraseña con los que te registraste. La cuenta
+          dura <?= $diasDemo ?> días desde que confirmaste el correo.
+        </p>
+
+        <div class="demo-msg" id="login-msg"></div>
+
+        <form id="loginForm" autocomplete="off" novalidate>
+          <input type="hidden" name="action" value="login">
+          <input type="hidden" name="captcha_token" value="<?= htmlspecialchars($capLogin_token, ENT_QUOTES, 'UTF-8') ?>">
+
+          <div class="form-group">
+            <label for="login-usuario">Usuario demo</label>
+            <div class="input-wrap">
+              <input id="login-usuario" name="usuario" type="text" class="form-control" maxlength="30"
+                placeholder="DEMOANA" autocorrect="off" spellcheck="false" autocomplete="username">
+              <i class="fa fa-at input-icon"></i>
+            </div>
+            <div class="validation-msg" id="ms_login_usuario"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="login-clave">Contraseña</label>
+            <div class="input-wrap">
+              <input id="login-clave" name="clave" type="password" class="form-control" maxlength="60"
+                placeholder="Tu contraseña" autocomplete="current-password">
+              <i class="fa fa-lock input-icon"></i>
+            </div>
+            <div class="validation-msg" id="ms_login_clave"></div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="login-captcha-respuesta">Verificación de seguridad</label>
+              <button type="button" id="login-cap-refresh" class="cap-refresh" title="Generar otra verificación">
+                <i class="fa fa-rotate-right" aria-hidden="true"></i>
+                <span>Cambiar</span>
+              </button>
+            </div>
+            <div class="captcha-row">
+              <div class="captcha-pregunta" id="login-captcha-caja">
+                <span id="login-cap-a"><?= $capLogin['a'] ?></span>
+                <span class="op" id="login-cap-op"><?= $capLogin['signo'] ?></span>
+                <span id="login-cap-b"><?= $capLogin['b'] ?></span>
+                <span style="color:#64748b;font-weight:600;font-size:13px">=</span>
+              </div>
+              <div class="input-wrap">
+                <input id="login-captcha-respuesta" name="captcha_respuesta" type="text" class="form-control"
+                  placeholder="Resultado" inputmode="numeric" maxlength="3" autocomplete="off">
+              </div>
+            </div>
+            <div class="validation-msg" id="ms_login_captcha"></div>
+          </div>
+
+          <button type="submit" id="btn-ingresar" class="btn-demo" <?= (!$demoActivo || !$demoListo) ? 'disabled' : '' ?>>
+            <i class="fa fa-right-to-bracket"></i>
+            Entrar a mi cuenta demo
+          </button>
+        </form>
+
+        <button type="button" class="demo-cambiar" id="ir-a-crear">
+          ¿Todavía no tienes cuenta? Crear una demo
+        </button>
+      </div><!-- /panel-ingresar -->
 
       <div class="demo-footer">
         <span class="version">SOVCA</span> · © <?= date('Y') ?> Global-SOVCA · demostración
@@ -1294,6 +1466,191 @@ $cap_token = $cap['token'];
         /* El captcha del paso 1 ya se consumió: se pide uno nuevo. */
         refrescarCaptcha();
       });
+    })();
+  </script>
+
+  <!-- ============================================================
+       INGRESO CON UNA CUENTA DEMO EXISTENTE (segunda visita)
+       Pestañas, captcha propio y envío al mismo controlador.
+       ============================================================ -->
+  <script>
+    (function () {
+      'use strict';
+
+      var TAB_CREAR    = document.getElementById('tab-crear');
+      var TAB_INGRESAR = document.getElementById('tab-ingresar');
+      var PANEL_CREAR  = document.getElementById('panel-crear');
+      var PANEL_INGRESAR = document.getElementById('panel-ingresar');
+      var FORM = document.getElementById('loginForm');
+
+      if (!TAB_CREAR || !TAB_INGRESAR || !PANEL_CREAR || !PANEL_INGRESAR || !FORM) { return; }
+
+      var MSG = document.getElementById('login-msg');
+      var BTN = document.getElementById('btn-ingresar');
+      var CAP_TOKEN = FORM.querySelector('input[name="captcha_token"]');
+
+      function loginPorId(id) { return document.getElementById(id); }
+
+      function loginMensaje(tipo, html) {
+        MSG.className = 'demo-msg demo-msg--' + tipo + ' visible';
+        MSG.innerHTML = (tipo === 'ok'
+          ? '<i class="fa fa-check-circle"></i>'
+          : (tipo === 'info' ? '<i class="fa fa-circle-info"></i>' : '<i class="fa fa-ban"></i>')) +
+          '<div>' + html + '</div>';
+      }
+
+      function loginLimpiarMensaje() {
+        MSG.className = 'demo-msg';
+        MSG.innerHTML = '';
+      }
+
+      /* Campo del formulario que corresponde a cada mensaje */
+      var CAMPO_DE_MS = {
+        login_usuario: 'login-usuario',
+        login_clave: 'login-clave',
+        login_captcha: 'login-captcha-respuesta'
+      };
+
+      function errorCampo(id, texto) {
+        var el = loginPorId('ms_' + id);
+        if (!el) { return; }
+        el.textContent = texto;
+        el.classList.add('visible');
+        var campo = loginPorId(CAMPO_DE_MS[id] || id.replace(/_/g, '-'));
+        if (campo && campo.classList) { campo.classList.add('is-invalid'); }
+      }
+
+      function limpiarErrores() {
+        ['login_usuario', 'login_clave', 'login_captcha'].forEach(function (id) {
+          var el = loginPorId('ms_' + id);
+          if (el) { el.textContent = ''; el.classList.remove('visible'); }
+        });
+        ['login-usuario', 'login-clave', 'login-captcha-respuesta'].forEach(function (id) {
+          var campo = loginPorId(id);
+          if (campo && campo.classList) { campo.classList.remove('is-invalid'); }
+        });
+      }
+
+      /* ---------------- Pestañas ---------------- */
+      function mostrar(paso) {
+        var crear = (paso === 'crear');
+        PANEL_CREAR.hidden = !crear;
+        PANEL_INGRESAR.hidden = crear;
+        TAB_CREAR.classList.toggle('is-active', crear);
+        TAB_INGRESAR.classList.toggle('is-active', !crear);
+        TAB_CREAR.setAttribute('aria-selected', crear ? 'true' : 'false');
+        TAB_INGRESAR.setAttribute('aria-selected', crear ? 'false' : 'true');
+
+        if (!crear) {
+          var u = loginPorId('login-usuario');
+          if (u) { u.focus(); }
+        }
+      }
+
+      TAB_CREAR.addEventListener('click', function () { mostrar('crear'); });
+      TAB_INGRESAR.addEventListener('click', function () { mostrar('ingresar'); });
+
+      var irIngresar = loginPorId('ir-a-ingresar');
+      if (irIngresar) { irIngresar.addEventListener('click', function () { mostrar('ingresar'); }); }
+
+      var irCrear = loginPorId('ir-a-crear');
+      if (irCrear) { irCrear.addEventListener('click', function () { mostrar('crear'); }); }
+
+      /* ---------------- Captcha ---------------- */
+      function loginPintarCaptcha(d) {
+        loginPorId('login-cap-a').textContent = d.a;
+        loginPorId('login-cap-b').textContent = d.b;
+        loginPorId('login-cap-op').textContent = d.signo;
+        if (CAP_TOKEN) { CAP_TOKEN.value = d.token; }
+        var r = loginPorId('login-captcha-respuesta');
+        if (r) { r.value = ''; }
+      }
+
+      function loginRefrescarCaptcha() {
+        var btn = loginPorId('login-cap-refresh');
+        if (btn) { btn.classList.add('girando'); }
+        $.ajax({
+          url: '../../controllers/mcaptcha_controller',
+          type: 'POST',
+          data: { slot: 'captcha_demo_login' },
+          dataType: 'json',
+          cache: false
+        }).done(function (d) {
+          if (d && d.ok) { loginPintarCaptcha(d); }
+        }).always(function () {
+          if (btn) { btn.classList.remove('girando'); }
+        });
+      }
+
+      var btnCap = loginPorId('login-cap-refresh');
+      if (btnCap) { btnCap.addEventListener('click', loginRefrescarCaptcha); }
+
+      ['login-usuario', 'login-clave', 'login-captcha-respuesta'].forEach(function (id) {
+        var el = loginPorId(id);
+        if (!el) { return; }
+        el.addEventListener('input', function () {
+          var ms = loginPorId('ms_' + id.replace(/-/g, '_'));
+          if (ms) { ms.textContent = ''; ms.classList.remove('visible'); }
+          el.classList.remove('is-invalid');
+        });
+      });
+
+      /* ---------------- Enviar ---------------- */
+      FORM.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        loginLimpiarMensaje();
+        limpiarErrores();
+
+        var usuario = (loginPorId('login-usuario').value || '').trim().toUpperCase();
+        var clave = loginPorId('login-clave').value || '';
+        var respuesta = (loginPorId('login-captcha-respuesta').value || '').trim();
+
+        var ok = true;
+        if (usuario === '') { errorCampo('login_usuario', 'Escribe tu usuario demo.'); ok = false; }
+        if (clave === '') { errorCampo('login_clave', 'Escribe tu contraseña.'); ok = false; }
+        if (respuesta === '') { errorCampo('login_captcha', 'Resuelve la operación.'); ok = false; }
+        if (!ok) { return; }
+
+        var original = BTN.innerHTML;
+        BTN.disabled = true;
+        BTN.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Entrando...';
+
+        $.ajax({
+          url: '../../controllers/demo_controller',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: {
+            action: 'login',
+            usuario: usuario,
+            clave: clave,
+            captcha_token: CAP_TOKEN ? CAP_TOKEN.value : '',
+            captcha_respuesta: respuesta
+          }
+        }).done(function (d) {
+          if (d && d.ok) {
+            loginMensaje('ok', 'Bienvenido de nuevo. Entrando...');
+            window.location.href = d.redirect || '../../views/inicio/';
+            return;
+          }
+
+          BTN.disabled = false;
+          BTN.innerHTML = original;
+          loginMensaje('error', (d && d.msg) ? d.msg : 'No se pudo iniciar la sesión demo.');
+          if (d && d.captcha) { loginRefrescarCaptcha(); }
+        }).fail(function () {
+          BTN.disabled = false;
+          BTN.innerHTML = original;
+          loginMensaje('error', 'No hubo respuesta del servidor. Revisa tu conexión e intenta nuevamente.');
+          loginRefrescarCaptcha();
+        });
+      });
+
+      /* `?ingresar=1` abre esta pestaña con el cursor listo. */
+      if (!PANEL_INGRESAR.hidden) {
+        var campoUsuario = loginPorId('login-usuario');
+        if (campoUsuario) { campoUsuario.focus(); }
+      }
     })();
   </script>
 </body>

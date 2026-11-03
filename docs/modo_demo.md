@@ -149,8 +149,32 @@ El diseño soporta **muchas cuentas demo simultáneas**:
 Botones del paso 2: **Reenviar código** (con espera mínima de 60 s) y
 **Cambiar mis datos** (vuelve al formulario y pide un captcha nuevo).
 
-Si el visitante vuelve otro día, puede iniciar sesión **desde el formulario
-normal**: el login no lo encuentra en la base real y lo busca en la demo.
+### Volver a entrar (segunda visita)
+
+La pantalla `views/demo/index.php` tiene **dos pestañas**:
+
+| Pestaña | Qué hace |
+|---|---|
+| **Crear cuenta** | El registro completo con verificación de correo (pasos 1 y 2). |
+| **Ya tengo cuenta** | Formulario de ingreso para una cuenta demo existente: usuario, contraseña y captcha propio. |
+
+- El ingreso llama a `demo_controller.php → action=login`, que reutiliza
+  `bovs_demo_autenticar()` (mismo hash y mismas validaciones que el login del
+  sistema) y deja la sesión con `$_SESSION['demo'] = 1`.
+- Tiene su **propio espacio de captcha** (`captcha_demo_login`) para que
+  "Cambiar" en un formulario no invalide el del otro
+  (`controllers/mcaptcha_controller.php` acepta ese slot).
+- El login del sistema tiene **un solo** acceso al módulo
+  (**Acceso demostrativo** → `demo/`): las dos opciones viven aquí adentro, no
+  en el login. `views/demo/?ingresar=1` sigue abriendo la pestaña de ingreso si
+  se llega con ese parámetro.
+- Si la cuenta venció, el mensaje lo dice y ofrece crear una nueva.
+
+> **Ojo con la sesión demo.** Mientras `$_SESSION['demo'] = 1`,
+> `config/conexion.php` conecta contra `sovca_demo`. Por eso `views/login.php`
+> **limpia la marca demo al cargarse**: si no, un login con una cuenta real
+> hecho desde el mismo navegador consultaba la base de pruebas y respondía
+> "Usuario o contraseña incorrecta" sin motivo.
 
 Cuando se cumple la vigencia, el login responde `?stat=demo_vencida` con un
 aviso que ofrece crear otra cuenta.
@@ -201,6 +225,91 @@ Cron sugerido:
 ```cron
 0 4 * * *  cd /var/www/html/sovca && php scripts/demo_instalar.php --purgar >> /var/log/sovca_demo.log 2>&1
 ```
+
+### Mantener el esquema al día (obligatorio tras cada mejora)
+
+La demo se creó **una sola vez** clonando el esquema de la base real. Cada vez
+que una mejora toca la base (vistas corregidas, columnas nuevas, funciones,
+índices, restricciones o disparadores), la demo se queda con la versión vieja y
+sus pantallas fallan o muestran datos incompletos. Para eso está:
+
+```bash
+# 1) ¿qué le falta a la demo? (no cambia nada)
+php scripts/demo_actualizar_esquema.php
+
+# 2) aplicarlo
+php scripts/demo_actualizar_esquema.php --aplicar
+
+# 3) si la mejora trae su propio archivo de migración, se aplica igual en la demo
+php scripts/demo_actualizar_esquema.php --aplicar --sql=scripts/migracion_lo_que_sea.sql
+```
+
+Qué hace:
+
+- compara `SOVCA_DB_NAME` (base real) contra `sovca_demo` objeto por objeto;
+- **solo agrega y reemplaza definiciones**: secuencias, tablas y columnas que
+  falten, `CREATE OR REPLACE` de funciones y vistas, índices, restricciones y
+  disparadores;
+- recrea automáticamente las vistas dependientes que se pierdan al rehacer una
+  vista base (una vista no guarda datos, así que no hay riesgo);
+- **no toca los datos** de la demo (cuentas y fundos demo siguen intactos);
+- omite tablas de respaldo/trabajo (`_bkp_*`, `_tmp_*`, `*_backup`);
+- avisa (no ejecuta) de columnas o vistas que existen en la demo y no en el
+  origen; para quitarlas hay que pedir `--prune`.
+
+Flujo recomendado en cada despliegue:
+
+```bash
+# base real
+psql -U postgres -d bovs_server -f scripts/migracion_nueva.sql
+
+# demo (esquema + la misma migración)
+php scripts/demo_actualizar_esquema.php --aplicar --sql=scripts/migracion_nueva.sql
+```
+
+El script es idempotente: correrlo dos veces seguidas no cambia nada la segunda
+vez. Si algo falla, lista cada objeto con su error y termina con código 1.
+
+### La demo no se puede actualizar: «must be owner» / «permission denied for schema public»
+
+Síntoma: `demo_actualizar_esquema.php --aplicar` termina con 0 cambios y una
+lista de errores como
+
+```
+x manimales_fundo_lote_activos_idx: ... ERROR: must be owner of table manimales
+x vmregnacimientos: ... ERROR: must be owner of view vmregnacimientos
+x vmregnacimientos_v1: ... ERROR: permission denied for schema public
+```
+
+Causa: la demo se instaló cuando `SOVCA_DB_USER` era `postgres`, así que sus
+tablas, vistas y secuencias pertenecen a `postgres`; el sincronizador conecta
+con el usuario de la aplicación (`sovca_app`) y no puede modificarlas. Además,
+en PostgreSQL 15+ el esquema `public` solo da `CREATE` al dueño de la base.
+
+`REASSIGN OWNED BY postgres TO sovca_app` **no sirve**:
+
+```
+ERROR: cannot reassign ownership of objects owned by role postgres
+       because they are required by the database system
+```
+
+Solución: `scripts/demo_reasignar_duenio.sql` cambia el dueño objeto por
+objeto (también el de la base, que es lo que habilita `CREATE` en `public`).
+Se pasa por `<` porque los archivos del repositorio quedan `640 root:www-data`:
+
+```bash
+cd /var/www/html/sovca
+sudo -u postgres psql -d sovca_demo -v duenio=sovca_app \
+     < scripts/demo_reasignar_duenio.sql
+
+sudo php scripts/demo_actualizar_esquema.php --aplicar
+```
+
+Es idempotente y no toca los datos de la demo. Las secuencias ligadas a una
+columna (`SERIAL`/`IDENTITY`) se dejan como están: siguen a su tabla.
+
+En una instalación nueva el problema no aparece si `demo_instalar.php` se
+ejecuta con el mismo `SOVCA_DB_USER` que usa la aplicación.
 
 ---
 
@@ -257,11 +366,13 @@ definitiva.
 
 ### Módulo del administrador
 
-Ruta: **Usuarios → “Importar cuenta demo”** (roles 1 y 4).
+Ruta: **Usuarios del sistema → “Usuarios Demo”** (roles 1 y 4). El botón antes
+se llamaba “Importar cuenta demo”; ahora abre el listado de usuarios demo y la
+acción de importar vive en cada fila.
 
 | Paso | Qué hace |
 |---|---|
-| 1 · Elegir demo | Lista las cuentas demo con su fundo, vencimiento, estado y **qué procesos cargó** (con cantidades). |
+| 1 · Usuarios demo | Lista las cuentas demo con su fundo, vencimiento, estado y **qué procesos cargó** (con cantidades). Por defecto muestra solo las **activas**; el interruptor **Activos / Todos** permite ver vencidas, inactivas e importadas. Cada fila tiene la acción **Importar cuenta demo** (y el botón para cerrar la demo sin importar datos). |
 | 2 · Cuenta oficial | Crea el usuario productor, su fundo, el plan y la suscripción comprada (misma política de contraseña del sistema). |
 | 3 · Importar datos | Muestra los procesos con su cantidad; se marcan los que se quieren conservar y se copian. |
 

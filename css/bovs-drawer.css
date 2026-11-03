@@ -1,0 +1,243 @@
+/* =============================================================================
+   SOVCA · Panel lateral de consulta (drawer)
+   -----------------------------------------------------------------------------
+   Entra desde la derecha y se cierra con el botón, un clic fuera o Esc.
+   Uso:  BovsDrawer.open({ title: 'Ficha', url: 'frm_ficha?...&embed=1' });
+   El ancho por defecto es 520px; con wide:true pasa a 760px (fichas).
+   ============================================================================= */
+
+.bovs-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background: rgba(30, 40, 50, .22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+}
+.bovs-drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.bovs-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    width: 520px;
+    max-width: 94vw;
+    background: #fff;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, .16);
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.25, .8, .25, 1);
+}
+.bovs-drawer.open {
+    transform: translateX(0);
+}
+.bovs-drawer--wide {
+    width: 760px;
+}
+/* Fichas: el panel ocupa casi toda la pantalla para que la ficha respire y se
+   vea igual que cuando era una página completa. La lista queda detrás y el
+   foco se mantiene en ella: se cambia de animal con los botones del pie. */
+.bovs-drawer--ficha {
+    width: 96vw;
+    max-width: 1240px;
+}
+
+.bovs-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 14px 18px;
+    color: #fff;
+    background: linear-gradient(135deg, #234e35, #2c6e46);
+}
+.bovs-drawer__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.bovs-drawer__close {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .35);
+    border-radius: 4px;
+}
+.bovs-drawer__close:hover {
+    background: rgba(255, 255, 255, .22);
+}
+
+.bovs-drawer__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px;
+    background: #f8fafc;
+}
+.bovs-drawer__body--limpio {
+    padding: 0;
+    /* Gris suave para que el recuadro blanco de la ficha resalte. */
+    background: #eef2f5;
+}
+
+.bovs-drawer__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 12px 18px;
+    background: #fff;
+    border-top: 1px solid #e5e8eb;
+}
+
+.bovs-drawer__loading {
+    padding: 48px 0;
+    text-align: center;
+    color: #6b7280;
+}
+.bovs-drawer__loading i {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 30px;
+}
+
+@media (max-width: 767px) {
+    .bovs-drawer,
+    .bovs-drawer--wide { width: 100%; max-width: 100%; }
+    .bovs-drawer--ficha { width: 100%; max-width: 100%; }
+    .bovs-drawer__body { padding: 14px; }
+    .bovs-drawer__body--limpio { padding: 0; }
+}
+
+/* Navegación entre fichas (anterior / siguiente) */
+.bovs-drawer__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    font-size: 12px;
+    color: #6b7280;
+}
+.bovs-drawer__nav .btn {
+    padding: 4px 10px;
+}
+.bovs-drawer__nav .btn[disabled] {
+    opacity: .45;
+    cursor: default;
+}
+.bovs-drawer__posicion {
+    min-width: 74px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------------
+   Impresión desde el panel
+   El contenido de la ficha vive DENTRO del panel (se carga por AJAX), así que
+   al imprimir hay que quitar el marco fijo y ocultar el resto de la página.
+   Sin esto, el papel sale con el overlay oscuro y la lista detrás.
+   ----------------------------------------------------------------------------- */
+@media print {
+    .bovs-drawer-overlay { display: none !important; }
+
+    body > *:not(.bovs-drawer) { display: none !important; }
+
+    .bovs-drawer {
+        position: static !important;
+        transform: none !important;
+        width: auto !important;
+        max-width: 100% !important;
+        height: auto !important;
+        box-shadow: none !important;
+        display: block !important;
+    }
+    .bovs-drawer__header,
+    .bovs-drawer__footer { display: none !important; }
+
+    .bovs-drawer__body {
+        overflow: visible !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    /* En papel manda el borde de la ficha, no el del panel. */
+    .bovs-drawer--ficha .ficha-wrap {
+        margin: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+}
+
+/* En el panel de ficha el marco lo pone la propia ficha: recuadro blanco con
+   borde y sombra sobre el gris del panel, para que el documento se vea como
+   una hoja y no como texto suelto. */
+.bovs-drawer--ficha .ficha-wrap {
+    max-width: 100%;
+    margin: 12px 14px;
+    padding: 14px 18px;
+    background: #fff;
+    border: 1px solid #bfdccb;
+    border-top: 3px solid #2f8f4a;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(31, 75, 50, .10);
+}
+
+/* -----------------------------------------------------------------------------
+   Contenido de fichas dentro de un panel ESTRECHO (520px)
+   Las vistas de ficha se diseñaron como página completa. En un panel angosto
+   se neutraliza el marco y se reducen las columnas. En el panel de ficha
+   (.bovs-drawer--ficha) no se aplica nada de esto: la ficha conserva su
+   maquetación original, que es lo que la hace legible.
+   ----------------------------------------------------------------------------- */
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-wrap {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-main {
+    flex-direction: column;
+    gap: 14px;
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-foto,
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-foto img {
+    width: 130px;
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-foto img {
+    height: 130px;
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-datos-grid,
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-datos-grid--identidad,
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-datos-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-grid-2 {
+    grid-template-columns: 1fr;
+}
+.bovs-drawer:not(.bovs-drawer--ficha) .ficha-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}

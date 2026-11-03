@@ -11,7 +11,7 @@ $pwPuedeBorrar = ($pwRol !== 3);
 ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-index.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-index.css?v=4" type="text/css" />
 
 <style>
 /* ============================================================

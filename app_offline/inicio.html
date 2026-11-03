@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SOVCA Offline · Inicio</title>
+
+<!-- Esta pagina es la PUERTA DE ENTRADA del modo offline.
+     Es la `start_url` del manifest, asi que el icono que el productor
+     instala en el telefono o en el escritorio abre aqui. Si el equipo ya
+     esta preparado, redirige sola a la app (index.html); si no, explica
+     que falta y ofrece los botones para instalarla o prepararla. -->
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#006633">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SOVCA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/inicio.css">
+</head>
+<body class="portada-body">
+
+<main class="portada">
+
+  <header class="portada__cabecera">
+    <img class="portada__logo" src="icons/icon-192.png" alt="">
+    <div>
+      <h1 class="portada__titulo">SOVCA Offline</h1>
+      <p class="portada__lema">Registro de campo, con o sin internet</p>
+    </div>
+  </header>
+
+  <!-- Estado del equipo: se rellena desde js/inicio.js -->
+  <section id="estado" class="portada__estado portada__estado--cargando" aria-live="polite">
+    <span id="estado-icono" class="portada__estado-icono" aria-hidden="true">…</span>
+    <div>
+      <p id="estado-titulo" class="portada__estado-titulo">Revisando este equipo…</p>
+      <p id="estado-texto" class="portada__estado-texto"></p>
+    </div>
+  </section>
+
+  <section class="portada__acciones">
+    <button type="button" id="boton-entrar" class="boton-primario portada__boton">
+      Entrar a SOVCA Offline
+    </button>
+
+    <button type="button" id="boton-instalar" class="portada__boton portada__boton--instalar oculto">
+      <span aria-hidden="true">↓</span> Instalar en este dispositivo
+    </button>
+
+    <button type="button" id="boton-como-instalar" class="portada__boton portada__boton--secundario">
+      Cómo crear el acceso en este dispositivo
+    </button>
+  </section>
+
+  <!-- Pasos por plataforma -->
+  <section id="seccion-como-instalar" class="portada__panel oculto">
+    <h2 class="portada__panel-titulo">Crear el acceso directo</h2>
+    <p class="portada__panel-texto">
+      Al instalar la app, el ícono de <strong>SOVCA</strong> queda en la pantalla de inicio
+      del teléfono o en el escritorio de la computadora. Desde ahí se abre sin escribir
+      ninguna dirección web.
+    </p>
+
+    <div class="portada__pasos" data-plataforma="android">
+      <h3>Android (Chrome, Edge, Samsung Internet)</h3>
+      <ol>
+        <li>Toca el botón <strong>Instalar en este dispositivo</strong> de arriba.</li>
+        <li>Si no aparece, abre el menú <strong>⋮</strong> del navegador y elige
+            <strong>Instalar aplicación</strong> o <strong>Agregar a pantalla principal</strong>.</li>
+        <li>Confirma. El ícono <strong>SOVCA</strong> queda junto a tus otras aplicaciones.</li>
+      </ol>
+    </div>
+
+    <div class="portada__pasos" data-plataforma="ios">
+      <h3>iPhone / iPad (Safari)</h3>
+      <ol>
+        <li>Toca el botón <strong>Compartir</strong> (el cuadro con la flecha hacia arriba).</li>
+        <li>Elige <strong>Agregar a inicio</strong>.</li>
+        <li>Toca <strong>Agregar</strong>. El ícono <strong>SOVCA</strong> queda en la pantalla de inicio.</li>
+      </ol>
+      <p class="portada__nota">En iPhone la instalación siempre es manual: Apple no permite
+         que la página la haga sola.</p>
+    </div>
+
+    <div class="portada__pasos" data-plataforma="escritorio">
+      <h3>Windows / Mac (Chrome, Edge)</h3>
+      <ol>
+        <li>Toca el botón <strong>Instalar en este dispositivo</strong> de arriba.</li>
+        <li>Si no aparece, usa el ícono de instalar de la barra de direcciones
+            (una pantalla con una flecha) o el menú <strong>⋮</strong> →
+            <strong>Instalar SOVCA Offline</strong>.</li>
+        <li>En el aviso del navegador deja marcada la casilla
+            <strong>Crear acceso directo en el escritorio</strong> y confirma.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Aviso cuando el equipo todavia no fue preparado -->
+  <section id="seccion-preparar" class="portada__aviso oculto">
+    <h2 class="portada__aviso-titulo">Falta preparar este equipo</h2>
+    <p>
+      Para trabajar sin conexión hay que <strong>activar el modo offline una sola vez</strong>
+      con internet, y descargar los datos del fundo.
+    </p>
+    <a class="portada__enlace-boton" href="../views/login?activar=1">Activar este equipo</a>
+  </section>
+
+  <footer class="portada__pie">
+    <a id="enlace-sistema" class="portada__pie-enlace" href="../views/login">Sistema web</a>
+    <span class="portada__pie-sep">·</span>
+    <a id="enlace-app" class="portada__pie-enlace" href="index.html">Abrir la app directamente</a>
+    <span class="portada__pie-sep">·</span>
+    <span id="etiqueta-conexion" class="portada__pie-estado">Sin conexión</span>
+  </footer>
+
+</main>
+
+<script src="js/db.js"></script>
+<script src="js/inicio.js"></script>
+</body>
+</html>

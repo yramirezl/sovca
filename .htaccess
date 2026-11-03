@@ -1,0 +1,49 @@
+# ============================================================
+# SOVCA | Protección de archivos de control de versiones
+# ------------------------------------------------------------
+# Apache 2.4 con AllowOverride All en /var/www/ (ver apache2.conf).
+#
+# Objetivo: que nunca se pueda descargar por web el contenido de un
+# directorio .git (config, HEAD, objetos...), ni en la raíz ni en
+# subcarpetas como lib/fpdf/.git.
+#
+# Devuelve 404 (no 403) para no confirmar la existencia de la ruta.
+# ============================================================
+
+RedirectMatch 404 (?i)/\.git(/|$)
+
+# Variantes habituales que tampoco deben publicarse
+RedirectMatch 404 (?i)/\.(gitignore|gitattributes|gitmodules)$
+RedirectMatch 404 (?i)/\.(env|env\..*)$
+
+# ============================================================
+# Atajo del modo offline
+# ------------------------------------------------------------
+# El modo offline vive en app_offline/, una ruta larga que el
+# productor no tiene por qué recordar. Con esto le basta escribir
+# <servidor>/sovca/offline para llegar a la pagina de inicio, que es
+# donde estan el boton de instalar la app (crea el icono en el
+# dispositivo) y el estado del equipo.
+#
+# Se usa una REDIRECCION (R=302) y no un rewrite interno a proposito:
+# el manifest de la PWA resuelve su scope y su start_url de forma
+# relativa a /app_offline/, asi que la pagina tiene que servirse
+# desde ahi para que la instalacion siga funcionando.
+# ============================================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # El destino se arma con el directorio real de la instalación
+    # (/sovca, o el que sea) para que la redirección dé una URL y no una
+    # ruta del sistema de archivos: con un destino relativo, Apache
+    # responde 302 hacia /var/www/html/sovca/... y el navegador falla.
+    RewriteCond %{REQUEST_URI} ^(/.*)/offline/?$
+    RewriteRule ^offline/?$ %1/app_offline/inicio.html?inicio=1 [R=302,L]
+</IfModule>
+
+# ------------------------------------------------------------
+# Nota: si algún día se migra a Nginx, estas reglas deben
+# replicarse allí:
+#   location ~ /\.git { deny all; }
+#   location = /offline { return 302 /app_offline/inicio.html?inicio=1; }
+# ------------------------------------------------------------

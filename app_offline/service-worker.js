@@ -5,16 +5,20 @@
 // (../api/...) NUNCA se cachean aquí — esas las gestiona sync.js contra
 // IndexedDB, que es donde vive la verdad de los datos offline.
 
-const VERSION_CACHE = 'sovca-shell-v3'; // v3: iconos propios de SOVCA (carnero)
+const VERSION_CACHE = 'sovca-shell-v4'; // v4: port completo de mejoras SOVCA (inicio, aretes, servicios, nacimientos)
 
 const ARCHIVOS_SHELL = [
   './',
   './index.html',
+  './inicio.html',
   './manifest.json',
   './version.php',
   './css/estilos.css',
   './css/modal.css',
   './css/calendario.css',
+  './css/inicio.css',
+  './js/inicio.js',
+  './js/acceso-modo-offline.js',
   './js/config.js',
   './js/dispositivo.js',
   './js/credenciales.js',
@@ -83,6 +87,27 @@ self.addEventListener('activate', (evento) => {
   self.clients.claim();
 });
 
+/**
+ * Respuesta cuando no hay red para un archivo del shell.
+ *
+ * Se busca ignorando la query (`?inicio=1` del acceso directo a la
+ * portada, por ejemplo): sin esto, cualquier URL con parametros se veia
+ * como "no cacheada" y la app quedaba en blanco sin conexion.
+ *
+ * Si aun asi no hay copia y lo que se pidio es una pagina (no un CSS o
+ * un JS), se devuelve la app para que el productor nunca se quede con
+ * una pantalla de error del navegador.
+ */
+function respaldoOffline(request) {
+  return caches.match(request, { ignoreSearch: true }).then((enCache) => {
+    if (enCache) return enCache;
+    if (request.destination === 'document') {
+      return caches.match('./index.html', { ignoreSearch: true });
+    }
+    return undefined;
+  });
+}
+
 self.addEventListener('fetch', (evento) => {
   const url = new URL(evento.request.url);
 
@@ -109,7 +134,7 @@ self.addEventListener('fetch', (evento) => {
           caches.open(VERSION_CACHE).then((cache) => cache.put(evento.request, copia));
           return respuestaRed;
         })
-        .catch(() => caches.match(evento.request))
+        .catch(() => respaldoOffline(evento.request))
     );
     return;
   }

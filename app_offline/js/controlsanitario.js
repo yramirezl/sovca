@@ -77,20 +77,30 @@ const ControlSanitario = {
       ? pendienteExistente.version_base
       : (registroLocal.version ?? null);
 
+    // Si el control TODAVÍA NO está en el servidor (version_base null =
+    // se creó acá y nunca subió) hay que mandar el registro COMPLETO.
+    // Reemplazar el payload de creación por uno parcial hacía que la API
+    // respondiera "Falta el campo requerido 'codigo_rgb_id_animal'" y el
+    // control no subiera nunca. Es el mismo caso que ya estaba resuelto
+    // en servicios.js y nacimientos.js.
+    const datosAEnviar = pendienteExistente && pendienteExistente.version_base == null
+      ? datosParaEnviar(registroLocal)
+      : {
+          // Ya existe allá: solo los campos que este formulario controla
+          // — NO el animal, que es la identidad del registro.
+          fecha_control: registroLocal.fecha_control,
+          fecha_prox_control: registroLocal.fecha_prox_control,
+          evento: registroLocal.evento,
+          responsable: registroLocal.responsable,
+          observaciones: registroLocal.observaciones,
+          productos_aplicados: registroLocal.productos_aplicados,
+        };
+
     await Db.guardar('outbox', {
       uuid_local: uuidLocal,
       modulo: 'control_sanitario',
       version_base: versionBase,
-      // Solo los campos que este formulario de edición controla — NO
-      // todo el registro (ver comentario arriba sobre el animal).
-      datos: {
-        fecha_control: registroLocal.fecha_control,
-        fecha_prox_control: registroLocal.fecha_prox_control,
-        evento: registroLocal.evento,
-        responsable: registroLocal.responsable,
-        observaciones: registroLocal.observaciones,
-        productos_aplicados: registroLocal.productos_aplicados,
-      },
+      datos: datosAEnviar,
       intentos: 0,
       creado: new Date().toISOString(),
     });

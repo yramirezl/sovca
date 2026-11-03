@@ -143,6 +143,23 @@ textarea:focus-visible {
   color: #a33;
 }
 
+/* Salida a la pagina de inicio del modo offline. Vive al pie de las dos
+   pantallas de entrada (login y reconexion local): si al productor se le
+   cierra el navegador y no recuerda la direccion, este es el camino de
+   vuelta a la portada, donde estan el boton de instalar y el estado del
+   equipo. */
+.pie-inicio {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.pie-inicio a {
+  color: #234E35;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .campo {
   margin-bottom: 16px;
 }
@@ -454,6 +471,34 @@ textarea:focus-visible {
 }
 .popover-sync__nota + .popover-sync__nota { margin-top: 4px; }
 
+/* Registros que necesitan una decisión del operario: se muestran uno por
+   uno con su motivo, no sólo el total. */
+.popover-sync__fila--bloqueada {
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #FBEBE7;
+}
+
+.popover-sync__motivo {
+  flex: 1 1 auto;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #7A2A1E;
+  word-break: break-word;
+}
+
+.popover-sync__intentos {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #F3D6CF;
+  color: #7A2A1E;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .popover-sync__aviso {
   margin: 0 0 8px;
   padding: 7px 9px;
@@ -534,6 +579,10 @@ textarea:focus-visible {
   color: #fff;
   cursor: pointer;
   transition: background 0.15s ease;
+  /* La etiqueta muestra "v4.50" o, si aún no se conoce la versión,
+     "Versión". Nunca debe partirse en dos líneas dentro del encabezado. */
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .etiqueta-version-frontend:hover {
@@ -1009,20 +1058,83 @@ textarea:focus-visible {
   gap: 0 12px;
 }
 
+/* Título de bloque dentro de un formulario (ej. Datos de la madre). */
+.form-seccion-titulo {
+  margin: 4px 0 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #E8E0CC;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--verde-pasto-oscuro);
+}
+
 .form-acciones {
   display: flex;
   gap: 10px;
   margin-top: 8px;
 }
 .form-acciones .boton-primario { flex: 2; }
+
+/* Botón secundario: antes era un rectángulo del color del hueso, sin
+   borde ni relieve, y en el teléfono se leía como una etiqueta más del
+   formulario. Ahora tiene borde, fondo blanco y sombra para que se
+   entienda que se puede tocar. */
 .boton-secundario {
   flex: 1;
-  background: var(--hueso-oscuro);
-  color: var(--tinta);
-  border: none;
+  background: #fff;
+  color: var(--verde-pasto-oscuro);
+  border: 2px solid var(--verde-pasto);
   border-radius: 10px;
+  padding: 12px;
   font-weight: 700;
+  font-size: 14.5px;
+  box-shadow: 0 2px 5px rgba(32, 57, 35, 0.12);
 }
+.boton-secundario:active {
+  background: #EEF4EC;
+  transform: translateY(1px);
+}
+.boton-secundario:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+/* Acciones de "agregar" dentro de un formulario (agregar producto,
+   agregar ternero): son acciones, no etiquetas, y antes pasaban
+   desapercibidas. Llevan el signo + y más peso visual. */
+.boton-agregar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--verde-pasto);
+  border-radius: 10px;
+  background: #F1F7F0;
+  color: var(--verde-pasto-oscuro);
+  font-weight: 800;
+  font-size: 14.5px;
+  box-shadow: 0 2px 5px rgba(32, 57, 35, 0.12);
+}
+.boton-agregar::before {
+  content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--verde-pasto);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+.boton-agregar:active { background: #E2EEDF; transform: translateY(1px); }
+.terneros-cabecera .boton-agregar { width: auto; }
 
 /* Terneros del parto (nacimientos): una o varias crías por evento. */
 .terneros-cabecera {
@@ -2318,4 +2430,218 @@ textarea:focus-visible {
     width: 78px;
     height: 78px;
   }
+}
+
+/* ---------------------------------------------------------------- */
+/* Modal de nacimientos: scroll y cabecera siempre a la vista        */
+/* ---------------------------------------------------------------- */
+
+/* El overlay de los modales centra el contenido con flex. En el
+   nacimiento el formulario es muy alto (terneros, tipo de servicio,
+   etc.) y, al no tener scroll propio, se salía por arriba y por abajo:
+   no se llegaba ni al título ni a los botones de Guardar/Cancelar, y en
+   el teléfono había que salir con el botón Atrás. */
+.modal-nacimiento-overlay {
+  align-items: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+}
+
+.modal-nacimiento-slot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+}
+
+.modal-nacimiento-slot .form-animal-contenedor {
+  margin: 0;
+  width: 100%;
+}
+
+/* La cabecera (título + Cancelar) queda pegada arriba mientras se
+   recorre el formulario, así siempre hay una salida visible. */
+.nacimiento-modal-header {
+  position: sticky;
+  top: -10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -14px -14px 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--hueso-oscuro);
+  border-radius: 14px 14px 0 0;
+}
+
+.nacimiento-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--verde-pasto-oscuro);
+}
+
+.nacimiento-modal-header .boton-secundario {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  font-size: 13.5px;
+}
+
+/* Salida rápida al final del formulario del nacimiento en el modal. */
+.modal-nacimiento-slot .form-acciones {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding: 10px 0 calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hueso-oscuro);
+}
+
+/* ---------------------------------------------------------------- */
+/* Panel de INICIO: accesos directos y tareas pendientes             */
+/* ---------------------------------------------------------------- */
+
+.inicio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.inicio-saludo {
+  background: #fff;
+  border: 1px solid var(--hueso-oscuro);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.inicio-saludo__titulo {
+  margin: 0 0 2px;
+  font-size: 17px;
+  color: var(--verde-pasto-oscuro);
+}
+.inicio-saludo__texto {
+  margin: 0;
+  font-size: 13px;
+  color: #6b6455;
+}
+
+.inicio-seccion__titulo {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--verde-pasto-oscuro);
+}
+
+.inicio-accesos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .inicio-accesos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.inicio-acceso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  min-height: 92px;
+  background: #fff;
+  border: 1px solid var(--hueso-oscuro);
+  border-radius: 14px;
+  color: var(--tinta);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(32, 57, 35, 0.08);
+}
+.inicio-acceso:active {
+  background: #F1F7F0;
+  transform: translateY(1px);
+}
+.inicio-acceso__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #F1F7F0;
+  color: var(--verde-pasto-oscuro);
+}
+/* Todos los íconos del inicio son 24×24: se respeta la proporción para
+   que ninguno salga aplastado. */
+.inicio-acceso__icono svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+  flex: 0 0 auto;
+}
+.inicio-acceso__contador {
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ambar);
+  color: #3d2f00;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.inicio-tareas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inicio-tarea {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--hueso-oscuro);
+  border-left: 4px solid var(--verde-pasto);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.inicio-tarea--urgente { border-left-color: var(--rojo); }
+.inicio-tarea--aviso { border-left-color: var(--ambar); }
+.inicio-tarea__icono {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 1.2;
+}
+.inicio-tarea__texto { flex: 1 1 auto; }
+.inicio-tarea__detalle {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b6455;
+}
+.inicio-tarea__accion {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 7px 12px;
+  border: 2px solid var(--verde-pasto);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--verde-pasto-oscuro);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.inicio-vacio {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #F1F7F0;
+  color: #35502f;
+  font-size: 13px;
 }

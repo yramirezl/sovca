@@ -29,6 +29,34 @@ VerificarAdmin($_SESSION['rolx']);
 .suscripciones-pendientes-toggle .badge { margin-left:auto; }
 .suscripciones-pendientes-body { display:none; padding:0 0 4px; }
 .suscripciones-pendientes-body.open { display:block; }
+
+/* Panel de vigencias: cerrado por defecto. La lista completa empujaba la
+   botonera del listado fuera de la pantalla; ahora se abre a demanda y el
+   estado se recuerda por administrador. */
+#suscripciones_admin_panel .box-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+#suscripciones_admin_panel .box-header:focus {
+    outline: 2px solid rgba(35, 78, 53, .35);
+    outline-offset: -2px;
+}
+#suscripciones_admin_panel .box-header .toggle-icono {
+    color: #6b7280;
+    transition: transform .2s ease;
+}
+#suscripciones_admin_panel.abierto .box-header .toggle-icono {
+    transform: rotate(180deg);
+}
+#suscripciones_admin_panel > .box-body {
+    display: none;
+}
+#suscripciones_admin_panel.abierto > .box-body {
+    display: block;
+}
 @media(max-width:600px) { .suscripcion-alerta-item { align-items:flex-start; flex-direction:column; } }
 
 /* ============================================================
@@ -169,8 +197,9 @@ table.dataTable tbody td .label,
 }
 
 /* Filtro por permiso de modo offline (columna "Modo offline").
-   Es un control del propio listado: filtra en memoria, sin tocar la URL. */
-.crud-toolbar__actions .crud-filtro-offline {
+   Un solo control: antes eran tres botones sueltos que ocupaban media
+   barra y obligaban a leer los contadores para elegir. */
+.crud-toolbar__actions .crud-offline {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -178,60 +207,255 @@ table.dataTable tbody td .label,
     padding-left: 10px;
     border-left: 1px solid #e5e7eb;
 }
-.crud-toolbar__actions .crud-filtro-offline__titulo {
+.crud-toolbar__actions .crud-offline__titulo {
     font-size: 12px;
     font-weight: 600;
     color: #374151;
     white-space: nowrap;
 }
-.crud-toolbar__actions .crud-filtro-offline__titulo i {
+.crud-toolbar__actions .crud-offline__titulo i {
     color: #234e35;
     margin-right: 2px;
 }
-.crud-toolbar__actions .crud-filtro-offline__grupo {
-    display: inline-flex;
-    align-items: stretch;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    overflow: hidden;
-}
-.crud-toolbar__actions .crud-filtro-offline__btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.crud-toolbar__actions .crud-offline__select {
     height: 32px;
-    padding: 0 10px;
+    min-width: 168px;
+    padding: 0 26px 0 10px;
     font-size: 12px;
     font-weight: 600;
-    color: #4b5563;
-    background: #ffffff;
-    border: 0;
-    border-right: 1px solid #e5e7eb;
+    color: #234e35;
+    background: #ffffff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23234e35' d='M0 0h10L5 6z'/%3E%3C/svg%3E") no-repeat right 9px center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
 }
-.crud-toolbar__actions .crud-filtro-offline__btn:last-child {
-    border-right: 0;
+.crud-toolbar__actions .crud-offline__select:hover {
+    border-color: #234e35;
 }
-.crud-toolbar__actions .crud-filtro-offline__btn:hover {
-    background: #f1f5f9;
+.crud-toolbar__actions .crud-offline__select:focus {
+    outline: none;
+    border-color: #234e35;
+    box-shadow: 0 0 0 2px rgba(35, 78, 53, 0.15);
 }
-.crud-toolbar__actions .crud-filtro-offline__btn.is-active {
-    color: #ffffff;
+
+/* ------- Contenido de la hoja de vida (el marco lo pone BovsDrawer) ------- */
+.upf-loading {
+    text-align: center;
+    padding: 48px 0;
+    color: #6b7280;
+}
+.upf-loading i {
+    display: block;
+    font-size: 30px;
+    margin-bottom: 10px;
+}
+.upf-identidad {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 14px;
+}
+.upf-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
     background: #234e35;
-}
-.crud-toolbar__actions .crud-filtro-offline__btn em {
-    font-style: normal;
-    font-size: 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
     font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 9px;
-    color: #374151;
-    background: #e5e7eb;
+    flex: 0 0 48px;
 }
-.crud-toolbar__actions .crud-filtro-offline__btn.is-active em {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.28);
+.upf-identidad h4 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+.upf-identidad small {
+    color: #6b7280;
+    font-size: 12px;
+}
+.upf-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+}
+.upf-badge--on  { background: #dcfce7; color: #166534; }
+.upf-badge--off { background: #fee2e2; color: #991b1b; }
+.upf-badge--rol { background: #e0f2fe; color: #075985; }
+.upf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 8px 18px;
+    margin-bottom: 16px;
+}
+.upf-dato {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 1px 7px;
+    padding: 6px 0;
+    border-bottom: 1px dashed #eef1f4;
+    font-size: 13px;
+}
+.upf-dato span {
+    color: #8792a2;
+    font-size: 12px;
+}
+.upf-dato strong {
+    color: #0f172a;
+    font-weight: 700;
+    text-align: left;
+    word-break: break-word;
+}
+/* ------- Bloques del perfil: cada grupo es una tarjeta identificable ------- */
+.upf-bloques {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.upf-bloque {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+.upf-bloque__head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 14px;
+    background: #f8fafc;
+    border-left: 3px solid #94a3b8;
+    border-bottom: 1px solid #eef2f7;
+}
+.upf-bloque__head i {
+    font-size: 13px;
+    color: #64748b;
+}
+.upf-bloque__titulo {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #334155;
+}
+.upf-bloque__extra {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+}
+.upf-bloque__body {
+    padding: 10px 14px 12px;
+}
+.upf-bloque__body .upf-grid {
+    margin-bottom: 0;
+}
+.upf-bloque--verde  .upf-bloque__head { background: #f0f7f3; border-left-color: #2f855a; }
+.upf-bloque--verde  .upf-bloque__head i { color: #2f855a; }
+.upf-bloque--verde  .upf-bloque__titulo { color: #1f513a; }
+.upf-bloque--azul   .upf-bloque__head { background: #eff5ff; border-left-color: #2563eb; }
+.upf-bloque--azul   .upf-bloque__head i { color: #2563eb; }
+.upf-bloque--azul   .upf-bloque__titulo { color: #1e40af; }
+.upf-bloque--ambar  .upf-bloque__head { background: #fff8ec; border-left-color: #d97706; }
+.upf-bloque--ambar  .upf-bloque__head i { color: #d97706; }
+.upf-bloque--ambar  .upf-bloque__titulo { color: #92400e; }
+.upf-bloque--morado .upf-bloque__head { background: #f6f2ff; border-left-color: #7c3aed; }
+.upf-bloque--morado .upf-bloque__head i { color: #7c3aed; }
+.upf-bloque--morado .upf-bloque__titulo { color: #5b21b6; }
+
+.upf-tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+}
+.upf-tarjeta {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fbfdff;
+    text-align: center;
+}
+.upf-tarjeta b {
+    display: block;
+    font-size: 21px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.15;
+}
+.upf-tarjeta span {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+}
+.upf-fundo {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+.upf-fundo__cab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.upf-fundo__nombre {
+    font-weight: 700;
+    color: #111827;
+    font-size: 13px;
+}
+.upf-fundo__meta {
+    font-size: 12px;
+    color: #6b7280;
+}
+.upf-barra {
+    height: 6px;
+    border-radius: 4px;
+    background: #e5e7eb;
+    overflow: hidden;
+    margin-top: 6px;
+}
+.upf-barra > i {
+    display: block;
+    height: 100%;
+    background: #234e35;
+    border-radius: 4px;
+}
+.upf-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.upf-chip {
+    background: #eef4f0;
+    color: #234e35;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.upf-vacio {
+    color: #9ca3af;
+    font-size: 13px;
+    font-style: italic;
 }
 
 /* Reducir espacio del wrapper */
@@ -252,11 +476,14 @@ table.dataTable tbody td .label,
      PANEL DE VIGENCIAS
      ============================================================ -->
 <div class="box suscripciones-admin" id="suscripciones_admin_panel">
-    <div class="box-header with-border">
+    <div class="box-header with-border" role="button" tabindex="0" aria-expanded="false"
+         aria-controls="suscripciones_admin_cuerpo"
+         title="Mostrar u ocultar el detalle de vigencias">
         <h3 class="box-title"><i class="fa fa-clock-o" style="color:#e89b27;"></i> Vigencias de suscripción</h3>
         <span class="label label-warning" id="suscripciones_admin_total">Revisando...</span>
+        <i class="fa fa-chevron-down toggle-icono" aria-hidden="true"></i>
     </div>
-    <div class="box-body">
+    <div class="box-body" id="suscripciones_admin_cuerpo">
         <div id="suscripciones_admin_alerta" class="suscripciones-admin-alerta" style="display:none;" role="status" aria-live="polite"></div>
         <div id="suscripciones_admin_proximas" class="suscripcion-alerta-lista" aria-live="polite">
             <span class="text-muted">Consultando vigencias...</span>
@@ -327,21 +554,23 @@ $crud = [
     'buttonLabels' => ['delete' => 'Inactivar'],
 
     'extraButtonsHtml' => '<a href="importar_demo" class="crud-btn crud-btn--success" style="color:#fff !important;"'
-        . ' title="Convertir una cuenta de demostración en cuenta oficial conservando sus datos">'
-        . '<i class="fa fa-file-import"></i> <span>Importar cuenta demo</span></a>'
+        . ' title="Cuentas de demostración: listado de usuarios demo y opción para importar una como cuenta oficial">'
+        . '<i class="fa fa-flask"></i> <span>Usuarios Demo</span></a>'
+        . '<button id="btn_ver_perfil" type="button" class="crud-btn crud-btn--info"'
+        . ' title="Ver la hoja de vida del usuario seleccionado sin entrar a editarlo">'
+        . '<i class="fa fa-eye"></i> <span>Ver perfil</span></button>'
         . '<button id="readd" type="button" class="crud-btn crud-btn--warning"><i class="fa fa-refresh"></i> <span>Reactivar</span></button>'
-        . '<span class="crud-filtro-offline" role="group" aria-label="Filtrar usuarios por acceso sin conexión">'
-        . '<span class="crud-filtro-offline__titulo"><i class="fa fa-cloud"></i> Modo offline</span>'
-        . '<span class="crud-filtro-offline__grupo">'
-        . '<button type="button" class="crud-filtro-offline__btn is-active" data-offline=""'
-        . ' title="Todas las cuentas del listado">Todos <em id="offline-total">0</em></button>'
-        . '<button type="button" class="crud-filtro-offline__btn" data-offline="1"'
-        . ' title="Cuentas que pueden usar la app sin conexión (incluye a los usuarios que lo heredan del productor)">'
-        . 'Con acceso <em id="offline-con">0</em></button>'
-        . '<button type="button" class="crud-filtro-offline__btn" data-offline="0"'
-        . ' title="Cuentas sin acceso al modo sin conexión">Sin acceso <em id="offline-sin">0</em></button>'
-        . '</span>'
-        . '</span>',
+        /* Filtro de modo offline en un solo control: antes eran tres botones
+           sueltos. El value vacío = todos; 1 = con acceso; 0 = sin acceso. */
+        . '<label class="crud-offline" for="offline_filtro">'
+        . '<span class="crud-offline__titulo"><i class="fa fa-cloud"></i> Modo offline</span>'
+        . '<select id="offline_filtro" class="crud-offline__select"'
+        . ' title="Filtrar por permiso de uso sin conexión (incluye a quienes lo heredan del productor)">'
+        . '<option value="" id="offline-total">Todos</option>'
+        . '<option value="1" id="offline-con">Con acceso</option>'
+        . '<option value="0" id="offline-sin">Sin acceso</option>'
+        . '</select>'
+        . '</label>',
 
     'columns' => [
         ['data' => 'username',         'title' => 'Usuario'],
@@ -468,18 +697,16 @@ $crud = [
             // la API de DataTables se obtiene con .DataTable().
             crud.table.DataTable().column(COLUMNA_OFFLINE).search(patron, true, false).draw();
 
-            \$('.crud-filtro-offline__btn')
-                .removeClass('is-active')
-                .filter('[data-offline=\"' + valor + '\"]')
-                .addClass('is-active');
+            \$('.crud-offline__select').val(valor);
         }
 
-        \$('.crud-filtro-offline__btn').on('click', function () {
-            aplicarFiltroOffline(\$(this).attr('data-offline') || '');
+        \$('#offline_filtro').on('change', function () {
+            aplicarFiltroOffline(\$(this).val() || '');
         });
 
         /* Contadores por estado: se calculan una sola vez, con TODAS las
-           filas del listado (sin contar el filtro actual). */
+           filas del listado (sin contar el filtro actual). Van en el texto
+           de cada opción del selector, que es un solo control. */
         crud.table.DataTable().on('xhr.dt', function (evento, ajustes, json) {
             var filas = Array.isArray(json) ? json : ((json && json.data) ? json.data : []);
             var con = 0;
@@ -493,9 +720,9 @@ $crud = [
                 }
             });
 
-            \$('#offline-total').text(con + sin);
-            \$('#offline-con').text(con);
-            \$('#offline-sin').text(sin);
+            \$('#offline-total').text('Todos (' + (con + sin) + ')');
+            \$('#offline-con').text('Con acceso (' + con + ')');
+            \$('#offline-sin').text('Sin acceso (' + sin + ')');
         });
 
         /* ------------------------------------------------
@@ -539,6 +766,15 @@ $crud = [
 include("../layouts/_crud_index.php");
 ?>
 
+<!-- ============================================================
+     HOJA DE VIDA DEL USUARIO
+     Se muestra en el panel lateral compartido (css/bovs-drawer.css y
+     js/bovs-drawer.js): entra desde la derecha, se cierra con el botón,
+     con un clic fuera o con Esc. Aquí solo se aporta el contenido.
+     ============================================================ -->
+<link rel="stylesheet" href="../../css/bovs-drawer.css" type="text/css" />
+<script src="../../js/bovs-drawer.js"></script>
+
 <script src="../../plugins/confirma/jquery-confirm.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function() {
@@ -548,6 +784,239 @@ $(document).ready(function() {
     }
 
     var usuarioRenovacion = null;
+
+    /* ============================================================
+       PANEL DE VIGENCIAS · cerrado por defecto
+       ------------------------------------------------------------
+       La lista completa (decenas de cuentas) se comía la pantalla y
+       dejaba la botonera del listado fuera de vista. Ahora arranca
+       cerrada, el contador de la cabecera sigue informando y cada
+       administrador decide si la despliega. El estado se recuerda en
+       su navegador.
+       ============================================================ */
+    (function () {
+        var $panel = $('#suscripciones_admin_panel');
+        if (!$panel.length) return;
+
+        var $cabecera = $panel.find('.box-header');
+
+        function aplicar(abierto) {
+            $panel.toggleClass('abierto', abierto);
+            $cabecera.attr('aria-expanded', abierto ? 'true' : 'false');
+            try {
+                localStorage.setItem('bovs_vigencias_abierto', abierto ? '1' : '0');
+            } catch (e) { /* modo privado o sin almacenamiento */ }
+        }
+
+        $cabecera.on('click', function () {
+            aplicar(!$panel.hasClass('abierto'));
+        }).on('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                aplicar(!$panel.hasClass('abierto'));
+            }
+        });
+
+        var recordado = null;
+        try { recordado = localStorage.getItem('bovs_vigencias_abierto'); } catch (e) { /* nada */ }
+        aplicar(recordado === '1');
+    })();
+
+    /* ============================================================
+       VER PERFIL · hoja de vida del usuario
+       ------------------------------------------------------------
+       Antes, para saber algo más de una cuenta había que abrir el
+       formulario de edición. Este modal resume lo importante sin
+       tocar nada: cuenta, suscripción, fundos, animales y actividad.
+       ============================================================ */
+    function upfDato(etiqueta, valor) {
+        var texto = (valor === null || valor === undefined || valor === '') ? '—' : String(valor);
+        return '<div class="upf-dato"><span>' + etiqueta + '</span><strong>'
+             + escaparHtml(texto) + '</strong></div>';
+    }
+
+    function upfFechaHora(valor) {
+        if (!valor) return '—';
+        var d = new Date(String(valor).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return String(valor);
+        var p = function (n) { return (n < 10 ? '0' : '') + n; };
+        return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear()
+             + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    function upfRenderizar(d) {
+        var u = d.usuario || {};
+        var listaFundos = d.fundos || [];
+        var totales = d.totales || { animales: 0, hembras: 0, machos: 0 };
+        var categorias = d.categorias || [];
+        var actividad = d.actividad || {};
+
+        /* Un bloque = una tarjeta con cabecera de color, para que cada grupo
+           de información se reconozca de un vistazo. */
+        function bloque(color, icono, titulo, cuerpo, extra) {
+            return '<section class="upf-bloque upf-bloque--' + color + '">'
+                 +   '<header class="upf-bloque__head">'
+                 +     '<i class="fa ' + icono + '"></i>'
+                 +     '<h5 class="upf-bloque__titulo">' + titulo + '</h5>'
+                 +     (extra ? '<span class="upf-bloque__extra">' + extra + '</span>' : '')
+                 +   '</header>'
+                 +   '<div class="upf-bloque__body">' + cuerpo + '</div>'
+                 + '</section>';
+        }
+
+        /* --- identidad --- */
+        var inicial = (u.name || u.username || '?').trim().charAt(0).toUpperCase();
+        var html = '<div class="upf-identidad">'
+             +    '<div class="upf-avatar">' + escaparHtml(inicial) + '</div>'
+             +    '<div>'
+             +      '<h4>' + escaparHtml(u.name || 'Sin nombre')
+             +        '<span class="upf-badge upf-badge--rol">' + escaparHtml(u.perfil || '') + '</span>'
+             +        '<span class="upf-badge ' + (u.status === 1 ? 'upf-badge--on' : 'upf-badge--off') + '">'
+             +          (u.status === 1 ? 'ACTIVO' : 'INACTIVO') + '</span>'
+             +      '</h4>'
+             +      '<small>@' + escaparHtml(u.username || '—')
+             +        (u.id ? ' · registro #' + u.id : '') + '</small>'
+             +    '</div>'
+             +  '</div>';
+
+        html += '<div class="upf-bloques">';
+
+        /* --- datos personales --- */
+        html += bloque('verde', 'fa-user-o', 'Datos personales',
+            '<div class="upf-grid">'
+            +   upfDato('Nombre y apellido', u.name)
+            +   upfDato('Cédula / RIF', u.cid)
+            +   upfDato('Teléfono', u.telefono)
+            +   upfDato('Correo', u.email)
+            + '</div>');
+
+        /* --- acceso y cuenta --- */
+        html += bloque('azul', 'fa-shield', 'Acceso y cuenta',
+            '<div class="upf-grid">'
+            +   upfDato('Usuario', u.username)
+            +   upfDato('Perfil', u.perfil)
+            +   upfDato('Tipo de usuario', u.tipo_usuario)
+            +   upfDato('Estado', u.status === 1 ? 'Activo' : 'Inactivo')
+            +   upfDato('Creado', u.creado)
+            +   upfDato('Activado', u.fecha_activacion)
+            +   upfDato('Modo offline', u.acceso_offline ? 'Con acceso' : 'Sin acceso')
+            +   upfDato('Multifundo', u.es_multifundo ? ('Sí · hasta ' + (u.max_fundos || 1) + ' fundos') : 'No')
+            + '</div>');
+
+        /* --- resumen de animales --- */
+        html += bloque('verde', 'fa-paw', 'Resumen de animales',
+            '<div class="upf-tarjetas">'
+            +   '<div class="upf-tarjeta"><b>' + (totales.animales || 0) + '</b><span>Animales activos</span></div>'
+            +   '<div class="upf-tarjeta"><b>' + (totales.hembras || 0) + '</b><span>Hembras</span></div>'
+            +   '<div class="upf-tarjeta"><b>' + (totales.machos || 0) + '</b><span>Machos</span></div>'
+            + '</div>',
+            listaFundos.length + (listaFundos.length === 1 ? ' fundo' : ' fundos'));
+
+        /* --- suscripción --- */
+        var cuerpoSuscripcion;
+        var extraSuscripcion = '';
+        if (d.suscripcion && d.suscripcion.descripcion) {
+            var dias = (d.suscripcion.dias_restantes === null) ? null : Number(d.suscripcion.dias_restantes);
+            var etiquetaDias = '—';
+            var colorDias = '#0f172a';
+            if (dias !== null) {
+                etiquetaDias = (dias < 0) ? ('Vencida hace ' + Math.abs(dias) + ' día(s)') : (dias + ' día(s)');
+                colorDias = (dias < 0) ? '#b91c1c' : (dias <= 5 ? '#b45309' : '#166534');
+                extraSuscripcion = etiquetaDias;
+            }
+            cuerpoSuscripcion = '<div class="upf-grid">'
+                +  upfDato('Plan contratado', d.suscripcion.descripcion)
+                +  upfDato('Vigente desde', d.suscripcion.fecha_activa)
+                +  upfDato('Caduca', d.suscripcion.fecha_caduca)
+                +  '<div class="upf-dato"><span>Restante</span><strong style="color:' + colorDias + '">'
+                +  escaparHtml(etiquetaDias) + '</strong></div>'
+                +  '</div>';
+        } else {
+            cuerpoSuscripcion = '<div class="upf-vacio">Sin suscripción registrada (no aplica a este perfil).</div>';
+        }
+        html += bloque('ambar', 'fa-calendar-check-o', 'Suscripción', cuerpoSuscripcion, extraSuscripcion);
+
+        /* --- fundos asociados --- */
+        var cuerpoFundos = '';
+        if (listaFundos.length) {
+            listaFundos.forEach(function (f) {
+                var pct = (f.max_reg > 0) ? Math.min(100, Math.round((f.animales / f.max_reg) * 100)) : 0;
+                var colorBarra = (pct >= 90) ? '#b91c1c' : ((pct >= 70) ? '#b45309' : '#2f855a');
+                cuerpoFundos += '<div class="upf-fundo">'
+                     +    '<div class="upf-fundo__cab">'
+                     +      '<span class="upf-fundo__nombre">' + escaparHtml(f.nombre) + '</span>'
+                     +      '<span class="upf-fundo__meta">Plan ' + escaparHtml(f.plan) + '</span>'
+                     +    '</div>'
+                     +    '<div class="upf-fundo__meta">' + escaparHtml(f.ganaderia) + ' · '
+                     +      f.animales + ' de ' + (f.max_reg || '∞') + ' animales · '
+                     +      f.usuarios + ' usuario(s)</div>'
+                     +    '<div class="upf-barra"><i style="width:' + pct + '%;background:' + colorBarra + '"></i></div>'
+                     +  '</div>';
+            });
+        } else {
+            cuerpoFundos = '<div class="upf-vacio">Este usuario no tiene fundos activos asociados.</div>';
+        }
+        html += bloque('verde', 'fa-map-marker', 'Fundos asociados', cuerpoFundos,
+            listaFundos.length + (listaFundos.length === 1 ? ' fundo' : ' fundos'));
+
+        /* --- animales por categoría --- */
+        if (categorias.length) {
+            var cuerpoCategorias = '<div class="upf-lista">';
+            categorias.forEach(function (c) {
+                cuerpoCategorias += '<span class="upf-chip">' + escaparHtml(c.categoria) + ' · ' + c.cantidad + '</span>';
+            });
+            cuerpoCategorias += '</div>';
+            html += bloque('azul', 'fa-tags', 'Animales por categoría', cuerpoCategorias);
+        }
+
+        /* --- actividad --- */
+        html += bloque('morado', 'fa-clock-o', 'Actividad en el sistema',
+            '<div class="upf-grid">'
+            +   upfDato('Última conexión', upfFechaHora(actividad.ultima_conexion))
+            +   upfDato('Accesos registrados', (actividad.total_conexiones || 0))
+            +   upfDato('Último país', actividad.ultimo_pais)
+            + '</div>');
+
+        html += '</div>';
+
+        BovsDrawer.setHtml(html);
+    }
+
+    $('#btn_ver_perfil').on('click', function () {
+        var $fila = $('table.dataTable tbody tr.selected');
+        if (!$fila.length) {
+            $.alert({
+                title: 'Seleccione un usuario',
+                content: 'Haga clic sobre una fila del listado y vuelva a pulsar <b>Ver perfil</b>.'
+            });
+            return;
+        }
+
+        var id = $fila.attr('data-id');
+        if (!id) {
+            $.alert({ title: 'Sin datos', content: 'No se pudo identificar el usuario de la fila.' });
+            return;
+        }
+
+        BovsDrawer.open({
+            title: 'Hoja de vida del usuario',
+            html: '<div class="upf-loading"><i class="fa fa-spinner fa-spin"></i>Cargando información…</div>'
+        });
+
+        $.post('../../controllers/musuarios_controller', {
+            action: 'detalle_usuario',
+            usuario_id: id
+        }).done(function (resp) {
+            if (!resp || !resp.ok) {
+                BovsDrawer.setHtml('<div class="alert alert-danger" style="margin:0;">'
+                    + escaparHtml((resp && resp.msg) ? resp.msg : 'No se pudo cargar el detalle.') + '</div>');
+                return;
+            }
+            upfRenderizar(resp);
+        }).fail(function () {
+            BovsDrawer.setHtml('<div class="alert alert-danger" style="margin:0;">Error de conexión al cargar el perfil.</div>');
+        });
+    });
 
     function actualizarAyudaRenovacion() {
         if (!usuarioRenovacion) return;

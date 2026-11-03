@@ -68,14 +68,22 @@ const Pesos = {
       ? pendienteExistente.version_base
       : (registroLocal.version ?? null);
 
+    // Si el pesaje todavía NO está en el servidor hay que mandar el
+    // registro COMPLETO: con un payload parcial la API responde "Falta
+    // el campo requerido 'codigo_rgb_id_animal'" y el pesaje no sube
+    // nunca (mismo caso que servicios.js y nacimientos.js).
+    const datosAEnviar = pendienteExistente && pendienteExistente.version_base == null
+      ? datosParaEnviar(registroLocal)
+      : {
+          fecha_pesaje: registroLocal.fecha_pesaje,
+          peso: registroLocal.peso,
+        };
+
     await Db.guardar('outbox', {
       uuid_local: uuidLocal,
       modulo: 'pesos',
       version_base: versionBase,
-      datos: {
-        fecha_pesaje: registroLocal.fecha_pesaje,
-        peso: registroLocal.peso,
-      },
+      datos: datosAEnviar,
       intentos: 0,
       creado: new Date().toISOString(),
     });

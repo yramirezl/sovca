@@ -517,10 +517,137 @@ if (!function_exists('bovs_cx_actualizar_rastreo')) {
     }
 }
 
+if (!defined('SOVCA_CX_TIMEOUT_MIN')) {
+    /** Minutos sin actividad a partir de los cuales la conexión caducó. */
+    define('SOVCA_CX_TIMEOUT_MIN', 15);
+}
+
+if (!function_exists('bovs_cx_reutilizar_conexion')) {
+    /**
+     * Busca una conexión ABIERTA que corresponda a la misma sesión y
+     * equipo, y la actualiza en lugar de crear una fila nueva.
+     *
+     * Por qué: el login puede ejecutarse más de una vez con la MISMA
+     * sesión PHP (reenvío del formulario, flujo multifundo, reingreso sin
+     * cerrar). Antes cada ejecución insertaba otra fila con el mismo
+     * session_id_hash y el historial mostraba varias «En línea» de la misma
+     * conexión, con duraciones de 0 s (2026-11-01).
+     *
+     * Al reutilizarla sólo se refresca la actividad y se ACUMULA la
+     * duración: los demás datos (equipo, IP, sesión) son los mismos.
+     *
+     * @return int id de la fila reutilizada (0 = hay que insertar)
+     */
+    function bovs_cx_reutilizar_conexion($uid, $ip, $ua, $hash)
+    {
+        $uid = (int) $uid;
+        if ($uid <= 0) {
+            return 0;
+        }
+
+        $candidatas = array();
+
+        /* 1) la fila que esta sesión ya tiene guardada */
+        if (!empty($_SESSION['cx_historial_id'])) {
+            $candidatas[] = (int) $_SESSION['cx_historial_id'];
+        }
+
+        /* 2) cualquier fila abierta del MISMO id de sesión */
+        if ($hash !== null && $hash !== '') {
+            $f = bovs_cx_q(
+                'SELECT id FROM conexiones_historial
+                  WHERE musuarios_id = ? AND cerrada = false AND session_id_hash = ?
+                  ORDER BY id DESC LIMIT 1',
+                array($uid, $hash)
+            );
+            if (!empty($f[0]['id'])) {
+                $candidatas[] = (int) $f[0]['id'];
+            }
+        }
+
+        /* 3) misma conexión física: mismo equipo (IP + navegador) sin
+              cerrar y con actividad reciente. Cubre el caso en que el
+              navegador cambia el id de sesión al reingresar. */
+        $f = bovs_cx_q(
+            'SELECT id FROM conexiones_historial
+              WHERE musuarios_id = ?
+                AND cerrada = false
+                AND coalesce(ip, \'\') = ?
+                AND coalesce(user_agent, \'\') = ?
+                AND coalesce(ultima_actividad, fecha) >= now() - CAST(? AS interval)
+              ORDER BY id DESC LIMIT 1',
+            array($uid, $ip, $ua, SOVCA_CX_TIMEOUT_MIN . ' minutes')
+        );
+        if (!empty($f[0]['id'])) {
+            $candidatas[] = (int) $f[0]['id'];
+        }
+
+        foreach (array_unique($candidatas) as $id) {
+            if ($id <= 0) {
+                continue;
+            }
+            /* RETURNING permite saber si el UPDATE afectó la fila (sigue
+               abierta y es del usuario). */
+            $filas = bovs_cx_q(
+                'UPDATE conexiones_historial
+                    SET ultima_actividad = now(),
+                        duracion_seg = GREATEST(0, EXTRACT(EPOCH FROM (now() - fecha))::int),
+                        session_id_hash = COALESCE(session_id_hash, ?),
+                        ip = CASE WHEN coalesce(ip, \'\') = \'\' THEN ? ELSE ip END
+                  WHERE id = ?
+                    AND musuarios_id = ?
+                    AND cerrada = false
+                RETURNING id',
+                array($hash !== '' ? $hash : null, $ip, $id, $uid)
+            );
+            if (!empty($filas[0]['id'])) {
+                return (int) $filas[0]['id'];
+            }
+        }
+
+        return 0;
+    }
+}
+
+if (!function_exists('bovs_cx_cerrar_caducadas')) {
+    /**
+     * Cierra las conexiones del usuario que quedaron abiertas y sin
+     * actividad (navegador cerrado, sesión PHP expirada). Se marcan con
+     * cerrada_por = 'timeout' y la hora REAL de caducidad (la última
+     * actividad), para distinguirlas de un cierre de sesión.
+     *
+     * @return int cantidad de conexiones cerradas
+     */
+    function bovs_cx_cerrar_caducadas($uid)
+    {
+        $uid = (int) $uid;
+        if ($uid <= 0) {
+            return 0;
+        }
+
+        $filas = bovs_cx_q(
+            'UPDATE conexiones_historial
+                SET fecha_fin = COALESCE(ultima_actividad, fecha),
+                    duracion_seg = GREATEST(0, EXTRACT(EPOCH FROM
+                        (COALESCE(ultima_actividad, fecha) - fecha))::int),
+                    cerrada = true,
+                    cerrada_por = \'timeout\'
+              WHERE musuarios_id = ?
+                AND cerrada = false
+                AND COALESCE(ultima_actividad, fecha) < now() - CAST(? AS interval)
+            RETURNING id',
+            array($uid, SOVCA_CX_TIMEOUT_MIN . ' minutes')
+        );
+
+        return count($filas);
+    }
+}
+
 if (!function_exists('bovs_conexion_registrar')) {
     /**
-     * Registra un acceso: inserta la fila del historial y actualiza el
-     * rastreo legado. Devuelve true si el historial quedó guardado.
+     * Registra un acceso. Si la sesión ya tiene una conexión abierta de
+     * este mismo equipo, la REUTILIZA (acumula duración) en vez de insertar
+     * otra fila. Devuelve true si el historial quedó guardado.
      *
      * @param int    $uid    id del usuario en musuarios
      * @param string $origen web | pwa | api | reset
@@ -565,9 +692,28 @@ if (!function_exists('bovs_conexion_registrar')) {
             'ok',
         );
 
+        /* La conexión caducada se cierra antes de decidir: así el
+           historial no acumula sesiones «En línea» fantasma. */
+        bovs_cx_cerrar_caducadas($uid);
+
+        /* Si esta misma sesión/equipo ya tiene una conexión abierta, se
+           actualiza (y la duración se acumula). Insertar otra fila era el
+           origen de las «En línea» repetidas con 0 s de duración. */
+        $sessionHash = bovs_cx_hash_sesion();
+        $idExistente = bovs_cx_reutilizar_conexion(
+            $uid,
+            $ip,
+            $ua,
+            $sessionHash !== '' ? $sessionHash : null
+        );
+        if ($idExistente > 0) {
+            $_SESSION['cx_historial_id'] = $idExistente;
+            bovs_cx_actualizar_rastreo($uid, $ip, $geo);
+            return true;
+        }
+
         /* La fila nace con ultima_actividad = fecha: la duración de la
            sesión se mide desde el login hasta la última petición. */
-        $sessionHash = bovs_cx_hash_sesion();
         $filas = bovs_cx_q(
             'INSERT INTO conexiones_historial
                 (musuarios_id, username, nombre, ip, pais, ciudad, region, user_agent, origen, resultado, fecha,

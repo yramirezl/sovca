@@ -181,13 +181,28 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '</li>';
 
     echo render_boton_inicio();
+
+    /* Se replican las entradas del menú del PRODUCTOR que no estaban en modo
+       soporte, para poder emular sus pantallas (y detectar incidentes después
+       de unificar fundos o de una suscripción multifundo).
+       "Dispositivos Offline" y "Gestión de Fundos" ya están en Administración,
+       por eso aquí solo van los enlaces que faltaban. */
+    echo ' <li class="treeview"><a href="#"><i class="fa fa-cloud fa-lg"></i> <span>Modo Offline</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
+    echo '<li><a href="../../app_offline/" target="_blank"><i class="fa fa-cloud-download"></i> <span>App Offline (PWA)</span></a></li>';
+    echo '</ul></li>';
+
+    echo ' <li class="treeview"><a href="#"><i class="fa fa-book"></i> <span>Fundos</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
+    echo '<li><a href="../migracion/"><i class="fa fa-table"></i> <span>Migrar Animales</span></a></li>';
+    echo '</ul></li>';
+
     echo render_menu_gestion_fundo();
 
     // Accesos de administración: permiten volver a la gestión del
     // sistema sin salir del modo soporte.
     echo ' <li class="treeview bovs-soporte-admin"><a href="#"><i class="fa fa-users fa-lg"></i> <span>Administración</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
     echo '<li><a href="../usuarios/"><i class="fa fa-users"></i> <span>Usuarios</span></a></li>';
-    echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
+    echo '<li><a href="../fundos/"><i class="fa fa-building"></i> <span>Gestión de Fundos</span></a></li>';
+    echo '<li><a href="../planes/"><i class="fa fa-tags"></i> <span>Planes</span></a></li>';
     echo '<li><a href="../dispositivos/"><i class="fa fa-mobile"></i> <span>Dispositivos Offline</span></a></li>';
     echo '<li><a href="../conexiones/"><i class="fa fa-flag"></i> <span>Conexiones</span></a></li>';
     echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
@@ -218,8 +233,10 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../usuarios/"><i class="fa fa-users"></i> <span>Usuarios</span></a></li>';
     echo '<li><a href="../tipousuarios/"><i class="fa fa-link"></i> <span>Tipos de Usuario</span></a></li>';
     echo '<li><a href="../roles/"><i class="fa fa-flag"></i> <span>Roles</span></a></li>';
-    echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
-    // El maestro de planes define registros y fundos por plan: solo Super Usuario.
+    /* "Gestión de Fundos" concentra las tres herramientas de la vista
+       ../fundos/: Consultar fundos, Modo soporte y Asistente de fusión
+       (eran dos entradas separadas en el menú). */
+    echo '<li><a href="../fundos/"><i class="fa fa-building"></i> <span>Gestión de Fundos</span></a></li>';
     echo '<li><a href="../planes/"><i class="fa fa-tags"></i> <span>Planes</span></a></li>';
     echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
@@ -231,6 +248,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-bar-chart"></i> <span>Estadísticas</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
+    echo '<li><a href="../estadisticas/"><i class="fa fa-dashboard"></i> <span>Resumen</span></a></li>';
     echo '<li><a href="../dataxfundos/"><i class="fa fa-certificate"></i> <span>Registros por Fundos</span></a></li>';
     echo '<li><a href="../conexiones/"><i class="fa fa-flag"></i> <span>Conexiones</span></a></li>';
     echo '</ul></li>';
@@ -259,11 +277,14 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-users fa-lg"></i> <span>Administrador</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
     echo '<li><a href="../usuarios/"><i class="fa fa-users"></i> <span>Usuarios</span></a></li>';
-    echo '<li><a href="../fundos/"><i class="fa fa-star"></i> <span>Todos los Fundos</span></a></li>';
+    /* "Gestión de Fundos" incluye las pestañas Consultar fundos, Modo soporte
+       y Asistente de fusión dentro de la propia pantalla. */
+    echo '<li><a href="../fundos/"><i class="fa fa-building"></i> <span>Gestión de Fundos</span></a></li>';
     echo '<li><a href="../mantenimiento/"><i class="fa fa-wrench"></i> <span>Mantenimiento</span></a></li>';
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-bar-chart"></i> <span>Estadísticas</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
+    echo '<li><a href="../estadisticas/"><i class="fa fa-dashboard"></i> <span>Resumen</span></a></li>';
     echo '<li><a href="../dataxfundos/"><i class="fa fa-certificate"></i> <span>Registros por Fundos</span></a></li>';
     echo '<li><a href="../conexiones/"><i class="fa fa-flag"></i> <span>Conexiones</span></a></li>';
     echo '</ul></li>';

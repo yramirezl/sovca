@@ -6,8 +6,8 @@ ValidaSession("../login");
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-form.css" type="text/css" />
-<link rel="stylesheet" href="../../css/servicio-selector.css?v=15" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-form.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/servicio-selector.css?v=16" type="text/css" />
 <link rel="stylesheet" href="../../plugins/datepicker/datepicker3.css" type="text/css" />
 <link rel="stylesheet" href="../../plugins/unslider/unslider.css">
 <link rel="stylesheet" href="../../plugins/leaflet/leaflet.css" />
@@ -198,6 +198,9 @@ ValidaSession("../login");
                         <select name="tipo_servicio" id="tipo_servicio" class="form-control bbb" tabindex="7">
                             <option></option>
                         </select>
+                        <small id="aviso_tipo_servicio" class="text-warning" style="display:none;">
+                            Este servicio no tiene tipo registrado. Elige uno: se guardará también en el módulo de servicios.
+                        </small>
                     </div>
 
                     <label>Datos de la Donadora</label>
@@ -228,8 +231,22 @@ ValidaSession("../login");
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_h_donadora" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_h_donadora">
+                        <div class="sel-ficha" id="ficha_dona">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_dona'><p></p></div>
                     </div>
 
@@ -281,8 +298,22 @@ ValidaSession("../login");
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_h" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_h">
+                        <div class="sel-ficha" id="ficha_h">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_h'><p></p></div>
                         <div id='ms_nombre'><p></p></div>
                     </div>
@@ -385,8 +416,22 @@ ValidaSession("../login");
                                 <i class="fa fa-fw fa-trash-o"></i> Cambiar
                             </button>
                         </div>
-                        <input type="text" id="nombre_m" class="form-control"
-                               placeholder="Seleccione una fila del listado" readonly="true">
+                        <input type="hidden" id="nombre_m">
+                        <div class="sel-ficha" id="ficha_m">
+                            <span class="sel-ficha__vacia">Seleccione una fila del listado</span>
+                            <div class="sel-ficha__item" data-campo="nombre" hidden>
+                                <span class="sel-ficha__k">Nombre</span>
+                                <span class="sel-ficha__v" data-valor="nombre"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="arete" hidden>
+                                <span class="sel-ficha__k">Nro arete</span>
+                                <span class="sel-ficha__v" data-valor="arete"></span>
+                            </div>
+                            <div class="sel-ficha__item" data-campo="codigo" hidden>
+                                <span class="sel-ficha__k">Código SOVCA</span>
+                                <span class="sel-ficha__v" data-valor="codigo"></span>
+                            </div>
+                        </div>
                         <div id='ms_cod_animal_m'><p></p></div>
                     </div>
 
@@ -483,6 +528,7 @@ ValidaSession("../login");
 <script src="../../plugins/select3/i18n/defaults-es_ES.min.js"></script>
 <script type="text/javascript" src="../../js/servicio-selector.js?v=16"></script>
 <script type="text/javascript" src="../../js/crud-animal-selector.js?v=15"></script>
+<script type="text/javascript" src="../../js/nac-busqueda-animal.js?v=3"></script>
 
 <script type="text/javascript">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -632,12 +678,32 @@ function seleccionarServicioGestanteWeb(servicio) {
     $('#nombre_m').val(servicio.nombre_macho || '').prop('disabled', false).prop('readonly', true);
     $('#cod_animal_dona').val(servicio.codigo_rgb_id_animal_dona || '').prop('disabled', false).prop('readonly', true);
     $('#nombre_h_donadora').val(servicio.nombre_donadora || '').prop('disabled', false).prop('readonly', true);
+    /* Ficha con Nombre / Nro arete / Código de los tres animales del servicio */
+    bovsPintarFichaAnimal('ficha_h', {
+        codigo: servicio.codigo_rgb_id_animal_hembra,
+        nombre: servicio.nombre_hembra,
+        nro_arete: servicio.arete_hembra
+    });
+    bovsPintarFichaAnimal('ficha_m', {
+        codigo: servicio.codigo_rgb_id_animal_macho,
+        nombre: servicio.nombre_macho,
+        nro_arete: servicio.arete_macho
+    });
+    bovsPintarFichaAnimal('ficha_dona', {
+        codigo: servicio.codigo_rgb_id_animal_dona,
+        nombre: servicio.nombre_donadora,
+        nro_arete: servicio.arete_donadora
+    });
     $('#nro_parto').val(servicio.nro_parto || 1).prop('disabled', false);
     // Con el servicio gestante elegido ya se puede completar el parto
     // (crías, propósito y fecha de secado). Antes esto dependía de la
     // pregunta "¿Entrará a producción de leche?".
     habilitarBloquePartoNacimiento();
-    $('#tipo_servicio').prop('disabled', true);
+    /* Si el servicio gestante NO tiene tipo (dato viejo) se deja elegir y se
+       avisa: al guardar, el controlador lo graba también en el servicio. */
+    var tipoServicioOk = !!tipoServicioGestanteSeleccionado && tipoServicioGestanteSeleccionado !== '0';
+    $('#tipo_servicio').prop('disabled', tipoServicioOk);
+    $('#aviso_tipo_servicio').toggle(!tipoServicioOk);
     $('#buscar, #limpiar, #buscar_m, #limpiar_m, #buscar_dona, #limpiar_dona, #b_codigo, #b_nro_arete, #macho_codigo, #macho_nro_arete').prop('disabled', true);
     $('#fecha_parto').prop('disabled', false);
     $('#buscar_servicio_gestante').val(servicio.codigo_servicio || 'Servicio gestante seleccionado').prop('readonly', true);    $('#servicios_gestantes_resultados').removeClass('open').empty();
@@ -649,6 +715,7 @@ function limpiarServicioGestanteWeb() {
     $('#servicio_gestante_id').val('');
     tipoServicioGestanteSeleccionado = '';
     $('#tipo_servicio').prop('disabled', false).val('');
+    $('#aviso_tipo_servicio').hide();
     $('#cod_animal_h, #nombre_h, #cod_animal_m, #nombre_m, #cod_animal_dona, #nombre_h_donadora').prop('readonly', false);
     LimpiarCampos();
     BloquearCampos();
@@ -796,6 +863,7 @@ $('#limpiar_dona').click(function() {
     document.getElementById("cod_animal_h").disabled = true;
     document.getElementById("nombre_h_donadora").value = "";
     document.getElementById("cod_animal_dona").value = "";
+    bovsPintarFichaAnimal('ficha_dona', {});
     document.getElementById("limpiar_dona").disabled = true;
     document.getElementById("buscar_dona").disabled = true;
     document.getElementById('dona_codigo').checked = false;
@@ -820,6 +888,7 @@ $('#limpiar_m').click(function() {
     document.getElementById("limpiar_m").disabled = true;
     document.getElementById("nombre_m").value = '';
     document.getElementById("cod_animal_m").value = '';
+    bovsPintarFichaAnimal('ficha_m', {});
 });
 
 $('#buscar').click(function() {
@@ -843,33 +912,22 @@ $('#buscar').click(function() {
                 $('.base').unslider('animate:1');
                 setTimeout(function() { $(".alert").alert('close'); }, 3000);
             } else {
-                $("#nombre_h").val(data);
                 document.getElementById("buscar").disabled = true;
                 document.getElementById('b_codigo').disabled = true;
                 document.getElementById('b_nro_arete').disabled = true;
                 document.getElementById("fecha_parto").disabled = false;
                 document.getElementById("limpiar").disabled = false;
             }
-            var valor = $("#nombre_h").val();
-            var array = valor.split("*");
-            var log = array[0];
-            var array2 = log.split('"');
-            var log2 = array2[1];
-            var log_n = array[1];
-            var array_n2 = log_n.split('"');
-            var log_n2 = array_n2[0];
-            var log_n3 = array[2];
-            var array_n3 = log_n3.split('"');
-            var log_n4 = array_n3[0];
-            log_n4 = parseInt(log_n4);
-            if (log_n4 > 1) {
-                document.getElementById("nro_parto").disabled = true;
-            } else {
-                document.getElementById("nro_parto").disabled = false;
+            /* El código y el nombre se reescriben SIEMPRE desde la respuesta:
+               si la búsqueda falló quedan vacíos. Antes se tomaba el valor
+               del propio campo, así que lo que el operador había tecleado
+               (un número de arete) terminaba guardado como código. */
+            var busq_h = bovsAplicarBusquedaAnimal(data, 'cod_animal_h', 'nombre_h', 'nro_parto', 'ficha_h');
+            var nro_parto_sug = parseInt(busq_h.nro_parto, 10);
+            if (!isNaN(nro_parto_sug)) {
+                $("#nro_parto").val(nro_parto_sug);
+                document.getElementById("nro_parto").disabled = (nro_parto_sug > 1);
             }
-            $("#cod_animal_h").html(log2).val(log2);
-            $("#nombre_h").html(log_n2).val(log_n2);
-            $("#nro_parto").html(log_n4).val(log_n4);
         });
     } else {
         document.getElementById('ms_cod_animal_h').style.display = 'block';
@@ -896,7 +954,6 @@ $('#buscar_dona').click(function() {
             $('.base').unslider('animate:1');
             setTimeout(function() { $(".alert").alert('close'); }, 3000);
         } else {
-            $("#nombre_h_donadora").val(data);
             document.getElementById("buscar_dona").disabled = true;
             document.getElementById('dona_codigo').disabled = true;
             document.getElementById('dona_nro_arete').disabled = true;
@@ -905,16 +962,7 @@ $('#buscar_dona').click(function() {
             document.getElementById('b_codigo').disabled = false;
             document.getElementById('b_nro_arete').disabled = false;
         }
-        var valor = $("#nombre_h_donadora").val();
-        var array = valor.split("*");
-        var log = array[0];
-        var array2 = log.split('"');
-        var log2 = array2[1];
-        var log_n = array[1];
-        var array_n2 = log_n.split('"');
-        var log_n2 = array_n2[0];
-        $("#cod_animal_dona").html(log2).val(log2);
-        $("#nombre_h_donadora").html(log_n2).val(log_n2);
+        bovsAplicarBusquedaAnimal(data, 'cod_animal_dona', 'nombre_h_donadora', null, 'ficha_dona');
     });
 });
 
@@ -1083,21 +1131,14 @@ $('#buscar_m').click(function() {
             $('.base').unslider('animate:1');
             setTimeout(function() { $(".alert").alert('close'); }, 3000);
         } else {
-            $("#nombre_m").html(data).val(data);
             document.getElementById("buscar_m").disabled = true;
             document.getElementById("cod_animal_m").disabled = true;
             document.getElementById("limpiar_m").disabled = false;
         }
-        var valor = $("#nombre_m").val();
-        var array = valor.split("*");
-        var log = array[0];
-        var array2 = log.split('"');
-        var log2 = array2[1];
-        var log_n = array[1];
-        var array_n2 = log_n.split('"');
-        var log_n2 = array_n2[0];
-        $("#cod_animal_m").html(log2).val(log2);
-        $("#nombre_m").html(log_n2).val(log_n2);
+        /* Si la búsqueda falla (por ejemplo un arete que no existe o un toro
+           fuera de servicio) el campo queda VACÍO: antes se conservaba el
+           texto tecleado y se guardaba como código del padre. */
+        bovsAplicarBusquedaAnimal(data, 'cod_animal_m', 'nombre_m', null, 'ficha_m');
     });
 });
 
@@ -1199,6 +1240,16 @@ $('#save').click(function() {
     }
     var primerTernero = terneros[0];
 
+    /* El tipo de servicio es obligatorio: con 0 el parto no aparece en el
+       listado ni se puede unificar/anular (la vista une con mtiposervicios). */
+    var tipoServicioElegido = $('#tipo_servicio').val();
+    if (!tipoServicioElegido || tipoServicioElegido === '0') {
+        $('#aviso_tipo_servicio').show();
+        $('.message').html('<div class="alert alert-warning">Indica el <strong>Tipo de Servicio</strong>. Si la hembra llegó preñada de otro fundo, elige el que corresponda; si su servicio no tenía tipo, se actualizará también en el módulo de servicios.</div>');
+        document.body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+
     $.confirm({
         title: '¿Está Seguro de Guardar el Registro ?',
         content: false,
@@ -1286,6 +1337,10 @@ function LimpiarCampos() {
     document.getElementById('b_nro_arete').checked = false;
     document.getElementById("nombre_h_donadora").value = '';
     document.getElementById("cod_animal_dona").value = '';
+    /* Las fichas visibles no se vacían solas: reflejan el animal elegido. */
+    bovsPintarFichaAnimal('ficha_h', {});
+    bovsPintarFichaAnimal('ficha_m', {});
+    bovsPintarFichaAnimal('ficha_dona', {});
 }
 
 function BloquearCampos() {

@@ -26,10 +26,11 @@ header('X-Content-Type-Options: nosniff');
 require_once __DIR__ . '/../lib/captcha_helper.php';
 
 /* El modal de instalación offline pide su propio captcha para no
-   invalidar el del formulario de acceso. Solo se aceptan espacios
-   conocidos. */
+   invalidar el del formulario de acceso. Cada formulario con captcha
+   usa su propio espacio para no pisarse entre sí. Solo se aceptan
+   espacios conocidos. */
 $slot = isset($_GET['slot']) ? (string) $_GET['slot'] : 'captcha';
-if (!in_array($slot, array('captcha', 'captcha_offline'), true)) {
+if (!in_array($slot, array('captcha', 'captcha_offline', 'captcha_demo_login'), true)) {
     $slot = 'captcha';
 }
 

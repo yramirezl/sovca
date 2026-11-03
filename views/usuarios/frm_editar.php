@@ -101,11 +101,12 @@ $cad0 = $valores[0];
 					</div>
 
 					<div class="crud-form__field" id="grp_max_fundos" style="display:none;">
-                                            <label for="max_fundos">Fundos permitidos por el plan</label>
-                                            <input type="text" id="max_fundos" class="form-control" value="1" readonly
-                                                style="background:#f5f6f7; cursor:not-allowed;">
-                                            <small id="max_fundos_nota" style="color:#888; display:block; margin-top:4px;">
-                                                    El cupo de fundos lo define el plan seleccionado.
+						<label for="max_fundos">Fundos contratados en esta cuenta</label>
+						<input type="number" id="max_fundos" class="form-control" value="1" min="1" step="1">
+						<small id="max_fundos_nota" style="color:#888; display:block; margin-top:4px;">
+							El plan fija un TOPE de fundos, no la cantidad contratada: ajuste aquí cuántos
+							fundos tiene comprados la cuenta (1 por defecto, hasta el tope del plan).
+						</small>
 					</div>
 
 					<div class="crud-form__field" id="grp_acceso_offline">
@@ -258,19 +259,6 @@ function asegurarOpcion(selector, valor, texto) {
 	$sel.val(v);
 }
 
-/* El cupo de fundos lo define el plan: cada opción del select trae
-   data-max-fundos (ver controllers/mplanes_controller.php). El campo es
-   informativo; el servidor lo vuelve a calcular al guardar. */
-function actualizarCupoFundos() {
-	var cupo = parseInt($('#t_plan option:selected').attr('data-max-fundos'), 10);
-	if (isNaN(cupo) || cupo < 1) { cupo = 1; }
-	var multi = $('#es_multifundo').is(':checked');
-	$('#max_fundos').val(multi ? cupo : 1);
-	$('#max_fundos_nota').text(multi
-		? 'El plan seleccionado permite ' + cupo + ' fundo(s) en esta cuenta.'
-		: 'La cuenta no es multifundo: solo puede tener 1 fundo.');
-}
-
 function aplicarCamposPorRol(valorRol) {
 	var rolSeleccionado = parseInt(valorRol, 10) || 0;
 	var esProductor = rolSeleccionado === 2;
@@ -300,6 +288,42 @@ function aplicarCamposPorRol(valorRol) {
 	else if (esEncargado) resumen = 'Encargado: su acceso queda asociado al fundo asignado por el productor.';
 	$('#rol_resumen').text(resumen).toggleClass('visible', !!resumen);
 }
+
+/* El plan fija el TOPE de fundos; la cuenta contrata cuántos quiere (por
+   defecto 1, nunca el tope). El campo es editable y el servidor lo acota con
+   mf_normalizar_cupo_fundos(). */
+function topeFundosPlan() {
+	var tope = parseInt($('#t_plan option:selected').attr('data-max-fundos'), 10);
+	return (isNaN(tope) || tope < 1) ? 0 : tope;
+}
+
+function actualizarCupoFundos() {
+	var tope = topeFundosPlan();
+	var actual = parseInt($('#max_fundos').val(), 10);
+	if (isNaN(actual) || actual < 1) { actual = 1; }
+	// Con el select de planes todavía sin cargar (tope 0) no se toca el valor:
+	// de lo contrario se perdería el cupo guardado de la cuenta.
+	if (tope > 0 && actual > tope) { actual = tope; }
+	if (tope > 0) { $('#max_fundos').attr('max', tope); } else { $('#max_fundos').removeAttr('max'); }
+	var multi = $('#es_multifundo').is(':checked');
+	$('#max_fundos').val(multi ? actual : 1);
+	$('#max_fundos_nota').text(multi
+		? 'El plan permite hasta ' + (tope > 0 ? tope : '—') + ' fundo(s). Indique cuántos contrató la cuenta.'
+		: 'La cuenta no es multifundo: solo puede tener 1 fundo.');
+}
+
+/* Cupo que se envía al servidor: 1 sin multifundo y, con multifundo, el valor
+   del campo acotado al tope del plan. */
+function cupoFundosAEnviar() {
+	if (!$('#es_multifundo').is(':checked')) { return 1; }
+	var tope = topeFundosPlan();
+	var cupo = parseInt($('#max_fundos').val(), 10);
+	if (isNaN(cupo) || cupo < 1) { cupo = 1; }
+	if (tope > 0 && cupo > tope) { cupo = tope; }
+	return cupo;
+}
+
+$(document).on('change', '#t_plan, #es_multifundo', actualizarCupoFundos);
 
 $(document).on('input', '[data-auto-uppercase]', function () {
 	var cursor = this.selectionStart;
@@ -523,6 +547,8 @@ $("#rol").change(function () {
 			if (plan != '') {
 				$("#t_plan").val(plan);
 			}
+			// Ya hay plan seleccionado: se refresca el tope del campo de fundos.
+			actualizarCupoFundos();
 		});
 
 	} else {
@@ -556,6 +582,7 @@ $('#t_plan').on('change', function () {
 		$('#acceso_offline').prop('checked', texto.indexOf('DIAMANTE') > -1);
 		actualizarCupoFundos();
 	}
+	actualizarCupoFundos();
 });
 
 $("#save").click(function () {
@@ -577,7 +604,7 @@ $("#save").click(function () {
 	formData.append('password1', $("#password1").val());
 	formData.append('password2', $("#password2").val());
 	formData.append('es_multifundo', $("#es_multifundo").is(':checked') ? 1 : 0);
-	formData.append('max_fundos', $("#es_multifundo").is(':checked') ? ($("#max_fundos").val() || 1) : 1);
+	formData.append('max_fundos', cupoFundosAEnviar());
 	formData.append('acceso_offline', $("#acceso_offline").is(':checked') ? 1 : 0);
 
 	$.ajax({

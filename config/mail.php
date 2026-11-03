@@ -20,18 +20,41 @@
  *    ("SMTP sin contraseña configurada") y el usuario ve el aviso genérico
  *    de "no se pudo enviar el correo".
  */
+
+if (!function_exists('bovs_mail_env')) {
+    /**
+     * Lee una variable de entorno con respaldo en $_SERVER y un valor fijo.
+     * Mismo criterio que config/db.php: el entorno manda.
+     */
+    function bovs_mail_env($nombre, $defecto)
+    {
+        $valor = getenv($nombre);
+        if ($valor === false || $valor === '') {
+            $valor = isset($_SERVER[$nombre]) ? $_SERVER[$nombre] : '';
+        }
+        return ($valor === '' || $valor === null) ? $defecto : $valor;
+    }
+}
+
 return array(
 
-    /* ---------------- Servidor SMTP ---------------- */
-    'host'     => 'mail.ruted.net',
-    'port'     => 465,
-    'secure'   => 'ssl',            // 'ssl' (465) o 'tls' (587)
-    'username' => 'global@ruted.net',
-    // La variable de entorno SOVCA_SMTP_PASS tiene prioridad sobre el valor
-    // escrito aquí.
-    'password' => (getenv('SOVCA_SMTP_PASS') !== false && getenv('SOVCA_SMTP_PASS') !== ''
-                    ? getenv('SOVCA_SMTP_PASS')
-                    : 'Gl0b@l*2023#'),
+    /* ---------------- Servidor SMTP ----------------
+       host, puerto, cifrado y clave se pueden fijar por entorno, para no
+       editar este archivo (versionado) en cada servidor:
+           env[SOVCA_SMTP_HOST]   = "mail.ruted.net"
+           env[SOVCA_SMTP_PORT]   = "587"
+           env[SOVCA_SMTP_SECURE] = "tls"
+           env[SOVCA_SMTP_PASS]   = "la-clave-del-buzon"
+       Si el puerto 465 (ssl) es rechazado por la red del servidor, con 587
+       y tls suele funcionar sin tocar código. */
+    'host'     => bovs_mail_env('SOVCA_SMTP_HOST', 'mail.ruted.net'),
+    'port'     => (int) bovs_mail_env('SOVCA_SMTP_PORT', 465),
+    'secure'   => bovs_mail_env('SOVCA_SMTP_SECURE', 'ssl'),   // 'ssl' (465) o 'tls' (587)
+    'username' => bovs_mail_env('SOVCA_SMTP_USER', 'global@ruted.net'),
+    // La variable de entorno SOVCA_SMTP_PASS tiene prioridad. Si no está
+    // definida se usa la clave del buzón, que vive SOLO aquí: los scripts de
+    // alertas leen esta configuración y no repiten credenciales.
+    'password' => bovs_mail_env('SOVCA_SMTP_PASS', 'Gl0b@l*2023#'),
 
     /* ---------------- Remitente ----------------
        IMPORTANTE PARA NO CAER EN SPAM:
@@ -42,13 +65,20 @@ return array(
        · hostname se usa en el saludo HELO y en el Message-ID; debe ser un
          nombre del dominio remitente, no el hostname del servidor.
        · reply_to puede ser un buzón real de soporte. */
-    'from_email'        => 'global@ruted.net',
-    'from_name'         => 'SOVCA · Gestión Ovina y Caprina',
-    'sender_email'      => 'global@ruted.net',
-    'reply_to'          => 'global@ruted.net',
+    'from_email'        => bovs_mail_env('SOVCA_MAIL_FROM', 'global@ruted.net'),
+    'from_name'         => bovs_mail_env('SOVCA_MAIL_FROM_NAME', 'SOVCA · Gestión Ovina y Caprina'),
+    // El "envelope from" debe ser del mismo dominio que from_email (SPF).
+    'sender_email'      => bovs_mail_env('SOVCA_MAIL_SENDER', bovs_mail_env('SOVCA_MAIL_FROM', 'global@ruted.net')),
+    'reply_to'          => bovs_mail_env('SOVCA_MAIL_REPLY_TO', 'global@ruted.net'),
     'reply_to_name'     => 'SOVCA · Soporte',
-    'hostname'          => 'mail.ruted.net',
-    'message_id_domain' => 'ruted.net',
+    /* Nombre del saludo HELO y del Message-ID. Debe coincidir con el rDNS/PTR
+       de la IP del servidor y tener registro A, o los filtros lo rechazan.
+       Por defecto se mantiene mail.ruted.net (comportamiento histórico de
+       SOVCA). En el servidor conviene fijar SOVCA_SMTP_HELO con el nombre
+       propio del dominio (por ejemplo app.ruted.net) si el PTR de la IP lo
+       permite. */
+    'hostname'          => bovs_mail_env('SOVCA_SMTP_HELO', 'mail.ruted.net'),
+    'message_id_domain' => bovs_mail_env('SOVCA_MAIL_DOMAIN', 'ruted.net'),
 
     /* ---------------- List-Unsubscribe ----------------
        Ayuda a que los filtros traten el correo como transaccional.

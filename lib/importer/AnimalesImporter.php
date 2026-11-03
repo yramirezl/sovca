@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/NormalizadorNombres.php';
 require_once __DIR__ . '/../estatus_animal_helper.php';
+require_once __DIR__ . '/../arete_helper.php';
 
 class AnimalesImporter {
 
@@ -118,7 +119,7 @@ class AnimalesImporter {
         ");
         if (is_array($rows)) {
             foreach ($rows as $r) {
-                $k = NormalizadorNombres::normalizar($r->nro_arete);
+                $k = bovs_arete_formatear($r->nro_arete);
                 if ($k !== '') $this->nros_arete_existentes[$k] = true;
             }
         }
@@ -266,7 +267,12 @@ class AnimalesImporter {
         }
 
         $nombre    = $get('nombre_animal');
-        $nro_arete = $get('nro_arete');
+        /* El arete se guarda ya en el formato del sistema (mayúsculas, símbolos
+           como guion, máximo 15) — ver lib/arete_helper.php. */
+        $nro_arete = bovs_arete_formatear($get('nro_arete'));
+        if ($nro_arete === '') {
+            $errores[] = "Nro de arete invalido: '" . $get('nro_arete') . "'";
+        }
 
         /* Sexo */
         $sexo_norm = NormalizadorNombres::normalizar($get('sexo'));
@@ -282,9 +288,9 @@ class AnimalesImporter {
         }
 
         /* Duplicados nro_arete */
-        $nro_norm = NormalizadorNombres::normalizar($nro_arete);
+        $nro_norm = $nro_arete;
         if (isset($this->nros_arete_existentes[$nro_norm])) {
-            $errores[] = "Nro de arete '{$nro_arete}' ya existe en el sistema";
+            $errores[] = "Nro de arete '{$nro_arete}' ya existe en este fundo";
         }
         if (isset($indices['aretes'][$nro_norm])) {
             $errores[] = "Nro de arete '{$nro_arete}' duplicado dentro del CSV (fila {$indices['aretes'][$nro_norm]})";
@@ -451,6 +457,25 @@ class AnimalesImporter {
 
             $datos    = $fila['datos'];
             $fila_num = isset($datos['_fila']) ? $datos['_fila'] : '?';
+
+            /* Revalidación defensiva del N° de arete: el payload de
+               confirmación viene del navegador (bandera
+               'listo_para_importar'), así que no basta con lo validado al
+               leer el CSV. Se compara con el formato canónico contra los
+               aretes que ya existen en el fundo y contra los insertados en
+               este mismo lote. */
+            $arete_fmt = bovs_arete_formatear(isset($datos['nro_arete']) ? $datos['nro_arete'] : '');
+            if ($arete_fmt === '') {
+                $errores[] = "Fila $fila_num: el Nro de arete no es valido";
+                continue;
+            }
+            if (isset($this->nros_arete_existentes[$arete_fmt])) {
+                $errores[] = "Fila $fila_num: el Nro de arete '{$arete_fmt}' ya existe en este fundo";
+                continue;
+            }
+            $datos['nro_arete'] = $arete_fmt;
+            // Reserva dentro del lote (aunque el INSERT falle, no se reintenta aquí).
+            $this->nros_arete_existentes[$arete_fmt] = true;
 
             try {
                 $datos = $this->resolverNuevos($datos, $nuevos_ids);

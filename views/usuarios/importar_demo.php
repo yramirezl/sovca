@@ -36,6 +36,15 @@ VerificarAdmin($_SESSION['rolx']);
 .imp-card__head .imp-count { margin-left: auto; font-size: 11px; font-weight: 700; color: #64748b; }
 .imp-card__body { padding: 12px 14px; }
 
+/* Filtro de la lista: activos (por defecto) o todos */
+.imp-filtro { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.imp-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dbe6df; background: #f6faf7;
+  color: #46604f; border-radius: 999px; padding: 4px 10px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: .4px; text-transform: uppercase; cursor: pointer; transition: background .18s, color .18s, border-color .18s; }
+.imp-chip:hover { border-color: #bcd8c6; color: #234e35; }
+.imp-chip.is-active { background: #e6f4ea; border-color: #96c9a8; color: #1b5e20; }
+.imp-chip i { font-size: 10px; }
+
 .imp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .imp-table th { text-align: left; font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; color: #7b8794; font-weight: 800; padding: 6px 8px; border-bottom: 1px solid #eef2ee; white-space: nowrap; }
 .imp-table td { padding: 8px; border-bottom: 1px solid #f3f6f4; vertical-align: middle; }
@@ -106,14 +115,14 @@ VerificarAdmin($_SESSION['rolx']);
 
     <div class="imp-head">
         <div>
-            <h2><i class="fa fa-file-import" style="color:#2c6e46;"></i> Importar cuenta demo</h2>
-            <p>Convierte una cuenta de demostración en cuenta oficial conservando los datos que cargó el usuario.</p>
+            <h2><i class="fa fa-flask" style="color:#2c6e46;"></i> Usuarios Demo</h2>
+            <p>Cuentas de demostración del sistema. Desde acá se importa una cuenta demo como cuenta oficial, conservando los datos que cargó el usuario.</p>
         </div>
         <a href="./" class="btn btn-default btn-sm imp-back"><i class="fa fa-arrow-left"></i> Volver al listado</a>
     </div>
 
     <div class="imp-steps">
-        <span class="imp-step is-active" id="step-1"><i class="fa fa-list"></i> 1 · Elegir demo</span>
+        <span class="imp-step is-active" id="step-1"><i class="fa fa-flask"></i> 1 · Usuarios demo</span>
         <span class="imp-sep">›</span>
         <span class="imp-step" id="step-2"><i class="fa fa-user-plus"></i> 2 · Cuenta oficial</span>
         <span class="imp-sep">›</span>
@@ -123,15 +132,26 @@ VerificarAdmin($_SESSION['rolx']);
     <div class="imp-msg" id="imp-msg"></div>
 
     <!-- ============================================================
-         PASO 1 · LISTA DE CUENTAS DEMO
+         PASO 1 · USUARIOS DEMO
+         Por defecto se ven solo las cuentas ACTIVAS (las que están en
+         condiciones de usarse o importarse). El interruptor permite ver
+         también vencidas, inactivas e importadas.
          ============================================================ -->
     <div class="imp-card" id="panel-lista">
         <div class="imp-card__head">
-            <h3><i class="fa fa-flask"></i> Cuentas de demostración</h3>
-            <span class="imp-count" id="imp-count">Cargando…</span>
+            <h3><i class="fa fa-flask"></i> Usuarios demo activos</h3>
+            <div class="imp-filtro">
+                <button type="button" class="imp-chip is-active" id="filtro-activas" data-filtro="activa">
+                    <i class="fa fa-circle-check"></i> Activos
+                </button>
+                <button type="button" class="imp-chip" id="filtro-todas" data-filtro="todas">
+                    <i class="fa fa-list"></i> Todos
+                </button>
+                <span class="imp-count" id="imp-count">Cargando…</span>
+            </div>
         </div>
         <div class="imp-card__body">
-            <div id="imp-lista"><div class="imp-vacio"><i class="fa fa-circle-notch fa-spin"></i>Cargando cuentas demo…</div></div>
+            <div id="imp-lista"><div class="imp-vacio"><i class="fa fa-circle-notch fa-spin"></i>Cargando usuarios demo…</div></div>
         </div>
     </div>
 
@@ -251,6 +271,8 @@ VerificarAdmin($_SESSION['rolx']);
     var URL = '../../controllers/demo_import_controller';
 
     var DEMOS   = [];
+    var VISIBLES = [];    // subconjunto que se está mostrando según el filtro
+    var FILTRO  = 'activa'; // 'activa' (por defecto) | 'todas'
     var GRUPOS  = {};
     var PLANES  = [];
     var SUSCRIP = [];
@@ -330,9 +352,23 @@ VerificarAdmin($_SESSION['rolx']);
     }
 
     function pintarLista(hoy) {
+        VISIBLES = (FILTRO === 'todas')
+            ? DEMOS.slice()
+            : DEMOS.filter(function (d) { return d.estado === 'activa'; });
+
+        pintarChips();
+
         if (!DEMOS.length) {
-            $('#imp-lista').html('<div class="imp-vacio"><i class="fa fa-inbox"></i>No hay cuentas de demostración registradas.</div>');
-            $('#imp-count').text('0 cuentas');
+            $('#imp-lista').html('<div class="imp-vacio"><i class="fa fa-inbox"></i>No hay usuarios demo registrados.</div>');
+            $('#imp-count').text('0 usuarios');
+            return;
+        }
+
+        if (!VISIBLES.length) {
+            $('#imp-lista').html('<div class="imp-vacio"><i class="fa fa-circle-check"></i>'
+                + 'No hay usuarios demo activos en este momento. Usa <strong>Todos</strong> para ver vencidos e importados.'
+                + '</div>');
+            $('#imp-count').text('0 activos de ' + DEMOS.length);
             return;
         }
 
@@ -340,7 +376,7 @@ VerificarAdmin($_SESSION['rolx']);
             + '<th>Usuario</th><th>Fundo</th><th>Vence</th><th>Estado</th><th>Procesos cargados</th><th></th>'
             + '</tr></thead><tbody>';
 
-        $.each(DEMOS, function (i, d) {
+        $.each(VISIBLES, function (i, d) {
             var puede = (d.estado === 'activa' || d.estado === 'vencida');
 
             html += '<tr>'
@@ -352,7 +388,7 @@ VerificarAdmin($_SESSION['rolx']);
                 + '<td data-label="Procesos" class="imp-proc">' + escapeHtml(procesosTexto(d.resumen)) + '</td>'
                 + '<td data-label="Acciones" style="text-align:right; white-space:nowrap;">'
                 + (puede
-                    ? '<button type="button" class="imp-btn imp-btn--primary imp-btn--sm" data-importar="' + i + '"><i class="fa fa-file-import"></i> Importar</button> '
+                    ? '<button type="button" class="imp-btn imp-btn--primary imp-btn--sm" data-importar="' + i + '"><i class="fa fa-file-import"></i> Importar cuenta demo</button> '
                     + '<button type="button" class="imp-btn imp-btn--danger imp-btn--sm" data-cerrar="' + i + '" title="Cerrar sin importar datos"><i class="fa fa-ban"></i></button>'
                     : '<span class="imp-sub">' + (d.estado === 'migrada' ? 'Ya importada' : 'Sin acciones') + '</span>')
                 + '</td></tr>';
@@ -360,8 +396,23 @@ VerificarAdmin($_SESSION['rolx']);
 
         html += '</tbody></table>';
         $('#imp-lista').html(html);
-        $('#imp-count').text(DEMOS.length + ' cuenta(s)');
+
+        var activos = DEMOS.filter(function (d) { return d.estado === 'activa'; }).length;
+        $('#imp-count').text(FILTRO === 'todas'
+            ? DEMOS.length + ' cuenta(s) · ' + activos + ' activa(s)'
+            : activos + ' activo(s) de ' + DEMOS.length);
     }
+
+    /* Chips Activos / Todos */
+    function pintarChips() {
+        $('#filtro-activas').toggleClass('is-active', FILTRO === 'activa');
+        $('#filtro-todas').toggleClass('is-active', FILTRO === 'todas');
+    }
+
+    $(document).on('click', '.imp-chip', function () {
+        FILTRO = String($(this).data('filtro') || 'activa') === 'todas' ? 'todas' : 'activa';
+        pintarLista();
+    });
 
     function pintarSelectores(hoy) {
         var $p = $('#cu_plan').empty();
@@ -380,7 +431,7 @@ VerificarAdmin($_SESSION['rolx']);
     /* ---------------- Paso 2 ---------------- */
     $(document).on('click', '[data-importar]', function () {
         var i = Number($(this).data('importar'));
-        ACTUAL = DEMOS[i];
+        ACTUAL = VISIBLES[i];
         CUENTA = null;
 
         if (!ACTUAL) { return; }
@@ -564,7 +615,7 @@ VerificarAdmin($_SESSION['rolx']);
     /* ---------------- Cerrar desde la lista ---------------- */
     $(document).on('click', '[data-cerrar]', function () {
         var i = Number($(this).data('cerrar'));
-        var d = DEMOS[i];
+        var d = VISIBLES[i];
         if (!d) { return; }
 
         if (!window.confirm('¿Cerrar la cuenta demo ' + d.username + ' sin importar datos?\n\nSu correo ya no podrá usarse para otra demostración.')) {

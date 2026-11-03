@@ -53,7 +53,19 @@ const CONFIG = {
   // reservado, la app intenta pedir un rango nuevo en cuanto detecta
   // conexión (para no quedarse sin códigos definitivos en el campo).
   UMBRAL_RESERVA_BAJA: 5,
-  CANTIDAD_A_RESERVAR: 20,
+
+  // Reintentos antes de pedirle al usuario que revise un registro.
+  // Cada intento espera más que el anterior (1, 2, 4, 8, 16 y 30 min):
+  // tras 6 rechazos el registro se marca "requiere revisión" y deja de
+  // reintentarse solo, para no gastar batería ni llenar el historial.
+  MAX_INTENTOS_SYNC: 6,
+
+  // 0 = NO reservar bloques en el dispositivo.
+  // El equipo trabaja con un código provisional (SOVCA-0<fundo>-PEND-xxxx)
+  // y el servidor asigna el número definitivo de a uno al sincronizar, así
+  // el correlativo del fundo queda denso (sin huecos de bloques sin usar).
+  // Si se vuelve al esquema anterior, poner p. ej. 20.
+  CANTIDAD_A_RESERVAR: 0,
 
   // Cada cuánto se intenta sincronizar solo, en milisegundos, mientras
   // hay conexión (además de sincronizar al tocar "Sincronizar" o al

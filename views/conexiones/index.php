@@ -454,16 +454,35 @@ VerificarAdmin($_SESSION['rolx']);
         return d + ' d' + (h ? ' ' + h + ' h' : '');
     }
 
-    /* Chip del estado de la SESIÓN (no del usuario). */
-    function chipSesion(estado) {
+    /* Chip del estado de la SESIÓN (no del usuario).
+       activate = conectado ahora · cerrada = hizo logout · caducada = quedó
+       sin actividad (se le acabó la sesión). Con la hora del momento. */
+    function horaEstado(estadoEn, prefijo) {
+        if (!estadoEn) { return ''; }
+        var m = String(estadoEn).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2})/);
+        if (!m) { return ''; }
+        var ahora = new Date();
+        var hoy = ahora.getFullYear() + '-'
+            + ('0' + (ahora.getMonth() + 1)).slice(-2) + '-'
+            + ('0' + ahora.getDate()).slice(-2);
+        var etiqueta = (m[1] + '-' + m[2] + '-' + m[3] === hoy)
+            ? m[4]
+            : (m[3] + '-' + m[2] + ' ' + m[4]);
+        return ' <span class="cnx-estado-hora" style="font-size:10.5px;color:#8a95a1">'
+            + esc((prefijo || '') + etiqueta) + '</span>';
+    }
+
+    function chipSesion(estado, estadoEn) {
         var mapa = {
-            activa:    ['cnx-chip--activo', 'En línea'],
-            cerrada:   ['cnx-chip--reciente', 'Cerrada'],
-            expirada:  ['cnx-chip--ocasional', 'Expirada'],
-            sin_datos: ['cnx-chip--sin', 'Sin seguimiento']
+            activa:    ['cnx-chip--activo', 'En línea', 'desde '],
+            cerrada:   ['cnx-chip--reciente', 'Cerró sesión', ''],
+            caducada:  ['cnx-chip--ocasional', 'Caducó', ''],
+            expirada:  ['cnx-chip--ocasional', 'Caducó', ''],
+            sin_datos: ['cnx-chip--sin', 'Sin seguimiento', '']
         };
         var m = mapa[String(estado || '')] || mapa.sin_datos;
-        return '<span class="cnx-chip ' + m[0] + '">' + m[1] + '</span>';
+        return '<span class="cnx-chip ' + m[0] + '">' + m[1] + '</span>'
+            + horaEstado(estadoEn, m[2]);
     }
 
     function idiomaTabla(vacio) {
@@ -598,7 +617,7 @@ VerificarAdmin($_SESSION['rolx']);
                     orderable: false,
                     render: function (d, type, row) {
                         if (type !== 'display') { return d; }
-                        var chip = chipSesion(d);
+                        var chip = chipSesion(d, row.estado_en);
                         if (d !== 'activa' || !row.sesion_historial_id) {
                             return chip;
                         }
@@ -715,11 +734,10 @@ VerificarAdmin($_SESSION['rolx']);
                     data: 'estado',
                     render: function (d, type, row) {
                         if (type !== 'display') { return d || ''; }
-                        var chip = chipSesion(d);
-                        if (row.cerrada_por) {
-                            chip += ' <span style="font-size:10.5px;color:#8a95a1">' + esc(row.cerrada_por) + '</span>';
-                        }
-                        return chip;
+                        /* El chip ya dice qué pasó (En línea / Cerró sesión /
+                           Caducó) y a qué hora; no hace falta repetir el
+                           motivo interno "logout"/"timeout". */
+                        return chipSesion(d, row.estado_en);
                     }
                 },
                 {
@@ -818,9 +836,9 @@ VerificarAdmin($_SESSION['rolx']);
                 },
                 {
                     data: 'estado',
-                    render: function (d, type) {
+                    render: function (d, type, row) {
                         if (type !== 'display') { return d || ''; }
-                        return chipSesion(d);
+                        return chipSesion(d, row.estado_en);
                     }
                 },
                 {
@@ -1205,6 +1223,15 @@ VerificarAdmin($_SESSION['rolx']);
         });
 
         cargar();
+
+        /* Seguimiento en vivo: el estado y la duración «en curso» se
+           recalculan solos, sin recargar la página. Se omite mientras la
+           pestaña está oculta o hay un diálogo abierto. */
+        setInterval(function () {
+            if (document.hidden) { return; }
+            if (jQuery('.jconfirm, .modal.show, .modal.in').length) { return; }
+            cargar();
+        }, 60000);
     });
 
 })();

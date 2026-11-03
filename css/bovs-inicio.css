@@ -1,0 +1,412 @@
+/* ============================================================
+   SOVCA | Pantalla de inicio
+   ------------------------------------------------------------
+   Diseño mobile-first de la portada del sistema:
+     - Hero publicitario responsive (imagen completa y legible
+       en móvil, sin el recorte extremo del slider de franjas).
+     - Saludo contextual con fecha y fundo activo.
+     - Accesos rápidos táctiles a los módulos principales.
+   Se carga después de tema-bovs.css y solo afecta a .bovs-inicio.
+   ============================================================ */
+
+.bovs-inicio {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Los avisos (mantenimiento / correo) ya traen su propio margen */
+.bovs-inicio > .bovs-mtto-aviso {
+  margin-bottom: 0;
+}
+
+/* ============================================================
+   HERO PUBLICITARIO
+   ============================================================ */
+.bovs-inicio-hero {
+  position: relative;
+  height: 0;
+  padding-bottom: 72%;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #0d3b22;
+  box-shadow: 0 10px 26px rgba(13, 59, 34, .18);
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+@supports (aspect-ratio: 1 / 1) {
+  .bovs-inicio-hero {
+    height: auto;
+    padding-bottom: 0;
+    aspect-ratio: 4 / 3;
+  }
+}
+
+.bovs-inicio-hero__slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .7s ease;
+  will-change: opacity;
+}
+.bovs-inicio-hero__slide.is-active {
+  opacity: 1;
+}
+
+.bovs-inicio-hero__slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* El texto de los banners está a la izquierda: se conserva en móvil */
+  object-position: left center;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Velo inferior: da contraste a los indicadores y al chip */
+.bovs-inicio-hero__velo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46%;
+  background: linear-gradient(to top,
+              rgba(5, 32, 18, .72) 0%,
+              rgba(5, 32, 18, .28) 52%,
+              rgba(5, 32, 18, 0) 100%);
+  pointer-events: none;
+}
+
+/* Chip del fundo activo */
+.bovs-inicio-hero__chip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .93);
+  color: #14532d;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .18);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.bovs-inicio-hero__chip i {
+  color: #16a34a;
+  font-size: 12px;
+}
+.bovs-inicio-hero__chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Indicadores */
+.bovs-inicio-hero__dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.bovs-inicio-dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bovs-inicio-dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .55);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  transition: width .25s ease, background .25s ease;
+}
+.bovs-inicio-dot.is-active::before {
+  width: 24px;
+  background: #ffffff;
+}
+.bovs-inicio-dot:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+/* ============================================================
+   SALUDO
+   ============================================================ */
+.bovs-inicio-hola {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+.bovs-inicio-hola__avatar {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1a8c3d, #45c463);
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(26, 140, 61, .26);
+}
+.bovs-inicio-hola__txt {
+  min-width: 0;
+}
+.bovs-inicio-hola__saludo {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #12351f;
+  overflow-wrap: anywhere;
+}
+.bovs-inicio-hola__fecha {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #6b7480;
+  text-transform: capitalize;
+}
+
+/* ============================================================
+   ACCESOS RÁPIDOS
+   ============================================================ */
+.bovs-inicio-seccion__cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 10px;
+}
+.bovs-inicio-seccion__titulo {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #41525f;
+  white-space: nowrap;
+}
+.bovs-inicio-seccion__linea {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, #d7e3da, rgba(215, 227, 218, 0));
+}
+
+.bovs-inicio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bovs-acceso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 13px 13px 15px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e3e7ed;
+  border-radius: 16px;
+  color: #2c3440 !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 5px rgba(20, 50, 32, .05);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.bovs-acceso::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--bi-acc, #22b34e);
+}
+.bovs-acceso:active {
+  transform: scale(.975);
+}
+.bovs-acceso__ico {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bi-acc, #22b34e);
+  color: #ffffff;
+  font-size: 17px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .12);
+}
+.bovs-acceso__txt {
+  min-width: 0;
+}
+.bovs-acceso__titulo {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #23303c;
+}
+.bovs-acceso__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #6b7480;
+}
+
+.bovs-acceso--verde { --bi-acc: #22b34e; }
+.bovs-acceso--azul  { --bi-acc: #1565c0; }
+.bovs-acceso--rosa  { --bi-acc: #c2185b; }
+.bovs-acceso--rojo  { --bi-acc: #b91c1c; }
+.bovs-acceso--ambar { --bi-acc: #b4761a; }
+.bovs-acceso--gris  { --bi-acc: #5b6b78; }
+
+/* Nota de ayuda al pie */
+.bovs-inicio-nota {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #8a96a3;
+  text-align: center;
+}
+.bovs-inicio-nota i {
+  color: #22b34e;
+}
+
+/* ============================================================
+   TABLET Y ESCRITORIO
+   ============================================================ */
+@media (min-width: 560px) {
+  .bovs-inicio-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  .bovs-inicio {
+    gap: 22px;
+  }
+  .bovs-inicio-hero {
+    aspect-ratio: 2500 / 1000;
+    max-height: 380px;
+    border-radius: 22px;
+  }
+  .bovs-inicio-hero__slide img {
+    object-position: center;
+  }
+  .bovs-inicio-hero__chip {
+    top: 14px;
+    right: 14px;
+    font-size: 12.5px;
+    padding: 7px 13px;
+  }
+  .bovs-inicio-hero__dots {
+    bottom: 12px;
+    gap: 6px;
+  }
+  .bovs-inicio-hola__saludo {
+    font-size: 20px;
+  }
+  .bovs-inicio-acceso {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+  }
+  .bovs-acceso:hover,
+  .bovs-acceso:focus {
+    transform: translateY(-2px);
+    border-color: #cfe4d6;
+    box-shadow: 0 8px 18px rgba(20, 50, 32, .12);
+    color: #2c3440 !important;
+    text-decoration: none !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .bovs-inicio-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Móvil: el nombre del fundo ya está en la barra superior; el chip
+   taparía la marca SOVCA del banner, así que se oculta. */
+@media (max-width: 767px) {
+  .bovs-inicio-hero__chip {
+    display: none;
+  }
+}
+
+/* Móvil en horizontal: el hero no debe comerse la pantalla */
+@media (max-height: 520px) and (orientation: landscape) {
+  .bovs-inicio-hero {
+    padding-bottom: 44%;
+  }
+}
+@supports (aspect-ratio: 1 / 1) {
+  @media (max-height: 520px) and (orientation: landscape) {
+    .bovs-inicio-hero {
+      padding-bottom: 0;
+      aspect-ratio: 16 / 7;
+    }
+  }
+}
+
+/* ============================================================
+   MOVIMIENTO REDUCIDO
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .bovs-inicio-hero__slide,
+  .bovs-acceso,
+  .bovs-inicio-dot::before {
+    transition: none !important;
+  }
+}
+
+@keyframes bovsInicioIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bovs-inicio-hero   { animation: bovsInicioIn .45s ease both; }
+  .bovs-inicio-hola   { animation: bovsInicioIn .45s .06s ease both; }
+  .bovs-inicio-accesos{ animation: bovsInicioIn .5s .12s ease both; }
+}

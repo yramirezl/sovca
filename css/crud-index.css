@@ -182,6 +182,46 @@
 }
 .crud-btn--ghost:hover, .crud-btn--ghost:focus { background: var(--crud-bg-soft); color: var(--crud-text); }
 
+/* =========================================================================
+   BOTONES COMO ENLACES (<a class="crud-btn">)
+   -------------------------------------------------------------------------
+   El skin verde de AdminLTE (css/tema-bovs.css → .skin-green-light a) colorea
+   TODOS los enlaces en verde con más especificidad que .crud-btn--*, así que
+   un <a class="crud-btn crud-btn--info"> mostraba el texto verde sobre fondo
+   azul: ilegible (caso real: botón "Resumen de sync" de Dispositivos).
+   Se fija el color de cada variante y también en los estados interactivos.
+   Mismo criterio ya aplicado en css/crud-form.css.
+   ========================================================================= */
+a.crud-btn,
+a.crud-btn:link,
+a.crud-btn:visited,
+a.crud-btn:hover,
+a.crud-btn:focus,
+a.crud-btn:active { text-decoration: none !important; }
+
+a.crud-btn--primary, a.crud-btn--primary span, a.crud-btn--primary i,
+a.crud-btn--primary:link, a.crud-btn--primary:visited,
+a.crud-btn--primary:hover, a.crud-btn--primary:focus,
+a.crud-btn--success, a.crud-btn--success span, a.crud-btn--success i,
+a.crud-btn--success:link, a.crud-btn--success:visited,
+a.crud-btn--success:hover, a.crud-btn--success:focus,
+a.crud-btn--warning, a.crud-btn--warning span, a.crud-btn--warning i,
+a.crud-btn--warning:link, a.crud-btn--warning:visited,
+a.crud-btn--warning:hover, a.crud-btn--warning:focus,
+a.crud-btn--danger, a.crud-btn--danger span, a.crud-btn--danger i,
+a.crud-btn--danger:link, a.crud-btn--danger:visited,
+a.crud-btn--danger:hover, a.crud-btn--danger:focus,
+a.crud-btn--info, a.crud-btn--info span, a.crud-btn--info i,
+a.crud-btn--info:link, a.crud-btn--info:visited,
+a.crud-btn--info:hover, a.crud-btn--info:focus,
+a.crud-btn--excel, a.crud-btn--excel span, a.crud-btn--excel i,
+a.crud-btn--excel:link, a.crud-btn--excel:visited,
+a.crud-btn--excel:hover, a.crud-btn--excel:focus { color: #ffffff !important; }
+
+a.crud-btn--ghost, a.crud-btn--ghost span, a.crud-btn--ghost i,
+a.crud-btn--ghost:link, a.crud-btn--ghost:visited,
+a.crud-btn--ghost:hover, a.crud-btn--ghost:focus { color: #1f2937 !important; }
+
 /* ------------------------------- Tabla --------------------------------- */
 .crud-table-wrap { padding: 6px 12px 18px; }
 

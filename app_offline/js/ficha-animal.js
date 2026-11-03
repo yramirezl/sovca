@@ -374,6 +374,10 @@ const FichaAnimal = {
       fichaCampo('Categoría', nombreDe(catalogs.categorias, animal.categoria_ingreso_id)),
       fichaCampo('Fecha de nacimiento', formatearFecha(animal.f_nacimiento) || '—', edad),
       fichaCampo('Peso al nacer', animal.peso_nacimiento ? animal.peso_nacimiento + ' kg' : ''),
+      fichaCampo('Alzada', animal.alza),
+      fichaCampo('Servicio', nombreDe(catalogs.tiposServicio, animal.servicio)),
+      fichaCampo('RENA', animal.rena),
+      fichaCampo('Fecha de ingreso', formatearFecha(animal.f_ingreso) || ''),
       fichaCampo('Estado', baja ? 'De baja · ' + baja
         : (ESTATUS_ANIMAL_TEXTO[Number(animal.estatus_animal)] || 'Activo')),
     ];

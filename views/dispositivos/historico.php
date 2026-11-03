@@ -13,7 +13,7 @@ $es_admin_vista = in_array($rol_actual, [1, 4]);
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-index.css?v=3" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-index.css?v=4" type="text/css" />
 
 <style>
     /* ============================================================

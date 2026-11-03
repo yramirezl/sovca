@@ -4,6 +4,10 @@
 const CAMPOS_INTERNOS_NO_ENVIAR = new Set([
   'uuid_local', 'id', 'version', 'estado_sync', 'created', 'updated', 'mfundos_id',
   'codigo_provisional', 'nacimiento_uuid_local', 'ficha_animal_uuid_local', 'ficha_animal_codigo', 'fichado',
+  // Código provisional que este animal tenía antes de que el servidor le
+  // asignara el definitivo. Solo existe en el dispositivo (ver
+  // mapaCodigosRenombrados) y NO se envía.
+  'codigo_anterior',
   // Solo existe en el dispositivo: motivo del último error de envío.
   'ultimo_error',
 ]);
@@ -41,6 +45,22 @@ const MODULOS_CON_ANULACION = new Set([
 /** Mensaje legible de cualquier error (o un texto por defecto). */
 function mensajeError(e) {
   return e && e.message ? e.message : 'error_desconocido';
+}
+
+/**
+ * Anota en fundos_meta si la cuenta conserva el acceso al fundo en el
+ * servidor. NO borra nada: el fundo sigue en el equipo con todos sus
+ * datos locales. Solo sirve para no repetir el mismo error de permiso
+ * en cada corrida de fondo.
+ */
+async function marcarFundoSinAcceso(fundo, sinAcceso) {
+  const fila = await Db.obtener('fundos_meta', fundo.id).catch(() => null);
+  if (!fila) return;
+  if (!!fila.sin_acceso === !!sinAcceso) return;
+
+  fila.sin_acceso = !!sinAcceso;
+  fila.sin_acceso_desde = sinAcceso ? new Date().toISOString() : null;
+  await Db.guardar('fundos_meta', fila);
 }
 
 const Sync = {
@@ -97,7 +117,21 @@ const Sync = {
       await Db.guardar('catalogos', { tipo: 'causas_mortalidad', items: resp.causas_mortalidad || [] });
       await Db.guardar('catalogos', {
         tipo: 'parametros_servicios',
-        items: { periodo_palpacion_dias: Number(resp.periodo_palpacion_dias || 0) },
+        items: {
+          periodo_palpacion_dias: Number(resp.periodo_palpacion_dias || 0),
+          // Días de gestación del fundo (Parámetros → Períodos, PGB).
+          // Los usa Servicios para calcular la fecha probable de parto:
+          // fecha de servicio + estos días. 283 = valor estándar bovino.
+          periodo_gestacion_dias: Number(resp.periodo_gestacion_dias || 0) || 283,
+          // Períodos de lactancia (PBL) y de producción de leche (PPL), en
+          // días. Nacimientos los usa para calcular la fecha de secado
+          // (fecha de parto + período) sin esperar al servidor.
+          periodo_lactancia_dias: Number(resp.periodo_lactancia_dias || 0),
+          periodo_produccion_dias: Number(resp.periodo_produccion_dias || 0),
+          // Edad mínima del macho para servicio (Parámetros → Períodos).
+          // Si el servidor no la manda se asume 365 días (≈12 meses).
+          edad_minima_macho_dias: Number(resp.edad_minima_macho_dias || 0) || 365,
+        },
       });
       await Db.guardarSyncMeta(clave, Date.now());
       window.dispatchEvent(new CustomEvent('bovs:catalogos'));
@@ -108,9 +142,14 @@ const Sync = {
     }
   },
 
-  async enviarPendientes(sesion, fundoId) {
+  async enviarPendientes(sesion, fundoId, opciones = {}) {
     const pendientes = await Db.obtenerTodos('outbox');
     if (!pendientes.length) return { enviados: 0, conflictos: 0, errores: 0, modulos_con_error: [] };
+
+    // La corrida de fondo respeta la espera entre reintentos; cuando el
+    // operario toca "Sincronizar" se reintenta ya (salvo los registros
+    // bloqueados, que necesitan una decisión suya).
+    const forzarReintento = opciones.automatico !== true;
 
     const porModulo = {};
     for (const item of pendientes) {
@@ -130,22 +169,129 @@ const Sync = {
 
     const dispositivoId = Dispositivo.obtenerId();
 
+    // Códigos provisionales que el servidor YA reemplazó por el
+    // definitivo. El mapa de la corrida (mapaCodigos) vive solo en
+    // memoria y se pierde al recargar la app, así que se reconstruye
+    // desde la copia local del animal (guarda su codigo_anterior al
+    // recibir el número nuevo).
+    const mapaRenombres = await this.mapaCodigosRenombrados();
+
+    // Índice de animales del equipo para el pre-vuelo de envíos. Se arma
+    // una sola vez por corrida: con lotes grandes, buscarlo registro por
+    // registro sería muy costoso.
+    const indiceAnimales = { porCodigo: null };
+
     for (const modulo of modulosEnOrden) {
-      const items = porModulo[modulo];
+      // El outbox se vuelve a leer módulo por módulo, JUSTO antes de
+      // enviarlo, en vez de usar el snapshot del inicio. Al subir un
+      // animal el servidor le asigna el código definitivo y
+      // remapearCodigosDeAnimal() corrige la copia guardada — pero los
+      // objetos leídos al principio se quedaban con el código viejo, así
+      // que un control sanitario o un movimiento creados sin conexión
+      // sobre un animal recién numerado viajaban con el provisional y el
+      // servidor los rechazaba ("Ninguno de los animales seleccionados
+      // está activo en este fundo").
+      const items = (await Db.obtenerTodos('outbox'))
+        .filter((o) => (o.modulo || 'animales') === modulo);
+      if (!items.length) continue;
       const almacen = modulo;
       // Anulaciones (borrado lógico) dentro de este lote: si alguna
       // choca con un cambio del servidor, la pantalla de conflictos
       // necesita saber que se trataba de un borrado y no de una edición.
       const eliminados = new Set(items.filter((p) => p.eliminado === true).map((p) => p.uuid_local));
-      const cambios = items.map((p) => ({
-        uuid_local: p.uuid_local,
-        version_base: p.version_base,
-        datos: p.datos,
-        eliminado: p.eliminado === true,
-        revertir: p.revertir === true,
-        motivo_reversion: p.motivo_reversion || null,
-        nacimiento_uuid_local: p.nacimiento_uuid_local || null,
-      }));
+      const cambios = [];
+      for (const p of items) {
+        // Registro bloqueado: se rechazó varias veces y espera una
+        // decisión del usuario (reintentar o revertir). No se reenvía
+        // en las corridas automáticas.
+        if (p.bloqueado === true) continue;
+
+        // Espera progresiva entre reintentos: 1, 2, 4, 8, 16 y 30 min.
+        if (!forzarReintento && this._enEsperaDeReintento(p)) continue;
+
+        let datos = p.datos || {};
+
+        // Reparación de envíos creados con versiones anteriores: al
+        // editar un servicio que aún no existía en el servidor, el
+        // outbox se reemplazaba por un payload parcial y se perdían los
+        // códigos de hembra/macho. Se completan desde la copia local
+        // para que el registro pendiente pueda subir.
+        if (modulo === 'servicios') {
+          const local = await Db.obtener(almacen, p.uuid_local);
+          if (local) {
+            datos = {
+              ...datos,
+              codigo_servicio: datos.codigo_servicio || local.codigo_servicio,
+              codigo_rgb_id_animal_hembra: datos.codigo_rgb_id_animal_hembra || local.codigo_rgb_id_animal_hembra,
+              codigo_rgb_id_animal_macho: datos.codigo_rgb_id_animal_macho || local.codigo_rgb_id_animal_macho,
+              codigo_rgb_id_animal_dona: datos.codigo_rgb_id_animal_dona || local.codigo_rgb_id_animal_dona,
+            };
+          }
+        }
+
+        // Reparación general de la identidad del registro:
+        //  · si el payload perdió el campo que identifica al registro
+        //    (animal, lote, fecha...), se completa desde la copia local;
+        //  · si el código de animal que lleva ya fue renombrado por el
+        //    servidor, se reemplaza por el definitivo.
+        // Sin esto, un registro editado antes de subir quedaba para
+        // siempre en error ("Falta el campo requerido ...").
+        const camposAnimal = CONFIG.CAMPOS_REFERENCIA_ANIMAL[modulo] || [];
+        if (camposAnimal.length || modulo === 'movimiento_rebano') {
+          const local = await Db.obtener(almacen, p.uuid_local);
+          if (local) {
+            datos = { ...datos };
+            for (const campo of camposAnimal) {
+              const vacio = datos[campo] === undefined
+                || datos[campo] === null
+                || datos[campo] === '';
+              if (vacio && local[campo]) datos[campo] = local[campo];
+            }
+            if (Array.isArray(local.animales)
+              && (!Array.isArray(datos.animales) || !datos.animales.length)) {
+              datos.animales = local.animales.slice();
+            }
+          }
+        }
+        if (mapaRenombres.size) {
+          datos = { ...datos };
+          for (const campo of camposAnimal) {
+            if (datos[campo] && mapaRenombres.has(datos[campo])) {
+              datos[campo] = mapaRenombres.get(datos[campo]);
+            }
+          }
+          if (Array.isArray(datos.animales)) {
+            datos.animales = datos.animales.map((codigo) => (
+              mapaRenombres.has(codigo) ? mapaRenombres.get(codigo) : codigo
+            ));
+          }
+        }
+
+        // PRE-VUELO DE ANIMALES: si el registro apunta a un animal que
+        // todavía no existe en el servidor (alta sin conexión que aún no
+        // subió, o código provisional vigente), no se envía: el servidor
+        // lo rechazaría y el registro quedaría en error para siempre
+        // reintentándose en cada sincronización.
+        const animalFaltante = await this.animalesAunNoDisponibles(modulo, datos, indiceAnimales);
+        if (animalFaltante) {
+          await this.marcarEnEsperaDeAnimal(p, almacen, animalFaltante);
+          continue;
+        }
+
+        cambios.push({
+          uuid_local: p.uuid_local,
+          version_base: p.version_base,
+          datos,
+          eliminado: p.eliminado === true,
+          revertir: p.revertir === true,
+          motivo_reversion: p.motivo_reversion || null,
+          nacimiento_uuid_local: p.nacimiento_uuid_local || null,
+        });
+      }
+
+      // Todos los registros del módulo quedaron esperando al animal (o
+      // bloqueados): no hay nada que enviar en esta pasada.
+      if (!cambios.length) continue;
 
       try {
         const resp = await Api.push(sesion.token, modulo, cambios, dispositivoId, fundoId);
@@ -199,7 +345,13 @@ const Sync = {
                 registroLocal.terneros = r.terneros;
               }
               if (r.codigo_actualizado) registroLocal.codigo_rgb_id_animal = r.codigo_actualizado;
-              if (r.codigo_anterior) registroLocal.codigo_provisional = false;
+              if (r.codigo_anterior) {
+                registroLocal.codigo_provisional = false;
+                // Se guarda para poder reparar, en cualquier corrida
+                // futura, los registros que apunten al código viejo
+                // (ver mapaCodigosRenombrados).
+                registroLocal.codigo_anterior = r.codigo_anterior;
+              }
               await Db.guardar(almacen, registroLocal);
             }
             if (modulo === 'nacimientos' && r.ficha_animal_actualizada) {
@@ -255,24 +407,31 @@ const Sync = {
             }
           } else {
             errores++;
-            const item = await Db.obtener('outbox', r.uuid_local);
-            if (item) {
-              item.intentos = (item.intentos || 0) + 1;
-              item.ultimo_error = r.mensaje;
-              await Db.guardar('outbox', item);
-            }
+            const mensaje = r.mensaje || 'El servidor rechazó este registro.';
+            const bloqueado = await this._registrarFallo(r.uuid_local, mensaje);
             if (registroLocal) {
               registroLocal.estado_sync = 'error';
               // El motivo se guarda también en el registro para poder
               // mostrarlo en la tarjeta (la fila del outbox no se ve).
-              registroLocal.ultimo_error = r.mensaje || 'El servidor rechazó este registro.';
+              registroLocal.ultimo_error = bloqueado
+                ? mensaje + ' Este registro necesita tu revisión: no se reintenta solo.'
+                : mensaje;
               await Db.guardar(almacen, registroLocal);
             }
           }
         }
 
-        if (mapaCodigos.size) {
-          await this.remapearCodigosDeAnimal(mapaCodigos);
+        // Renombres de ESTA corrida + los reconstruidos de corridas
+        // anteriores (mapaRenombres). Antes solo se aplicaba el mapa de la
+        // corrida: si el animal ya se había renumerado en una sincronización
+        // previa, un registro local que todavía guardaba el código
+        // provisional subía bien (el payload se corrige arriba) pero la copia
+        // local quedaba apuntando al código viejo y no aparecía en la ficha.
+        // Es idempotente: solo reemplaza valores que están en el mapa.
+        if (mapaCodigos.size || mapaRenombres.size) {
+          await this.remapearCodigosDeAnimal(
+            new Map([...mapaRenombres, ...mapaCodigos])
+          );
         }
       } catch (e) {
         // Mantenimiento del servidor: NO es un rechazo de los registros.
@@ -289,21 +448,26 @@ const Sync = {
           };
         }
 
-        errores += items.length;
+        // Falla de la PETICIÓN completa (sin señal, 500, portal
+        // cautivo): no es un rechazo de los datos, así que no se aplica
+        // retroceso ni se bloquea nada. Solo se anota para diagnóstico y
+        // los registros quedan pendientes para el próximo intento.
+        errores += cambios.length;
         modulosConError.push({
           modulo,
           fase: 'push',
           mensaje: e && e.message ? e.message : 'error_desconocido',
         });
 
-        for (const item of items) {
-          const out = await Db.obtener('outbox', item.uuid_local);
+        for (const cambio of cambios) {
+          const out = await Db.obtener('outbox', cambio.uuid_local);
           if (out) {
             out.intentos = (out.intentos || 0) + 1;
             out.ultimo_error = e && e.message ? e.message : 'error_desconocido';
+            out.proximo_intento = null;
             await Db.guardar('outbox', out);
           }
-          const reg = await Db.obtener(almacen, item.uuid_local);
+          const reg = await Db.obtener(almacen, cambio.uuid_local);
           if (reg) {
             reg.estado_sync = 'error';
             reg.ultimo_error = e && e.message ? e.message : 'No se pudo contactar al servidor.';
@@ -314,6 +478,174 @@ const Sync = {
     }
 
     return { enviados, conflictos, errores, modulos_con_error: modulosConError };
+  },
+
+  /**
+   * Mapa "código provisional → código definitivo" reconstruido desde la
+   * copia local de los animales. Cada animal guarda en `codigo_anterior`
+   * el código que tenía cuando el servidor le asignó el número real, así
+   * que el mapa sobrevive a recargas y reinicios de la app.
+   *
+   * Se usa al preparar cada envío para corregir registros (control
+   * sanitario, pesajes, movimientos, servicios…) que quedaron apuntando
+   * al código viejo.
+   */
+  async mapaCodigosRenombrados() {
+    const mapa = new Map();
+    try {
+      const animales = await Db.obtenerTodos('animales');
+      for (const animal of animales) {
+        if (!animal || !animal.codigo_anterior) continue;
+        if (!animal.codigo_rgb_id_animal) continue;
+        if (animal.codigo_anterior === animal.codigo_rgb_id_animal) continue;
+        mapa.set(animal.codigo_anterior, animal.codigo_rgb_id_animal);
+      }
+    } catch (e) {
+      console.warn('No se pudo reconstruir el mapa de códigos renombrados:', mensajeError(e));
+    }
+    return mapa;
+  },
+
+  /** ¿Todavía tiene que esperar antes de reintentarse? */
+  _enEsperaDeReintento(item) {
+    if (!item || !item.proximo_intento) return false;
+    const cuando = Date.parse(item.proximo_intento);
+    if (!Number.isFinite(cuando)) return false;
+    return cuando > Date.now();
+  },
+
+  /**
+   * Revisa los animales que menciona un cambio antes de enviarlo.
+   *
+   * Devuelve null si todos pueden viajar ya, o
+   * { codigo, motivo } con el primer animal que todavía no existe en el
+   * servidor:
+   *   · 'esperando_alta'      → el alta de ese animal sigue en el outbox,
+   *   · 'provisional_huerfano' → el registro guarda un código provisional
+   *     y el animal ya no está en el equipo (se revirtió su alta).
+   *
+   * Enviarlo igual provocaría un rechazo del servidor ("Ninguno de los
+   * animales seleccionados está activo en este fundo") que se repetiría
+   * en cada sincronización sin solución.
+   */
+  async animalesAunNoDisponibles(modulo, datos, indice) {
+    const campos = CONFIG.CAMPOS_REFERENCIA_ANIMAL[modulo] || [];
+    const codigos = [];
+    const agregar = (valor) => {
+      if (!valor) return;
+      const codigo = String(
+        typeof valor === 'object'
+          ? (valor.codigo_rgb_id_animal || valor.codigo || '')
+          : valor
+      ).trim().toUpperCase();
+      if (codigo) codigos.push(codigo);
+    };
+    for (const campo of campos) agregar(datos ? datos[campo] : null);
+    if (datos && Array.isArray(datos.animales)) datos.animales.forEach(agregar);
+    if (!codigos.length) return null;
+
+    if (!indice || !indice.porCodigo) {
+      const animales = await Db.obtenerTodos('animales').catch(() => []);
+      const porCodigo = new Map();
+      for (const animal of animales) {
+        const codigo = String(animal.codigo_rgb_id_animal || '').trim().toUpperCase();
+        if (codigo) porCodigo.set(codigo, animal);
+      }
+      if (indice) indice.porCodigo = porCodigo;
+      return this._evaluarAnimales(codigos, porCodigo);
+    }
+
+    return this._evaluarAnimales(codigos, indice.porCodigo);
+  },
+
+  /** Aplica las reglas del pre-vuelo sobre un índice de códigos. */
+  _evaluarAnimales(codigos, porCodigo) {
+    for (const codigo of codigos) {
+      const animal = porCodigo.get(codigo);
+      if (codigo.indexOf('-PEND-') !== -1) {
+        // Un código provisional no existe en el servidor. Si además el
+        // animal ya no está en el equipo, esperar no sirve: hay que
+        // revisar el registro.
+        return {
+          codigo,
+          motivo: animal ? 'esperando_alta' : 'provisional_huerfano',
+        };
+      }
+      if (animal && animal.estado_sync !== 'sincronizado') {
+        return { codigo, motivo: 'esperando_alta' };
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Deja el registro "esperando al animal": no se envía, no se marca en
+   * rojo y se reintenta solo en cuanto ese animal termine de subir.
+   *
+   * Si el animal ya no existe en el equipo (se revirtió su alta), esperar
+   * no lo va a resolver: el registro pasa a "necesita tu revisión".
+   */
+  async marcarEnEsperaDeAnimal(item, almacen, faltante) {
+    try {
+      const codigo = typeof faltante === 'string' ? faltante : faltante.codigo;
+      const huerfano = typeof faltante === 'object' && faltante.motivo === 'provisional_huerfano';
+
+      const fila = await Db.obtener('outbox', item.uuid_local);
+      if (fila) {
+        fila.espera_animal = codigo;
+        if (huerfano) {
+          fila.bloqueado = true;
+          fila.bloqueado_en = new Date().toISOString();
+          fila.ultimo_error = 'El animal ' + codigo + ' se creó sin conexión y su alta ya no está en este equipo. '
+            + 'Revisá este registro: corregí los animales o borralo.';
+        } else {
+          fila.ultimo_error = 'Esperando que el animal ' + codigo + ' termine de subir al servidor.';
+          fila.proximo_intento = null;
+        }
+        await Db.guardar('outbox', fila);
+      }
+
+      const registro = await Db.obtener(almacen, item.uuid_local);
+      if (registro) {
+        if (huerfano) {
+          registro.estado_sync = 'error';
+          registro.ultimo_error = 'El animal ' + codigo + ' ya no está en este equipo. Revisá este registro.';
+        } else if (registro.estado_sync === 'error') {
+          // No es un error del usuario: vuelve a quedar pendiente normal.
+          registro.estado_sync = 'pendiente';
+          delete registro.ultimo_error;
+        }
+        await Db.guardar(almacen, registro);
+      }
+    } catch (e) {
+      console.warn('[Sync] no se pudo marcar la espera del animal:', mensajeError(e));
+    }
+  },
+
+  /**
+   * Anota un rechazo del servidor y aplica retroceso progresivo
+   * (1, 2, 4, 8, 16 y 30 minutos). Al llegar a CONFIG.MAX_INTENTOS_SYNC el
+   * registro se bloquea: deja de reintentarse solo y pasa a la lista de
+   * "requiere tu revisión" del panel de sincronización.
+   *
+   * Devuelve true si el registro quedó bloqueado.
+   */
+  async _registrarFallo(uuid, mensaje) {
+    const item = await Db.obtener('outbox', uuid);
+    if (!item) return false;
+    const intentos = (item.intentos || 0) + 1;
+    const minutos = Math.min(30, Math.pow(2, Math.min(intentos - 1, 5)));
+    item.intentos = intentos;
+    item.ultimo_error = mensaje || 'El servidor rechazó este registro.';
+    item.espera_animal = null;
+    item.proximo_intento = new Date(Date.now() + minutos * 60000).toISOString();
+    const bloqueado = intentos >= CONFIG.MAX_INTENTOS_SYNC;
+    if (bloqueado) {
+      item.bloqueado = true;
+      item.bloqueado_en = new Date().toISOString();
+    }
+    await Db.guardar('outbox', item);
+    return bloqueado;
   },
 
   async remapearCodigosDeAnimal(mapaCodigos) {
@@ -421,6 +753,20 @@ const Sync = {
           ...fila,
           estado_sync: 'sincronizado',
         };
+        if (modulo === 'animales') {
+          // `codigo_anterior` y `codigo_provisional` son datos que solo
+          // existen en el equipo: el servidor no los devuelve, así que al
+          // reemplazar la copia local se perdían. Sin ellos se rompe el
+          // mapa provisional→definitivo y los registros que aún guardan el
+          // código viejo vuelven a ser rechazados en el próximo envío.
+          const previo = await Db.obtener(almacen, fila.uuid_local).catch(() => null);
+          if (previo) {
+            if (previo.codigo_anterior) filaLocal.codigo_anterior = previo.codigo_anterior;
+            if (previo.codigo_provisional !== undefined && previo.codigo_provisional !== null) {
+              filaLocal.codigo_provisional = previo.codigo_provisional;
+            }
+          }
+        }
         if (modulo === 'nacimientos' && fila.mregservicios_id) {
           const uuidServicio = serviciosPorId.get(Number(fila.mregservicios_id));
           if (uuidServicio) filaLocal.servicio_uuid_local = uuidServicio;
@@ -513,7 +859,14 @@ const Sync = {
           if (e && e.cuerpo && e.cuerpo.codigo === 'mantenimiento') {
             return { modulo, mantenimiento: true, error: mensajeError(e) };
           }
-          return { modulo, error: mensajeError(e) };
+          // Queda en la consola para diagnóstico: la línea de estado de la
+          // app muestra el motivo, pero acá se ve el módulo exacto.
+          console.warn('[Sync] pull de', modulo, 'falló:', mensajeError(e));
+          return {
+            modulo,
+            error: mensajeError(e),
+            codigo: e && e.cuerpo ? e.cuerpo.codigo || null : null,
+          };
         }
       }));
 
@@ -524,6 +877,7 @@ const Sync = {
             modulo: resultado.modulo,
             fase: 'pull',
             mensaje: resultado.error,
+            codigo: resultado.codigo || null,
             mantenimiento: resultado.mantenimiento === true,
           });
           if (resultado.mantenimiento) mantenimiento = true;
@@ -585,17 +939,24 @@ const Sync = {
     const esConsulta = sesion.modo_offline === 'consulta';
     const acumulado = {
       enviados: 0, conflictos: 0, errores: 0, traidos: 0,
-      modulos_con_error: [], fundos: [],
+      modulos_con_error: [], fundos: [], fundos_sin_acceso: [],
     };
 
     try {
       for (const fundo of fundos) {
+        // Fundo al que el servidor ya le negó el acceso (la cuenta dejó de
+        // tenerlo asignado, o el equipo se preparó contra otra base de
+        // datos): en las corridas de fondo no se vuelve a intentar. Al
+        // tocar "Sincronizar" sí, porque para entonces puede haberse
+        // restablecido el acceso.
+        if (fundo.sin_acceso && automatico) continue;
+
         Db.usarFundo(fundo.id);
         const erroresFundo = [];
 
         try {
           if (!esConsulta) {
-            const rp = await this.enviarPendientes(sesion, fundo.id);
+            const rp = await this.enviarPendientes(sesion, fundo.id, { automatico });
             acumulado.enviados += rp.enviados;
             acumulado.conflictos += rp.conflictos;
             acumulado.errores += rp.errores;
@@ -614,6 +975,30 @@ const Sync = {
           }
 
           const descargas = await this.traerCambiosEnParalelo(sesion, fundo.id);
+
+          // Si TODOS los módulos fallaron porque la cuenta no tiene
+          // acceso a este fundo, no se muestran nueve errores iguales: se
+          // marca el fundo y se resume en un solo aviso. Los datos que ya
+          // están en el equipo se conservan.
+          const sinAcceso = descargas.errores.length > 0
+            && descargas.errores.every((error) => error.codigo === 'fundo_no_permitido');
+          if (sinAcceso) {
+            await marcarFundoSinAcceso(fundo, true);
+            acumulado.fundos_sin_acceso.push(fundo.nombre || ('Fundo ' + fundo.id));
+            // Se avisa UNA vez por fundo (no una por módulo) y se corta
+            // este fundo: el resto de la corrida sigue con los demás.
+            acumulado.modulos_con_error.push({
+              modulo: fundo.nombre || ('Fundo ' + fundo.id),
+              fase: 'fundo',
+              fundo_id: fundo.id,
+              mensaje: 'Tu cuenta ya no tiene acceso a este fundo en el servidor. Sus datos siguen guardados en este equipo.',
+            });
+            acumulado.fundos.push({ fundo_id: fundo.id, nombre: fundo.nombre, ok: false });
+            continue;
+          }
+
+          if (fundo.sin_acceso) await marcarFundoSinAcceso(fundo, false);
+
           acumulado.traidos += descargas.traidos;
           erroresFundo.push(...descargas.errores);
 

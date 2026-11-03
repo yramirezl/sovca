@@ -1,6 +1,22 @@
 {
-  "actual": "4.45",
+  "actual": "1.00046",
   "versiones": [
+    {
+      "version": "1.00046",
+      "fecha": "2026-11-02",
+      "notas": [
+        "Nuevo panel de Inicio: accesos directos a todos los módulos y una lista de pendientes y avisos (registros sin subir, palpaciones y partos próximos) que se calcula en el propio equipo, sin necesidad de internet.",
+        "Animales: el N° de arete se guarda en un formato único (mayúsculas, símbolos y espacios como guion, máximo 15 caracteres) y no se puede repetir entre animales activos del mismo fundo. El buscador lo encuentra con o sin guiones.",
+        "Nacimientos: se puede registrar el parto aunque la hembra no tenga un servicio gestante en el fundo; el tipo de servicio es obligatorio. La fecha probable de parto y la fecha de secado se calculan solas con los períodos del fundo.",
+        "Servicios: el listado de hembras muestra solo las que pueden recibir un servicio nuevo. El macho tiene edad mínima configurable (12 meses por defecto) y al guardar se indica la fecha probable de palpación.",
+        "Sincronización: los registros creados sin conexión sobre un animal nuevo esperan a que suba el alta de ese animal. Los rechazos se reintentan con espera progresiva (1, 2, 4, 8, 16 y 30 minutos) y, tras seis rechazos, el registro queda 'para revisar'.",
+        "Categorías: la categoría futura se calcula con la cadena de edades (misma especie, sexo y ganadería) y el productor puede crear y corregir las suyas.",
+        "Conexiones: una fila por conexión, con duración acumulada y estados con hora (activa, cerrada o caducada).",
+        "Correo: la configuración SMTP se puede fijar por entorno, el saludo HELO usa el nombre del dominio propio y hay diagnóstico de envío para detectar bloqueos.",
+        "Consulta en panel lateral: el perfil de usuario y la ficha del animal se abren sin salir del listado.",
+        "La versión que se muestra en los equipos ahora es V1.nnnnn: la V y el 1 identifican esta app (primera versión del modo offline) y los dígitos siguientes son la revisión."
+      ]
+    },
     {
       "version": "4.45",
       "fecha": "2026-10-28",
@@ -83,7 +99,7 @@
       "fecha": "2026-10-18",
       "notas": [
         "La app ya no permite cargar dos veces el mismo animal en la misma fecha en producción de leche, pesaje ni control sanitario: avisa al instante, igual que el sistema web.",
-        "Si la fecha de un servicio es anterior al último parto de la vaca, la app lo rechaza al sincronizar con un mensaje claro.",
+        "Si la fecha de un servicio es anterior al último parto de la hembra, la app lo rechaza al sincronizar con un mensaje claro.",
         "Las causas de baja ahora se eligen de la lista del sistema (con la opción 'Otra' para escribir), así los reportes de bajas quedan parejos con la web.",
         "Un control sanitario por lote ya no incluye animales dados de baja, y el aviso cuenta solo los animales activos."
       ]
@@ -281,7 +297,7 @@
         "El reporte \"Bajas y desincorporados\" ahora usa el tipo de baja real (descarte, muerte, venta, extravío o migrado a otro fundo) y muestra fecha, causa, lote y observaciones tomadas del registro de la baja.",
         "Se agregó un resumen de animales por tipo de baja y el filtro del reporte ahora es \"Tipo de baja\".",
         "Corregido: el reporte tomaba como bajas los animales con estatus de donadora (4/5) y dejaba fuera a los muertos o vendidos; ahora se basa en el estado del animal (mestatus_id).",
-        "Corregido el sexo en todos los reportes: el sistema guarda 1 = hembra y 2 = macho, y varios reportes los mostraban invertidos (las vacas aparecían como machos).",
+        "Corregido el sexo en todos los reportes: el sistema guarda 1 = hembra y 2 = macho, y varios reportes los mostraban invertidos (las hembras aparecían como machos).",
         "Corregido: el selector de animal de Producción de leche ofrecía solo machos; ahora lista las hembras."
       ]
     },

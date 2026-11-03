@@ -570,6 +570,12 @@ if (!function_exists('mf_plan_vigente_fundo')) {
     function mf_plan_vigente_fundo($fundo_id) {
         $fid = (int) $fundo_id;
         if ($fid <= 0) { return 0; }
+        /* Solo cuentan las suscripciones del usuario que HOY administra el
+           fundo (propietario o con acceso activo). Tras una unificación las
+           filas de los usuarios que quedaron fuera siguen en la tabla; si
+           tienen un id mayor ganaban el LATERAL y el fundo seguía mostrando
+           el plan viejo (casos reales: fondo 61 → PLATA y fondo 70 → BRONCE,
+           con el usuario ya en DIAMANTE). */
         $r = _mf_q1("
             SELECT COALESCE(v.mplanes_id, f.mplanes_id, 0) AS mplanes_id
               FROM mfundos f
@@ -578,7 +584,14 @@ if (!function_exists('mf_plan_vigente_fundo')) {
                       FROM mplanesxfundo px
                      WHERE px.mfundos_id = f.id
                        AND px.msuscripciones_id IS NOT NULL
-                  ORDER BY px.id DESC
+                       AND (px.musuarios_id = f.user_propietario
+                            OR EXISTS (SELECT 1
+                                         FROM mfundosxusuarios x
+                                        WHERE x.musuarios_id = px.musuarios_id
+                                          AND x.mfundos_id = f.id
+                                          AND x.status = 1))
+                  ORDER BY (px.musuarios_id = f.user_propietario) DESC,
+                           px.id DESC
                      LIMIT 1
               ) v ON true
              WHERE f.id = $fid
@@ -675,8 +688,10 @@ if (!function_exists('mf_aplicar_plan_fundo')) {
             return $ok;
         }
 
-        // Se hereda el tipo de suscripción y la vigencia del propio fundo; si
-        // el fundo no tiene ninguna, se toma la del usuario destino.
+        /* Se hereda el tipo de suscripción y la vigencia del propio fundo; si
+           el fundo no tiene ninguna, se toma la del usuario destino.
+           A propósito NO se imponen las fechas de la cuenta: alinear el plan
+           no debe cambiar la vigencia de un fundo (podría vencerlo). */
         $base = _mf_q1("SELECT msuscripciones_id, fecha_activa_suscripcion, fecha_caduca_suscripcion
                           FROM mplanesxfundo
                          WHERE mfundos_id = $fid
@@ -706,8 +721,12 @@ if (!function_exists('mf_aplicar_plan_fundo')) {
 
 if (!function_exists('mf_plan_max_fundos')) {
     /**
-     * Cuántos fundos permite un plan (mplanes.max_fundos).
-     * Es el plan el que rige el cupo de la cuenta, no un número suelto.
+     * TOPE de fundos de un plan (mplanes.max_fundos).
+     *
+     * Ojo: es el máximo que el plan admite, NO lo que la cuenta contrató.
+     * Comprar un plan ORO (tope 20) no significa que la cuenta tenga 20
+     * fundos: el productor puede contratar 1, 2, ... y el cupo real vive en
+     * musuarios.max_fundos (ver mf_cupo_fundos_usuario).
      */
     function mf_plan_max_fundos($plan_id) {
         $pid = (int) $plan_id;
@@ -718,18 +737,43 @@ if (!function_exists('mf_plan_max_fundos')) {
     }
 }
 
+if (!function_exists('mf_normalizar_cupo_fundos')) {
+    /**
+     * Deja un cupo de fundos dentro de lo que el plan permite.
+     *
+     * El valor pedido manda (es lo que se contrató), pero nunca puede ser
+     * menor que 1 ni mayor que el tope del plan. Si no llega nada, se toma 1:
+     * el valor por defecto de una cuenta nueva es un fundo, no el tope.
+     *
+     * @param int      $plan_id   Plan de la cuenta.
+     * @param int|null $solicitado Cupo pedido (null = sin dato -> 1).
+     * @return int
+     */
+    function mf_normalizar_cupo_fundos($plan_id, $solicitado = null) {
+        $tope = mf_plan_max_fundos($plan_id);
+        $cupo = ($solicitado === null) ? 1 : (int) $solicitado;
+        if ($cupo < 1) { $cupo = 1; }
+        if ($cupo > $tope) { $cupo = $tope; }
+        return $cupo;
+    }
+}
+
 if (!function_exists('mf_cupo_fundos_usuario')) {
     /**
-     * Cupo de fundos que le corresponde a una cuenta según su plan:
+     * Cupo REAL de fundos de una cuenta:
      *   - cuenta normal (sin multifundo): 1 fundo
-     *   - cuenta multifundo: los fundos que permite su plan
+     *   - cuenta multifundo: musuarios.max_fundos acotado al tope del plan
+     *
+     * Antes se devolvía siempre el tope del plan, así que un productor que
+     * contrató ORO para un solo fundo podía agregar hasta 20 sin pagar.
      */
     function mf_cupo_fundos_usuario($usuario_id) {
         $uid = (int) $usuario_id;
         if ($uid <= 0) { return 1; }
-        $r = _mf_q1("SELECT es_multifundo, mplanes_id FROM musuarios WHERE id = $uid LIMIT 1");
+        $r = _mf_q1("SELECT es_multifundo, mplanes_id, max_fundos
+                       FROM musuarios WHERE id = $uid LIMIT 1");
         if (!$r || (int) $r['es_multifundo'] !== 1) { return 1; }
-        return mf_plan_max_fundos((int) $r['mplanes_id']);
+        return mf_normalizar_cupo_fundos((int) $r['mplanes_id'], (int) $r['max_fundos']);
     }
 }
 
@@ -741,25 +785,41 @@ if (!function_exists('mf_validar_plan_usuario')) {
      * Sirve tanto para SUBIR como para BAJAR de plan: bajar a un plan con
      * menos fundos de los que la cuenta ya tiene dejaría la cuenta fuera de
      * cupo, así que se bloquea y se le dice al administrador qué hacer.
+     *
+     * El cupo que se compara es el CONTRATADO (musuarios.max_fundos), no el
+     * tope del plan: una cuenta ORO con 2 fundos contratados solo puede bajar
+     * a un plan cuyo tope sea 2 o más, y el cupo se conserva.
+     *
+     * @param int      $usuario_id
+     * @param int      $plan_id
+     * @param bool|int $es_multifundo  null = leer de la ficha.
+     * @param int|null $cupo           Cupo que se va a dejar (null = el actual).
      */
-    function mf_validar_plan_usuario($usuario_id, $plan_id, $es_multifundo = null) {
+    function mf_validar_plan_usuario($usuario_id, $plan_id, $es_multifundo = null, $cupo = null) {
         $uid = (int) $usuario_id;
         $pid = (int) $plan_id;
         if ($uid <= 0 || $pid <= 0) { return ''; }
 
-        if ($es_multifundo === null) {
-            $r = _mf_q1("SELECT es_multifundo FROM musuarios WHERE id = $uid LIMIT 1");
-            $es_multifundo = $r ? (int) $r['es_multifundo'] : 0;
+        if ($es_multifundo === null || $cupo === null) {
+            $r = _mf_q1("SELECT es_multifundo, max_fundos FROM musuarios WHERE id = $uid LIMIT 1");
+            if ($es_multifundo === null) {
+                $es_multifundo = $r ? (int) $r['es_multifundo'] : 0;
+            }
+            if ($cupo === null) {
+                $cupo = $r ? (int) $r['max_fundos'] : 1;
+            }
         }
 
-        $cupo  = $es_multifundo ? mf_plan_max_fundos($pid) : 1;
+        $cupo  = $es_multifundo ? mf_normalizar_cupo_fundos($pid, $cupo) : 1;
         $tiene = mf_contar_fundos_usuario($uid);
         if ($tiene <= $cupo) { return ''; }
 
         $plan = mf_plan_detalle($pid);
         $sobran = $tiene - $cupo;
-        return 'El plan ' . $plan['nombre'] . ' permite ' . $cupo . ' fundo(s) y la cuenta tiene '
-             . $tiene . '. Quite el acceso a ' . $sobran . ' fundo(s) antes de cambiar a ese plan.';
+        return 'La cuenta quedaría con ' . $cupo . ' fundo(s) contratado(s) en el plan '
+             . $plan['nombre'] . ' y tiene ' . $tiene . '. Quite el acceso a '
+             . $sobran . ' fundo(s) o indique un cupo mayor (el plan admite hasta '
+             . $plan['max_fundos'] . ').';
     }
 }
 
@@ -774,18 +834,19 @@ if (!function_exists('mf_actualizar_plan_usuario')) {
      *   - mfundos.mplanes_id de cada fundo de la cuenta
      *   - mplanesxfundo de cada fundo (plan, tipo de suscripción y fechas)
      *
-     * @param int    $usuario_id
-     * @param int    $plan_id
-     * @param int    $suscripcion_id  Opcional: tipo de suscripción (msuscripciones).
-     * @param string $fecha_activa    Opcional: Y-m-d de activación.
-     * @return true|string            true si quedó, o el mensaje de error.
+     * @param int      $usuario_id
+     * @param int      $plan_id
+     * @param int      $suscripcion_id  Opcional: tipo de suscripción (msuscripciones).
+     * @param string   $fecha_activa    Opcional: Y-m-d de activación.
+     * @param int|null $max_fundos      Cupo contratado (null = el que ya tiene).
+     * @return true|string              true si quedó, o el mensaje de error.
      */
-    function mf_actualizar_plan_usuario($usuario_id, $plan_id, $suscripcion_id = 0, $fecha_activa = '') {
+    function mf_actualizar_plan_usuario($usuario_id, $plan_id, $suscripcion_id = 0, $fecha_activa = '', $max_fundos = null) {
         $uid = (int) $usuario_id;
         $pid = (int) $plan_id;
         if ($uid <= 0 || $pid <= 0) { return 'No se indicó el plan.'; }
 
-        $error = mf_validar_plan_usuario($uid, $pid);
+        $error = mf_validar_plan_usuario($uid, $pid, null, $max_fundos);
         if ($error !== '') { return $error; }
 
         // Vigencia: si llega el tipo de suscripción y la fecha de activación,
@@ -806,13 +867,26 @@ if (!function_exists('mf_actualizar_plan_usuario')) {
         $fini_esc = ($fini !== '') ? addslashes($fini) : '';
         $ffin_esc = ($ffin !== '') ? addslashes($ffin) : '';
 
-        // El cupo de la ficha sale del plan.
-        $u = _mf_q1("SELECT es_multifundo FROM musuarios WHERE id = $uid LIMIT 1");
-        $cupo = ($u && (int) $u['es_multifundo'] === 1) ? mf_plan_max_fundos($pid) : 1;
+        /* El cupo CONTRATADO se conserva al cambiar de plan: solo se acota al
+           tope del plan nuevo. Si no llega un cupo explícito se mantiene el
+           que la cuenta ya tenía (antes se reescribía con el tope del plan y
+           se le regalaban fundos a la cuenta). */
+        $u = _mf_q1("SELECT es_multifundo, max_fundos FROM musuarios WHERE id = $uid LIMIT 1");
+        if ($u && (int) $u['es_multifundo'] === 1) {
+            $cupo = mf_normalizar_cupo_fundos(
+                $pid,
+                ($max_fundos === null) ? (int) $u['max_fundos'] : (int) $max_fundos
+            );
+        } else {
+            $cupo = 1;
+        }
 
         _mf_exec("UPDATE musuarios SET mplanes_id = $pid, max_fundos = $cupo WHERE id = $uid");
 
-        foreach (mf_fundos_para_unificar($uid) as $f) {
+        /* Se recorre la CUENTA COMPLETA, incluidos los fundos inactivos: el
+           plan es de la cuenta y el productor veía dos planes distintos en
+           sus fundos (reporte LA FLORESTA / DON VILLA). */
+        foreach (mf_fundos_de_la_cuenta($uid) as $f) {
             $fid = (int) $f['mfundos_id'];
             _mf_exec("UPDATE mfundos SET mplanes_id = $pid WHERE id = $fid");
 
@@ -870,6 +944,31 @@ if (!function_exists('mf_fundos_para_unificar')) {
               ) v ON true
          LEFT JOIN mplanes p   ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
          LEFT JOIN musuarios u2 ON u2.id = f.user_propietario
+             WHERE fxu.musuarios_id = $uid
+               AND fxu.status = 1
+          ORDER BY f.nombre ASC
+        ");
+    }
+}
+
+if (!function_exists('mf_fundos_de_la_cuenta')) {
+    /**
+     * Fundos de una cuenta, ACTIVOS E INACTIVOS.
+     *
+     * `mf_fundos_para_unificar()` filtra `mfundos.status = 1` porque sirve para
+     * asignar accesos. Para el PLAN no sirve: el plan es de la cuenta y un
+     * fundo inactivo con otro plan hace que el productor vea dos planes
+     * distintos en su listado (reporte de LA FLORESTA y DON VILLA).
+     *
+     * @return array [{mfundos_id, nombre, status}]
+     */
+    function mf_fundos_de_la_cuenta($usuario_id) {
+        $uid = (int) $usuario_id;
+        if ($uid <= 0) { return array(); }
+        return _mf_q("
+            SELECT f.id AS mfundos_id, f.nombre, f.status
+              FROM mfundosxusuarios fxu
+        INNER JOIN mfundos f ON f.id = fxu.mfundos_id
              WHERE fxu.musuarios_id = $uid
                AND fxu.status = 1
           ORDER BY f.nombre ASC
@@ -1051,8 +1150,10 @@ if (!function_exists('mf_unificar_fundos')) {
         foreach ($res['fundos'] as $fd) {
             $planes_previos[] = mf_plan_vigente_fundo((int) $fd['id']);
         }
-        // Fundos que el destino ya administraba antes de esta operación.
-        foreach (mf_fundos_para_unificar($destino) as $ft) {
+        /* Fundos que el destino ya administraba (incluidos los inactivos: su
+           plan también compite y también se reescribe, para que la cuenta
+           quede con un solo plan en todos sus fundos). */
+        foreach (mf_fundos_de_la_cuenta($destino) as $ft) {
             $fundos_cuenta[(int) $ft['mfundos_id']] = $ft['nombre'];
             $planes_previos[] = mf_plan_vigente_fundo((int) $ft['mfundos_id']);
         }
@@ -1075,12 +1176,16 @@ if (!function_exists('mf_unificar_fundos')) {
         if ($total > 100) {
             $total = 100;
         }
-        // El cupo sale del plan; si la cuenta junta más fundos de los que el
-        // plan permite, se deja el total para no bloquear la operación (el
-        // aviso de más abajo indica que hay que subir de plan).
+        /* El cupo resultante es el TOTAL de fundos que quedan en la cuenta: la
+           cuenta ya los tiene, así que el cupo no puede ser menor (quedaría
+           fuera de cupo) ni tampoco el tope del plan (le dejaría agregar más
+           fundos sin contratarlos). Si el total supera el tope, el aviso de
+           más abajo indica que hay que subir de plan. */
         $cupo_final = $total;
-        if ($plan_mayor > 0) {
-            $cupo_final = max(mf_plan_max_fundos($plan_mayor), $total);
+        // Si la cuenta ya tenía un cupo contratado mayor, se respeta.
+        $cupo_previo = _mf_q1("SELECT max_fundos FROM musuarios WHERE id = $destino LIMIT 1");
+        if ($cupo_previo && (int) $cupo_previo['max_fundos'] > $cupo_final) {
+            $cupo_final = (int) $cupo_previo['max_fundos'];
         }
         if (!_mf_exec("UPDATE musuarios
                           SET es_multifundo = TRUE,

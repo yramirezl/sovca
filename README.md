@@ -23,4 +23,6 @@ códigos de animal con prefijo `SOVCA-`.
 - [Recuperación de contraseña](docs/recuperacion_password.md): enlace por correo para que el
   usuario cree una clave nueva (token de un solo uso, 30 min, captcha y sin revelar qué correos
   están registrados). Incluye la configuración SMTP y la migración de la base de datos.
+- [Port de mejoras de BOVS (2026-11-02)](docs/port_mejoras_2026-11-02.md): qué se trajo, qué
+  migraciones se aplicaron en `sovca` y `sovca_demo`, variables de entorno nuevas y rollback.
 

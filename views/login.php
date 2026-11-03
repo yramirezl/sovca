@@ -6,12 +6,32 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include("./layouts/constantes.php");
 require_once __DIR__ . '/../lib/captcha_helper.php';
+require_once __DIR__ . '/../lib/demo_helper.php';
 require_once __DIR__ . '/../config/demo.php';
 require_once __DIR__ . '/../lib/mantenimiento_helper.php';
+
+/* ============================================================
+   SESIÓN DEMO ABIERTA
+   ------------------------------------------------------------
+   El login del sistema es para cuentas reales; las cuentas demo
+   tienen su propio formulario (views/demo → "Ya tengo cuenta").
+   Si el navegador traía una sesión demo marcada, hay que quitarla
+   ANTES de que el controlador abra la conexión: con $_SESSION['demo'] = 1
+   config/conexion.php apunta a sovca_demo y el login de una cuenta real
+   respondería "Usuario o contraseña incorrecta" sin motivo.
+   ============================================================ */
+if (!empty($_SESSION['demo'])) {
+    bovs_demo_cerrar_sesion();
+}
 
 /* MODO MANTENIMIENTO: solo los administradores del sistema pueden entrar. */
 $mttoActivo  = bovs_mantenimiento_activo();
 $mttoMensaje = $mttoActivo ? bovs_mantenimiento_mensaje() : '';
+
+/* La portada del modo offline enlaza acá con ?activar=1 cuando el equipo
+   todavía no está preparado: abre directamente el asistente de activación
+   (el login del sistema ya no tiene un botón propio para eso). */
+$activarOffline = isset($_GET['activar']) && (string) $_GET['activar'] !== '' && !$mttoActivo;
 
 /* ============================================================
    CAPTCHA — suma/resta con token anti-manipulación
@@ -762,6 +782,7 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       margin-top: 5px;
     }
 
+    /* Enlace para quien ya tiene una cuenta demo (segunda visita). */
     /* ============================================================
        ALERTAS
        ============================================================ */
@@ -904,6 +925,54 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
     .offline-trigger button i {
       margin-right: 6px;
+    }
+
+    /* Acceso a la pagina de inicio del modo offline. Resuelve el caso de
+       "se cerro el navegador y no recuerdo la direccion": desde la
+       portada se instala la app (icono en el dispositivo) y se ve si el
+       equipo ya tiene los datos descargados. */
+    .offline-trigger__link {
+      color: #234e35;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .offline-trigger__link:hover {
+      color: #14301f;
+    }
+
+    .offline-trigger__sep {
+      color: #b9c7bc;
+      margin: 0 6px;
+    }
+
+    /* Acceso al MÓDULO del modo offline (único punto de entrada: desde la
+       portada se entra a la app, se instala el ícono o se prepara el
+       equipo). Naranja, como el enlace "Modo offline" de siempre. */
+    .offline-trigger__modulo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      color: #c0560f;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      text-decoration: none;
+    }
+
+    .offline-trigger__modulo:hover,
+    .offline-trigger__modulo:focus {
+      color: #9c4409;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .offline-trigger__modulo i {
+      color: #c0560f;
     }
 
     /* ============================================================
@@ -1450,14 +1519,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
           <?php if (!$mttoActivo && defined('SOVCA_DEMO_ACTIVO') && SOVCA_DEMO_ACTIVO): ?>
             <!-- ============================================================
-                 ACCESO DEMOSTRATIVO
-                 Abre la pantalla donde el visitante crea su propia cuenta
-                 sobre la base de pruebas (vigencia de 15 días).
+                 ACCESO DEMOSTRATIVO (UNICO)
+                 Lleva al módulo demo; ahí están las dos opciones: crear la
+                 cuenta o ingresar con una que ya existe.
                  No se ofrece durante el mantenimiento: el servidor rechaza
                  la creación de cuentas demo mientras el sistema está cerrado.
                  ============================================================ -->
             <div class="demo-cta">
-              <a href="demo/" class="btn-demo-login">
+              <a href="demo/" class="btn-demo-login"
+                 title="Entrar al módulo de demostración: crear una cuenta de prueba o ingresar con una existente">
                 <i class="fa fa-unlock"></i>
                 Acceso demostrativo
               </a>
@@ -1467,12 +1537,21 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
             </div>
           <?php endif; ?>
 
-          <?php if (!$mttoActivo): ?>
+<?php if (!$mttoActivo): ?>
             <div class="offline-status" id="offline-mode-status">Comprobando estado de conexión...</div>
+            <!-- ============================================================
+                 MODO OFFLINE (UNICO ACCESO)
+                 Lleva al módulo: en la portada están las opciones (entrar a
+                 la app, instalar el ícono, crear el acceso directo) y, si el
+                 equipo todavía no está preparado, la de activarlo.
+                 El asistente de activación vive en el modal de esta página y
+                 se abre con ?activar=1 (lo enlaza la portada).
+                 ============================================================ -->
             <div class="offline-trigger" id="offline-mode-discrete">
-              <button type="button" id="offline-discrete-button" title="Activar este dispositivo para uso offline">
-                <i class="fa fa-cloud-download"></i>Modo offline
-              </button>
+              <a href="../app_offline/inicio.html?inicio=1" class="offline-trigger__modulo"
+                 title="Ir al módulo del modo offline: entrar a la app, instalar el acceso directo o preparar este equipo">
+                <i class="fa fa-cloud"></i> Modo Offline
+              </a>
             </div>
           <?php else: ?>
             <div class="offline-status offline-status--mtto" id="offline-mode-status">
@@ -1756,7 +1835,6 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
           precargarOfflineShell();
         }
 
-        var offlineDiscrete = $('offline-discrete-button');
         var offlineModal = $('offline-modal');
         var offlineCancel = $('offline-cancel');
         var offlineForm = $('offline-install-form');
@@ -1806,17 +1884,20 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
           offlineCapRefresh.addEventListener('click', refrescarCaptchaOffline);
         }
 
-        if (offlineDiscrete) {
-          offlineDiscrete.addEventListener('click', function (e) {
-            e.preventDefault();
-            var u = $('usuario'), p = $('password1');
-            var mu = $('offline-usuario'), mp = $('offline-password');
-            if (mu && u) mu.value = u.value || '';
-            if (mp && p) mp.value = p.value || '';
-            if (offlineModal) offlineModal.style.display = 'flex';
-            /* Token vigente aunque la página lleve abierta un rato */
-            refrescarCaptchaOffline();
-          });
+        /* Asistente de activación del modo offline. Se abre desde la portada
+           del módulo (?activar=1): el login solo tiene un acceso al módulo. */
+        function abrirModalOffline() {
+          var u = $('usuario'), p = $('password1');
+          var mu = $('offline-usuario'), mp = $('offline-password');
+          if (mu && u && !mu.value) mu.value = u.value || '';
+          if (mp && p && !mp.value) mp.value = p.value || '';
+          if (offlineModal) offlineModal.style.display = 'flex';
+          /* Token vigente aunque la página lleve abierta un rato */
+          refrescarCaptchaOffline();
+        }
+
+        if (<?= $activarOffline ? 'true' : 'false' ?>) {
+          setTimeout(abrirModalOffline, 350);
         }
 
         if (offlineCancel && offlineModal) {

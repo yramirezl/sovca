@@ -28,9 +28,13 @@ if (is_file($rutaVersiones)) {
 // al usuario.
 $archivos = [
     __DIR__ . '/index.html',
+    __DIR__ . '/inicio.html',
     __DIR__ . '/manifest.json',
     __DIR__ . '/css/estilos.css',
     __DIR__ . '/css/modal.css',
+    __DIR__ . '/css/inicio.css',
+    __DIR__ . '/js/inicio.js',
+    __DIR__ . '/js/acceso-modo-offline.js',
     __DIR__ . '/js/config.js',
     __DIR__ . '/js/dispositivo.js',
     __DIR__ . '/js/credenciales.js',

@@ -1,7 +1,7 @@
 <?php
 
-require_once 'class.phpmailer.php';
-require_once 'class.smtp.php';
+require_once __DIR__ . '/class.phpmailer.php';
+require_once __DIR__ . '/class.smtp.php';
 require_once __DIR__ . '/../lib/mailer_helper.php';
 date_default_timezone_set('America/Caracas');
 

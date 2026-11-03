@@ -186,7 +186,8 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                                     <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                                 </a>
                             </label>
-                            <input type="text" id="numero_arete" class="form-control" placeholder="Nro Arete-Chip">
+                            <input type="text" id="numero_arete" class="form-control" placeholder="Nro Arete-Chip" maxlength="15" autocomplete="off"
+                                   title="Números, letras y guiones. Máximo 15 caracteres.">
                             <i class="fa fa-lock crud-form__lock"></i>
                             <div id='ms_nro_arete'><p></p></div>
                         </div>
@@ -516,6 +517,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 <script src="../../plugins/select3/i18n/defaults-es_ES.min.js"></script>
 <script type="text/javascript" src="../../js/servicio-selector.js?v=16"></script>
 <script type="text/javascript" src="../../js/crud-animal-selector.js?v=15"></script>
+<script type="text/javascript" src="../../js/arete-formato.js?v=1"></script>
 
 <!-- ⚠️ AQUÍ PEGÁ EL BLOQUE <script> ORIGINAL COMPLETO DEL frm_editar.php -->
 <!-- (el que empieza con "var nombre_real = '';" y termina con la última  -->
@@ -980,7 +982,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                 formData.append('estatus_animal', $("#estatus_animal").val());
                 formData.append('lote', $("#lote").val());
                 formData.append('alza', $("#alza").val());
-                formData.append('numero_arete', $("#numero_arete").val());
+                formData.append('numero_arete', (window.BovsArete ? BovsArete.formatear($("#numero_arete").val()) : $("#numero_arete").val()));
                 formData.append('sexo', $("#sexo").val());
                 formData.append('fech_nac', $("#fech_nac").val());
                 formData.append('peso_nac', $("#peso_nac").val());
@@ -1204,6 +1206,9 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 
     $("#numero_arete").blur(function () {
 
+        /* Formato canónico antes de consultar el duplicado. */
+        this.value = (window.BovsArete ? BovsArete.formatear(this.value) : this.value);
+
         $.post("../../controllers/manimales_controller", {
 
             action: "search_nro_arete",
@@ -1220,7 +1225,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
             if (validar != 0) {
                 document.getElementById('ms_nro_arete').style.display = 'block';
                 document.getElementById("ms_nro_arete").innerHTML =
-                    'NUMERO DE ARETE Ya se Encuentra Registrado';
+                    parsedJson.mensaje || 'NUMERO DE ARETE Ya se Encuentra Registrado';
                 document.getElementById('numero_arete').focus();
                 var valor = $("#numero_arete").val();
                 setTimeout(function () {

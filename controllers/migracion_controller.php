@@ -8,6 +8,7 @@ require_once '../models/Mraza.php';
 require_once '../models/Mcategoria.php';
 
 include '../lib/sanitizar.php';
+require_once __DIR__ . '/../lib/arete_helper.php';
 date_default_timezone_set('America/Caracas');
 
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -231,33 +232,38 @@ switch ($action) {
             break;
         }
 
-        // Validar conflictos de NRO_ARETE en destino
-        $conflictos_arete = Manimale::find_by_sql("
-            SELECT m.nombre, m.nro_arete
-              FROM manimales m
-             WHERE m.mfundos_id = $fundo_destino_id
-               AND m.status = 1
-               AND m.mestatus_id = 1
-               AND m.nro_arete <> ''
-               AND UPPER(TRIM(m.nro_arete)) IN (
-                   SELECT UPPER(TRIM(a.nro_arete))
-                     FROM manimales a
-                    WHERE a.id IN ($ids_sql) AND a.nro_arete <> ''
-               )
+        // Validar conflictos de NRO_ARETE en destino con la regla única de
+        // lib/arete_helper.php (mayúsculas y espacios normalizados, solo
+        // animales con status=1 del fundo destino).
+        $conflictos = array();
+        $detalle_conflictos = array();
+
+        $animales_a_migrar = Manimale::find_by_sql("
+            SELECT id, nombre, codigo_rgb_id_animal, nro_arete
+              FROM manimales
+             WHERE id IN ($ids_sql) AND mfundos_id = $fundo_origen_id AND status = 1
         ");
 
-        $conflictos = array();
-        if ($conflictos_arete) {
-            foreach ($conflictos_arete as $c) {
-                $conflictos[] = $c->nro_arete;
+        if ($animales_a_migrar) {
+            foreach ($animales_a_migrar as $a) {
+                if (bovs_arete_normalizar($a->nro_arete) === '') {
+                    continue;
+                }
+                $ocupado = bovs_arete_existente($fundo_destino_id, $a->nro_arete);
+                if ($ocupado) {
+                    $conflictos[] = $a->nro_arete;
+                    $detalle_conflictos[] = trim($a->codigo_rgb_id_animal . ' ' . $a->nombre)
+                        . ' → ' . bovs_arete_mensaje($ocupado);
+                }
             }
         }
 
         if (count($conflictos) > 0) {
             echo json_encode(array(
-                'ok'         => false,
-                'msg'        => 'Existen conflictos de NRO_ARETE en el fundo destino',
-                'conflictos' => $conflictos
+                'ok'          => false,
+                'msg'         => 'Existen conflictos de NRO_ARETE en el fundo destino',
+                'conflictos'  => $conflictos,
+                'detalle'     => $detalle_conflictos
             ));
             break;
         }

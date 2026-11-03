@@ -1,7 +1,7 @@
 <?php
 
-require_once 'class.phpmailer.php';
-require_once 'class.smtp.php';
+require_once __DIR__ . '/class.phpmailer.php';
+require_once __DIR__ . '/class.smtp.php';
 require_once __DIR__ . '/../lib/mailer_helper.php';
 date_default_timezone_set('America/Caracas');
 
@@ -10,7 +10,12 @@ date_default_timezone_set('America/Caracas');
 class Enviar_Correo{
 
   function enviar_database($correo,$Path_db,$archivo_db){
-   
+
+    // Sin archivo no hay nada que enviar: se corta antes de armar el correo.
+    if (!is_file($Path_db) || filesize($Path_db) === 0) {
+      error_log('[SOVCA mail] adjunto de respaldo inexistente o vacio: ' . $Path_db);
+      return false;
+    }
      $mensaje='Fue Enviado el Respaldo de la Base de Datos de Manera exitosa'.'<br><br> <br>';
 
     $mail = new PHPMailer();
@@ -86,9 +91,11 @@ class Enviar_Correo{
 
     $mail->AddAddress($correo);
 
-    $mail->Send();
+    $enviado = $mail->Send();
     $mail->ClearAddresses();
     $mail->ClearAttachments();
+
+    return (bool) $enviado;
   }
 
   

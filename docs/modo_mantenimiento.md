@@ -67,10 +67,19 @@ El control se aplica en **cinco capas**, para que no quede un camino abierto:
 
 Además:
 
-- **Acceso demostrativo:** el botón se oculta en el login y `controllers/demo_controller.php`
-  rechaza `crear_cuenta`, `verificar_codigo` y `reenviar_codigo` mientras el modo esté activo.
-- **Login:** muestra el aviso *“Mantenimiento programado”* y, al intentar entrar, el
-  mensaje del motivo.
+- **Acceso demostrativo:** el botón se oculta en el login, la pantalla `views/demo/`
+  muestra el aviso de mantenimiento y deshabilita el formulario, y
+  `controllers/demo_controller.php` rechaza `crear_cuenta`, `verificar_codigo` y
+  `reenviar_codigo` mientras el modo esté activo.
+- **Cuentas demo existentes:** el respaldo de autenticación demo de
+  `controllers/musuarios_controller.php` también queda bloqueado (son rol 2).
+- **Modo offline:** el login oculta el botón *Modo offline* y no registra el
+  service worker; en su lugar muestra *“Modo offline no disponible durante el
+  mantenimiento.”*. La PWA conserva los registros pendientes y los sube cuando
+  el mantenimiento termina.
+- **Login:** muestra un banner permanente **“Modo mantenimiento activo”** (aunque
+  no se haya intentado entrar) con el mensaje público, y al intentar entrar con
+  un perfil no permitido redirige con el aviso correspondiente.
 - **Barra superior:** el administrador ve un chip rojo **Mantenimiento → Gestionar**.
 - **Inicio:** tarjeta con el motivo, la hora de cierre y los botones
   **Entrar con Modo soporte** y **Gestionar mantenimiento**.
@@ -120,9 +129,10 @@ exista esa variable, el panel no podrá abrir el sistema (lo advierte en pantall
 
 1. **Activar** el mantenimiento (panel o CLI) con una duración acotada (p. ej. 60 min).
 2. Verificar desde otro navegador que un productor o ayudante queda bloqueado en el login.
-3. Entrar como administrador y abrir **Todos los Fundos → Modo soporte → Entrar** en el
-   fundo que se va a probar. La sesión conserva el rol 1/4, así que se navegan todos los
-   módulos del fundo como si fuera el productor.
+3. Entrar como administrador y abrir **Administrador → Gestión de Fundos → pestaña
+   Modo soporte → Entrar** en el fundo que se va a probar. La sesión conserva el rol
+   1/4, así que se navegan todos los módulos del fundo como si fuera el productor
+   (el tablero oculta los bloques globales del sistema, como *Vigencias de suscripción*).
 4. Al terminar, **salir del Modo soporte** y **desactivar el mantenimiento**.
 5. Revisar la **bitácora** del panel para confirmar quién lo abrió y lo cerró.
 
@@ -157,7 +167,7 @@ sudo chown -R www-data:www-data file/mantenimiento
   (máximo una vez cada 5 minutos) y **no cierra la sesión**.
 - `app_offline/js/sync.js` **no marca los registros como error**: corta el ciclo, los deja
   pendientes y los sube cuando el mantenimiento termina.
-- La versión de la app subió a **4.41** (`bovs-shell-v89`) para que los equipos con caché
+- La versión de la app subió a **4.41** (`sovca-shell-v89`) para que los equipos con caché
   vieja reciban estos cambios.
 
 ---

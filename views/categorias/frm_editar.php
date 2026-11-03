@@ -10,7 +10,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 <?php include_once("../layouts/cabecera.php") ?>
 
 <link rel="stylesheet" href="../../plugins/confirma/jquery-confirm.min.css" type="text/css" />
-<link rel="stylesheet" href="../../css/crud-form.css" type="text/css" />
+<link rel="stylesheet" href="../../css/crud-form.css?v=3" type="text/css" />
 <link rel="stylesheet" href="../../plugins/datepicker/datepicker3.css" type="text/css" />
 <link rel="stylesheet" href="../../plugins/unslider/unslider.css">
 <link rel="stylesheet" href="../../plugins/leaflet/leaflet.css" />
@@ -82,6 +82,18 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                         </div>
                     </div>
 
+                    <!-- Cadena de categorías del mismo sexo (la completa el JS) -->
+                    <div class="cat-rangos" id="cat_rangos" style="display:none;">
+                        <div class="cat-rangos__head">
+                            <i class="fa fa-sitemap"></i>
+                            <strong>Categorías del mismo sexo</strong>
+                            <span class="cat-rangos__nota">Los rangos no deberían cruzarse.</span>
+                            <span class="cat-rangos__rango" id="cat_rangos_rango"></span>
+                        </div>
+                        <ul class="cat-rangos__lista" id="cat_rangos_lista"></ul>
+                        <div id="cat_rangos_aviso"></div>
+                    </div>
+
                 </div>
             </div>
 
@@ -112,6 +124,8 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 <script src="../../plugins/leaflet/leaflet.label.js"></script>
 <script src="../../plugins/select3/bootstrap-select.min.js"></script>
 <script src="../../plugins/select3/i18n/defaults-es_ES.min.js"></script>
+<script type="text/javascript" src="../../js/categoria-rangos.js?v=1"></script>
+
 
 <script type="text/javascript">
 document.getElementById('sexo').disabled = true;
@@ -127,8 +141,135 @@ $(document).ready(function() {
         $("#sexo").val(parsedJson.sexo);
         $("#edadminima").val(parsedJson.edadminima);
         $("#edadmaxima").val(parsedJson.edadmaxima);
+        /* Con los valores cargados se refresca el panel de rangos. */
+        if (window.bovsCategoriaRangosRefrescar) { window.bovsCategoriaRangosRefrescar(); }
     }, "json");
 });
+
+$("#derecha").click(function() {
+    if (tick == 0) {
+        var cont_alert = $('.bbb').filter(function() { return $(this).val() == ""; }).size();
+        document.getElementById('derecha').disabled = true;
+        $("#derecha").css("display", "none");
+        if (cont_alert > 30) {
+            $.confirm({
+                title: '¡existen campos vacios !',
+                cancelButton: false,
+                confirmButton: true,
+                closeIcon: false,
+                confirmButton: 'cerrar',
+                confirmButtonClass: 'btn-success',
+                content: false
+            });
+        } else {
+            $('.base').unslider('animate:1');
+            tick = 1;
+            document.getElementById('izquierda').disabled = false;
+            $("#izquierda").css("display", "block");
+            setTimeout(function() {
+                document.body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 800);
+        }
+    } else if (tick == 1) {
+        var cont_alert3 = $('.ccc').filter(function() { return $(this).val() == ""; }).size();
+        if (cont_alert3 > 50) {
+            $.confirm({
+                title: '¡existen campos vacios !',
+                cancelButton: false,
+                confirmButton: true,
+                closeIcon: false,
+                confirmButton: 'cerrar',
+                confirmButtonClass: 'btn-success',
+                content: false
+            });
+        } else {
+            document.getElementById('derecha').disabled = false;
+            $("#derecha").css("display", "block");
+            setTimeout(function() {
+                document.body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 800);
+        }
+    }
+});
+
+$("#izquierda").click(function() {
+    if (tick == 1) {
+        $('.base').unslider('animate:0');
+        tick = 0;
+        document.getElementById('izquierda').disabled = true;
+        $("#izquierda").css("display", "none");
+        document.getElementById('derecha').disabled = false;
+        $("#derecha").css("display", "block");
+        setTimeout(function() {
+            document.body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 800);
+    } else if (tick == 2) {
+        $('.base').unslider('animate:1');
+        tick = 1;
+        document.getElementById('derecha').disabled = false;
+        $("#derecha").css("display", "block");
+        setTimeout(function() {
+            document.body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 800);
+    }
+});
+
+$("#exit").click(function() {
+    $.confirm({
+        title: '¿Desea Salir?',
+        content: false,
+        confirmButton: 'Si',
+        cancelButton: 'No',
+        confirmButtonClass: 'btn-success',
+        cancelButtonClass: 'btn-danger',
+        confirm: function() {
+            setTimeout(function() {
+                $(location).attr('href', '../categorias/');
+            }, 1000);
+        },
+        cancel: function() {}
+    });
+});
+
+$("#save").click(function() {
+    bovsGuardarCategoria(0);
+});
+
+/* Guarda la categoría.
+   El servidor puede responder «advertencia» cuando el rango de edad se cruza
+   con otra categoría del mismo sexo: en ese caso NO guarda y aquí se pregunta
+   si se corrigen las edades o si se guarda de todos modos (forzar = 1). */
+function bovsGuardarCategoria(forzar) {
+    $.post("../../controllers/mcategorias_controller", {
+        action: "edit_cat",
+        id_categoria: $("#id_categoria").val(),
+        nombre_categoria: $("#nombre_categoria").val(),
+        edadminima: $("#edadminima").val(),
+        edadmaxima: $("#edadmaxima").val(),
+        sexo: $("#sexo").val(),
+        forzar: forzar ? 1 : 0
+    }, null, 'json').done(function(parsedJson) {
+        if (parsedJson.resultado === 'advertencia') {
+            bovsDialogoAdvertenciaCategoria(parsedJson, function() {
+                bovsGuardarCategoria(1);
+            });
+            return;
+        }
+
+        $(".message").html(parsedJson.mensaje);
+
+        if (parsedJson.resultado != 'error') {
+            $('.base').unslider('animate:0');
+            setTimeout(function() {
+                $(location).attr('href', '../categorias/');
+            }, 3000);
+        } else {
+            setTimeout(function() {
+                $(".alert").alert('close');
+            }, 1500);
+        }
+    });
+}
 
 $("#derecha").click(function() {
     if (tick == 0) {
@@ -228,9 +369,13 @@ $("#save").click(function() {
         $(".message").html(parsedJson.mensaje);
         if (parsedJson.resultado != 'error') {
             $('.base').unslider('animate:0');
-            setTimeout(function() {
-                $(location).attr('href', '../categorias/');
-            }, 3000);
+            /* Si hay advertencias de rango no se redirige: el usuario tiene que
+               leerlas y corregir la edad mínima. */
+            if (!parsedJson.avisos || parsedJson.avisos.length === 0) {
+                setTimeout(function() {
+                    $(location).attr('href', '../categorias/');
+                }, 3000);
+            }
         } else {
             setTimeout(function() {
                 $(".alert").alert('close');
@@ -301,6 +446,21 @@ $(document).on('click', '#exit_top', function() { $('#exit').trigger('click'); }
         observer.observe(document.body, { attributes: true, attributeFilter: ['disabled'], subtree: true });
     });
 })();
+</script>
+
+<script type="text/javascript">
+/* Panel con las categorías del mismo sexo y aviso de rangos cruzados. */
+$(function () {
+    bovsCategoriaRangos.iniciar({
+        panel:   'cat_rangos',
+        sexo:    'sexo',
+        min:     'edadminima',
+        max:     'edadmaxima',
+        campoId: 'id_categoria',
+        nombre:  'nombre_categoria',
+        url:     '../../controllers/mcategorias_controller'
+    });
+});
 </script>
 
 <?php include_once("../layouts/pie.php") ?>

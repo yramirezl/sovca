@@ -2,12 +2,13 @@
 
 // error_reporting(E_ALL);
 // ini_set('display_errors', '1');
-require_once 'conexion.php';
-require_once 'enviar.php';
+require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/enviar.php';
 date_default_timezone_set('America/Caracas');
 
 
 $num = "";
+$envios_fallidos = 0;
 $con = new conexion();
 $enviar_correo = new Enviar_Correo();
 
@@ -16,6 +17,11 @@ if (!$con->CONNECT()) {
 
   $con->DISCONECT();
   unset($con);
+  // Con CLI hay que devolver código de salida: un `return` no avisa al cron.
+  if (PHP_SAPI === 'cli') {
+    fwrite(STDERR, 'ERROR: no se pudo conectar a la base de datos' . PHP_EOL);
+    exit(1);
+  }
   return -1;
 } else {
 
@@ -44,6 +50,12 @@ if (!$con->CONNECT()) {
     /* Modo revisión (solo por línea de comandos): informa sin enviar ni registrar */
     $DRY_RUN  = (PHP_SAPI === 'cli' && isset($argv) && in_array('--dry-run', $argv, true));
     $VER_HTML = (PHP_SAPI === 'cli' && isset($argv) && in_array('--html', $argv, true));
+
+    /* Modo prueba: SOVCA_FORZAR_DESTINO=algo@dominio.com manda TODOS los correos
+       a esa dirección (para validar el flujo real sin escribir a los
+       productores) y NO registra el envío en malertas_email_estado, así que
+       las alertas siguen pendientes para el envío verdadero. */
+    $FORZAR_DESTINO = trim((string) getenv('SOVCA_FORZAR_DESTINO'));
 
 
 
@@ -177,10 +189,14 @@ if (!$con->CONNECT()) {
 
         $grupo_correo = array('fundos' => $envio['fundos']);
 
+        $destino_final = ($FORZAR_DESTINO !== '') ? $FORZAR_DESTINO : $email;
+
         /* Modo revisión: informa y NO envía ni registra */
         if ($DRY_RUN) {
-          echo 'CORREO   ' . $email . ' → ' . $n_fundos . ' fundo(s), '
-            . $n_alertas . ' alerta(s)' . PHP_EOL;
+          echo 'CORREO   ' . $destino_final . ' → ' . $n_fundos . ' fundo(s), '
+            . $n_alertas . ' alerta(s)'
+            . ($FORZAR_DESTINO !== '' && $destino_final !== $email ? '  [forzado; real: ' . $email . ']' : '')
+            . PHP_EOL;
           if ($VER_HTML && $grupos_mostrados === 0) {
             echo str_repeat('=', 78) . PHP_EOL;
             echo 'Correo que se enviaría a ' . $email . ' (' . $n_fundos . ' fundo/s)' . PHP_EOL;
@@ -191,8 +207,16 @@ if (!$con->CONNECT()) {
           continue;
         }
 
-        if (!$enviar_correo->enviar_agrupado($email, $grupo_correo)) {
-          error_log('No se pudo enviar el correo de alertas agrupadas a ' . $email);
+        if (!$enviar_correo->enviar_agrupado($destino_final, $grupo_correo)) {
+          error_log('No se pudo enviar el correo de alertas agrupadas a ' . $destino_final);
+          echo 'ERROR    ' . $destino_final . ': el correo no salio' . PHP_EOL;
+          $envios_fallidos++;
+          continue;
+        }
+
+        /* Prueba con destino forzado: no se registra nada en la base. */
+        if ($FORZAR_DESTINO !== '') {
+          echo 'PRUEBA   ' . $destino_final . ': enviado sin registrar el estado' . PHP_EOL;
           continue;
         }
 
@@ -244,5 +268,12 @@ if (!$con->CONNECT()) {
 
     $con->DISCONECT();
     unset($con);
+
+    // Si algún correo no salió, el cron debe enterarse: antes terminaba con
+    // salida 0 aunque no se hubiera entregado nada.
+    if (!$DRY_RUN && $envios_fallidos > 0) {
+      echo 'ERROR: ' . $envios_fallidos . ' correo(s) de alertas no se pudieron enviar' . PHP_EOL;
+      exit(1);
+    }
   }
 }

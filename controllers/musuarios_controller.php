@@ -189,7 +189,11 @@ function tipoUsuarioParaGuardar($tipoNuevo, $tipoActual)
 @$fundo = ($_POST["fundo"]);
 
 // --------- MULTI-FUNDO ---------
+// `mplanes.max_fundos` es el TOPE del plan, no lo que la cuenta contrató.
+// La ficha guarda el cupo real: por defecto 1 fundo y editable hasta el tope
+// (hay productores que compran ORO para un solo fundo).
 @$es_multifundo = (int) (isset($_POST["es_multifundo"]) ? $_POST["es_multifundo"] : 0);
+$max_fundos_enviado = isset($_POST["max_fundos"]) && $_POST["max_fundos"] !== '';
 @$max_fundos = (int) (isset($_POST["max_fundos"]) ? $_POST["max_fundos"] : 1);
 if ($max_fundos < 1)
 	$max_fundos = 1;
@@ -491,6 +495,230 @@ switch ($action) {
 			'fecha_caduca' => $datosRenovacion['fecha_caduca'],
 			'programada' => $programar_renovacion
 		));
+		break;
+
+
+	/* ============================================================
+	   DETALLE DEL USUARIO (hoja de vida)
+	   ------------------------------------------------------------
+	   Alimenta el modal "Ver perfil" del listado. Reúne en una sola
+	   respuesta lo que antes obligaba a abrir el formulario de edición:
+	   datos de la cuenta, suscripción, fundos con su plan y cupo, y el
+	   resumen de animales por categoría.
+
+	   El criterio de "animal activo" es el mismo del panel de fundos
+	   (status=1, mestatus_id=1, estatus_animal IN (1,2,4)), para que los
+	   números coincidan con el resto del sistema.
+	   ============================================================ */
+	case 'detalle_usuario':
+		header('Content-Type: application/json; charset=utf-8');
+
+		$rol_admin = (int) (isset($_SESSION['rolx']) ? $_SESSION['rolx'] : 0);
+		if (!in_array($rol_admin, array(1, 4), true)) {
+			echo json_encode(array('ok' => false, 'msg' => 'Solo un administrador puede consultar la hoja de vida de un usuario.'));
+			break;
+		}
+
+		$uid_det = (int) (isset($_POST['usuario_id']) ? $_POST['usuario_id'] : 0);
+		if ($uid_det <= 0) {
+			echo json_encode(array('ok' => false, 'msg' => 'Usuario no válido.'));
+			break;
+		}
+
+		try {
+			/* ---------------- 1. Datos de la cuenta ---------------- */
+			$cuenta = Musuario::find_by_sql("
+				SELECT u.id, u.username, u.name, u.email, u.telefono, u.cid,
+					   u.status, u.created, u.fecha_activacion,
+					   u.acceso_offline, u.es_multifundo, u.max_fundos,
+					   u.mroles_id,
+					   COALESCE(r.nombre, 'SIN PERFIL') AS perfil,
+					   COALESCE(tu.nombre, '—') AS tipo_usuario
+				  FROM musuarios u
+			 LEFT JOIN mroles r ON r.id = u.mroles_id
+			 LEFT JOIN mtipousuarios tu ON tu.id = u.mtipousuarios_id
+				 WHERE u.id = $uid_det
+				 LIMIT 1
+			");
+			if (!$cuenta) {
+				echo json_encode(array('ok' => false, 'msg' => 'El usuario no existe.'));
+				break;
+			}
+			$u = $cuenta[0];
+
+			/* ---------------- 2. Suscripción vigente ----------------
+			   Misma fuente que usa el listado: la última fila de
+			   mplanesxfundo con suscripción asignada. */
+			$sus = null;
+			$vig = Mplanesxfundo::find('first', array(
+				'conditions' => array('musuarios_id=? AND msuscripciones_id IS NOT NULL', $uid_det),
+				'order' => 'id DESC'
+			));
+			if ($vig) {
+				$descripcion_sus = '';
+				$plan_sus = Msuscripcion::find((int) $vig->msuscripciones_id);
+				if ($plan_sus) {
+					$descripcion_sus = (string) $plan_sus->descripcion;
+				}
+				$f_activa = '';
+				$f_caduca = '';
+				if ($vig->fecha_activa_suscripcion instanceof DateTime) {
+					$f_activa = $vig->fecha_activa_suscripcion->format('Y-m-d');
+				}
+				if ($vig->fecha_caduca_suscripcion instanceof DateTime) {
+					$f_caduca = $vig->fecha_caduca_suscripcion->format('Y-m-d');
+				}
+				$dias = null;
+				if ($f_caduca !== '') {
+					$hoy = new DateTime('today');
+					$dias = (int) $hoy->diff(new DateTime($f_caduca))->format('%r%a');
+				}
+				$sus = array(
+					'descripcion' => $descripcion_sus,
+					'fecha_activa' => $f_activa,
+					'fecha_caduca' => $f_caduca,
+					'dias_restantes' => $dias
+				);
+			}
+
+			/* ---------------- 3. Fundos asociados ---------------- */
+			$fundos = Musuario::find_by_sql("
+				SELECT f.id, f.nombre, f.mtipoganaderias_id,
+					   COALESCE(tg.nombre, '—') AS ganaderia,
+					   COALESCE(p.nombre, '—') AS plan,
+					   COALESCE(p.max_reg, 0) AS max_reg,
+					   (SELECT COUNT(*) FROM manimales a
+						 WHERE a.mfundos_id = f.id AND a.status = 1
+						   AND a.mestatus_id = 1 AND a.estatus_animal IN (1, 2, 4)) AS animales,
+					   (SELECT COUNT(*) FROM mfundosxusuarios fx2
+						 WHERE fx2.mfundos_id = f.id AND fx2.status = 1) AS usuarios
+				  FROM mfundosxusuarios fxu
+			INNER JOIN mfundos f ON f.id = fxu.mfundos_id
+			 LEFT JOIN mtipoganaderias tg ON tg.id = f.mtipoganaderias_id
+			 LEFT JOIN LATERAL (
+					SELECT px.mplanes_id
+					  FROM mplanesxfundo px
+					 WHERE (px.mfundos_id = f.id
+							OR (px.mfundos_id IS NULL AND px.musuarios_id = f.user_propietario))
+					   AND px.msuscripciones_id IS NOT NULL
+					 ORDER BY px.id DESC
+					 LIMIT 1
+			 ) v ON true
+			 LEFT JOIN mplanes p ON p.id = COALESCE(v.mplanes_id, f.mplanes_id)
+				 WHERE fxu.musuarios_id = $uid_det
+				   AND fxu.status = 1
+				   AND f.status = 1
+			  ORDER BY f.nombre ASC
+			");
+
+			$lista_fundos = array();
+			$ids_fundos = array();
+			foreach ($fundos as $f) {
+				$ids_fundos[] = (int) $f->id;
+				$lista_fundos[] = array(
+					'id' => (int) $f->id,
+					'nombre' => (string) $f->nombre,
+					'ganaderia' => (string) $f->ganaderia,
+					'plan' => (string) $f->plan,
+					'animales' => (int) $f->animales,
+					'max_reg' => (int) $f->max_reg,
+					'usuarios' => (int) $f->usuarios
+				);
+			}
+
+			/* ---------------- 4. Animales: totales y categorías ---------------- */
+			$totales = array('animales' => 0, 'hembras' => 0, 'machos' => 0);
+			$categorias = array();
+
+			if (!empty($ids_fundos)) {
+				$in = implode(',', $ids_fundos);
+
+				$st = Musuario::find_by_sql("
+					SELECT COUNT(*) AS total,
+						   SUM(CASE WHEN sexo = 1 THEN 1 ELSE 0 END) AS hembras,
+						   SUM(CASE WHEN sexo = 2 THEN 1 ELSE 0 END) AS machos
+					  FROM manimales
+					 WHERE mfundos_id IN ($in) AND status = 1
+					   AND mestatus_id = 1 AND estatus_animal IN (1, 2, 4)
+				");
+				if ($st && isset($st[0])) {
+					$totales = array(
+						'animales' => (int) $st[0]->total,
+						'hembras' => (int) $st[0]->hembras,
+						'machos' => (int) $st[0]->machos
+					);
+				}
+
+				$cat = Musuario::find_by_sql("
+					SELECT COALESCE(c.nombre, 'Sin categoría') AS categoria,
+						   COUNT(*) AS cantidad
+					  FROM manimales a
+				 LEFT JOIN mcategorias c ON c.id = a.categoria_ingreso_id
+					 WHERE a.mfundos_id IN ($in) AND a.status = 1
+					   AND a.mestatus_id = 1 AND a.estatus_animal IN (1, 2, 4)
+				  GROUP BY c.nombre
+				  ORDER BY cantidad DESC
+					 LIMIT 10
+				");
+				foreach ($cat as $c) {
+					$categorias[] = array(
+						'categoria' => (string) $c->categoria,
+						'cantidad' => (int) $c->cantidad
+					);
+				}
+			}
+
+			/* ---------------- 5. Actividad reciente ----------------
+			   Última conexión y total de accesos. Si la tabla no existe
+			   en este servidor, se devuelve vacío sin romper el modal. */
+			$actividad = array('ultima_conexion' => '', 'total_conexiones' => 0, 'ultimo_pais' => '');
+			try {
+				$act = Musuario::find_by_sql("
+					SELECT COUNT(*) AS total,
+						   MAX(fecha) AS ultima,
+						   (SELECT pais FROM conexiones_historial
+							 WHERE musuarios_id = $uid_det
+							 ORDER BY fecha DESC LIMIT 1) AS ultimo_pais
+					  FROM conexiones_historial
+					 WHERE musuarios_id = $uid_det
+				");
+				if ($act && isset($act[0])) {
+					$actividad['total_conexiones'] = (int) $act[0]->total;
+					$actividad['ultima_conexion'] = $act[0]->ultima ? (string) $act[0]->ultima : '';
+					$actividad['ultimo_pais'] = $act[0]->ultimo_pais ? (string) $act[0]->ultimo_pais : '';
+				}
+			} catch (Exception $e) {
+				$actividad = array('ultima_conexion' => '', 'total_conexiones' => 0, 'ultimo_pais' => '');
+			}
+
+			echo json_encode(array(
+				'ok' => true,
+				'usuario' => array(
+					'id' => (int) $u->id,
+					'username' => (string) $u->username,
+					'name' => (string) $u->name,
+					'email' => (string) $u->email,
+					'telefono' => (string) $u->telefono,
+					'cid' => (string) $u->cid,
+					'perfil' => (string) $u->perfil,
+					'rol_id' => (int) $u->mroles_id,
+					'tipo_usuario' => (string) $u->tipo_usuario,
+					'status' => (int) $u->status,
+					'creado' => $u->created ? date('d-m-Y', strtotime((string) $u->created)) : '',
+					'fecha_activacion' => $u->fecha_activacion ? date('d-m-Y', strtotime((string) $u->fecha_activacion)) : '',
+					'acceso_offline' => (int) $u->acceso_offline,
+					'es_multifundo' => (int) $u->es_multifundo,
+					'max_fundos' => (int) $u->max_fundos
+				),
+				'suscripcion' => $sus,
+				'fundos' => $lista_fundos,
+				'totales' => $totales,
+				'categorias' => $categorias,
+				'actividad' => $actividad
+			));
+		} catch (Exception $e) {
+			echo json_encode(array('ok' => false, 'msg' => 'No se pudo cargar el detalle: ' . $e->getMessage()));
+		}
 		break;
 
 
@@ -913,11 +1141,14 @@ switch ($action) {
 				$usr->mtipousuarios_id = $m_tuser_id;
 
 				// --------- MULTI-FUNDO ---------
-				// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
-				// resultado. Sin multifundo la cuenta queda con un solo fundo.
+				// El plan fija el TOPE; la ficha guarda el cupo contratado. Una
+				// cuenta nueva arranca con 1 fundo si el formulario no dice otra
+				// cosa (antes se le asignaba el tope completo del plan).
 				$usr->es_multifundo = $es_multifundo;
-				if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
-				        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+				if ((int) $rol === 2) {
+					$max_fundos = $es_multifundo
+						? mf_normalizar_cupo_fundos((int) $m_t_plan_id, $max_fundos_enviado ? $max_fundos : 1)
+						: 1;
 				}
 				$usr->max_fundos = $max_fundos;
 				// -------------------------------
@@ -1303,11 +1534,17 @@ switch ($action) {
 			$usr->mtipousuarios_id = tipoUsuarioParaGuardar($m_tuser_id, $usr->mtipousuarios_id);
 
 			// --------- MULTI-FUNDO ---------
-			// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
-			// resultado. Sin multifundo la cuenta queda con un solo fundo.
+			// El plan fija el TOPE; la ficha guarda el cupo contratado, que el
+			// administrador puede ajustar entre 1 y el tope. Si el formulario no
+			// manda el campo (versión vieja en caché) se conserva el cupo actual.
 			$usr->es_multifundo = $es_multifundo;
-			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
-			        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+			if ((int) $rol === 2) {
+				$max_fundos = $es_multifundo
+					? mf_normalizar_cupo_fundos(
+						(int) $m_t_plan_id,
+						$max_fundos_enviado ? $max_fundos : (int) $usr->max_fundos
+					)
+					: 1;
 			}
 			$usr->max_fundos = $max_fundos;
 			// -------------------------------
@@ -1316,16 +1553,16 @@ switch ($action) {
 			// (p. ej. bajar a un plan que permite menos fundos de los que hoy
 			// administra). Funciona igual después de haber unificado cuentas.
 			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
-			        $error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0);
-			        if ($error_plan !== '') {
-			                echo '<div class="alert alert-danger alert-dismissable">
-			                        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
-			                        <input type="hidden" id="tocon" value="0">
-			                        <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
-			                        ' . $error_plan . '
-			                </div>';
-			                break;
-			        }
+				$error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0, $max_fundos);
+				if ($error_plan !== '') {
+					echo '<div class="alert alert-danger alert-dismissable">
+								<button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+								<input type="hidden" id="tocon" value="0">
+								<h4><i class="icon fa fa-ban"></i> Alerta!</h4>
+								' . $error_plan . '
+							</div>';
+					break;
+				}
 			}
 			// ----------------------------------------------
 
@@ -1457,11 +1694,16 @@ switch ($action) {
 			// escriben en el alta.
 
 			// --------- MULTI-FUNDO ---------
-			// El cupo lo manda el plan (mplanes.max_fundos): la ficha guarda el
-			// resultado. Sin multifundo la cuenta queda con un solo fundo.
+			// El plan fija el TOPE; la ficha guarda el cupo contratado, editable
+			// entre 1 y ese tope. Sin el campo en el POST se conserva el actual.
 			$usr->es_multifundo = $es_multifundo;
-			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
-			        $max_fundos = $es_multifundo ? mf_plan_max_fundos((int) $m_t_plan_id) : 1;
+			if ((int) $rol === 2) {
+				$max_fundos = $es_multifundo
+					? mf_normalizar_cupo_fundos(
+						(int) $m_t_plan_id,
+						$max_fundos_enviado ? $max_fundos : (int) $usr->max_fundos
+					)
+					: 1;
 			}
 			$usr->max_fundos = $max_fundos;
 			// -------------------------------
@@ -1471,16 +1713,16 @@ switch ($action) {
 			// (p. ej. bajar a un plan que permite menos fundos de los que hoy
 			// administra). Funciona igual después de haber unificado cuentas.
 			if ((int) $rol === 2 && (int) $m_t_plan_id > 0) {
-			        $error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0);
-			        if ($error_plan !== '') {
-			                echo '<div class="alert alert-danger alert-dismissable">
-			                        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
-			                        <input type="hidden" id="tocon" value="0">
-			                        <h4><i class="icon fa fa-ban"></i> Alerta!</h4>
-			                        ' . $error_plan . '
-			                </div>';
-			                break;
-			        }
+				$error_plan = mf_validar_plan_usuario((int) $id, (int) $m_t_plan_id, $es_multifundo ? 1 : 0, $max_fundos);
+				if ($error_plan !== '') {
+					echo '<div class="alert alert-danger alert-dismissable">
+								<button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+								<input type="hidden" id="tocon" value="0">
+								<h4><i class="icon fa fa-ban"></i> Alerta!</h4>
+								' . $error_plan . '
+							</div>';
+					break;
+				}
 			}
 			// ----------------------------------------------
 

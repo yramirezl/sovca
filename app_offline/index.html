@@ -50,6 +50,15 @@
       <span class="acciones-reconexion__separador">·</span>
       <button type="button" id="boton-olvidar-equipo" class="enlace-reconexion enlace-reconexion--alerta">Olvidar este equipo</button>
     </div>
+
+    <!-- Salida a la pagina de inicio del modo offline: instalar la app,
+         revisar si el equipo esta listo o volver al sistema web.
+         Solo se muestra en una PC con el modo offline ya instalado
+         (js/acceso-modo-offline.js); en moviles la app se abre desde su
+         icono. -->
+    <p class="pie-inicio" data-enlace-inicio-offline style="display:none" aria-hidden="true">
+      <a href="inicio.html?inicio=1">Página de inicio del modo offline</a>
+    </p>
   </div>
 </div>
 
@@ -138,6 +147,15 @@
         <button id="boton-cerrar-instalar-app" type="button" class="boton-secundario">Ahora no</button>
       </div>
     </div>
+
+    <!-- Salida a la pagina de inicio del modo offline: instalar la app,
+         revisar si el equipo esta listo o volver al sistema web.
+         Solo se muestra en una PC con el modo offline ya instalado
+         (js/acceso-modo-offline.js); en moviles la app se abre desde su
+         icono. -->
+    <p class="pie-inicio" data-enlace-inicio-offline style="display:none" aria-hidden="true">
+      <a href="inicio.html?inicio=1">Página de inicio del modo offline</a>
+    </p>
   </div>
 </div>
 
@@ -156,7 +174,7 @@
     <div class="encabezado__acciones">
       <div id="fundo-activo" class="fundo-activo oculto"></div>
       <span id="indicador-conexion" class="indicador">● En linea</span>
-      <span id="etiqueta-version-frontend" class="etiqueta-version-frontend">FE ?</span>
+      <span id="etiqueta-version-frontend" class="etiqueta-version-frontend" role="button" tabindex="0" title="Versión de la aplicación instalada en este equipo">Versión</span>
       <button id="boton-cargar-datos-web" class="boton-icono oculto" type="button">Cargar datos web</button>
       <button id="boton-sincronizar" class="boton-icono" type="button">Sincronizar</button>
       <button id="boton-logout" class="boton-icono" type="button">Salir</button>
@@ -212,7 +230,8 @@
     </div>
 
     <nav class="tabs">
-      <button type="button" class="tab tab--activa" id="tab-animales" data-tab="animales"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 40 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M38 6c-3 6-6 7.5-9 6.5"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M31 10c1.6 1 2.6 2.6 2 4-.6 1.4-2.3 1.7-3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h6c4.5 0 8.1-4 8.1-9 0-2.5-1.1-5-3.1-6.8-2.2-1.9-4.9-2.9-8-2.9s-5.8 1-8 2.9Z" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="24.8" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><path d="M15 23.5c1.4 1 3 1.5 5 1.5s3.6-.5 5-1.5"/><circle cx="17.3" cy="22.3" r="0.6" fill="currentColor" stroke="none"/><circle cx="22.7" cy="22.3" r="0.6" fill="currentColor" stroke="none"/></svg></span><span class="tab__texto">Animales</span></button>
+      <button type="button" class="tab tab--activa" id="tab-inicio" data-tab="inicio"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5" fill="var(--hueso-oscuro)"/><path d="M9.5 20v-6h5v6"/></svg></span><span class="tab__texto">Inicio</span></button>
+      <button type="button" class="tab" id="tab-animales" data-tab="animales"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 40 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c3 6 6 7.5 9 6.5"/><path d="M38 6c-3 6-6 7.5-9 6.5"/><path d="M9 10c-1.6 1-2.6 2.6-2 4 .6 1.4 2.3 1.7 3.4.8"/><path d="M31 10c1.6 1 2.6 2.6 2 4-.6 1.4-2.3 1.7-3.4.8"/><path d="M12 10.5c-2 1.8-3.1 4.3-3.1 6.8 0 5 3.6 9 8.1 9h6c4.5 0 8.1-4 8.1-9 0-2.5-1.1-5-3.1-6.8-2.2-1.9-4.9-2.9-8-2.9s-5.8 1-8 2.9Z" fill="var(--hueso-oscuro)"/><circle cx="15.2" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="24.8" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><path d="M15 23.5c1.4 1 3 1.5 5 1.5s3.6-.5 5-1.5"/><circle cx="17.3" cy="22.3" r="0.6" fill="currentColor" stroke="none"/><circle cx="22.7" cy="22.3" r="0.6" fill="currentColor" stroke="none"/></svg></span><span class="tab__texto">Animales</span></button>
       <button type="button" class="tab" id="tab-control_sanitario" data-tab="control_sanitario"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3 6 11"/><path d="M12 5l2 2"/><path d="M15 8l2 2"/><path d="M9.5 10.5l4 4"/><path d="M6 11c-1 1-2.5 3.5-1 5s4-0 5-1"/><circle cx="18" cy="6" r="1.8" fill="var(--verde-sync)" stroke="none"/></svg></span><span class="tab__texto">Control Sanitario</span></button>
       <button type="button" class="tab" id="tab-produccion_leche" data-tab="produccion_leche"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10.5 2c0 1.5-.5 2.3-1 3.2-.6 1-1 1.8-1 3.3v10c0 1.4 1.1 2.5 2.5 2.5h2c1.4 0 2.5-1.1 2.5-2.5v-10c0-1.5-.4-2.3-1-3.3-.5-.9-1-1.7-1-3.2" fill="var(--hueso-oscuro)"/><path d="M8.5 12h7"/></svg></span><span class="tab__texto">Producción de Leche</span></button>
       <button type="button" class="tab" id="tab-pesos" data-tab="pesos"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M4 6h16"/><path d="M12 6 4 6l3 6a3 3 0 0 0 6 0Z" fill="var(--ambar)"/><path d="M12 6l8 0-3 6a3 3 0 0 1-6 0Z" fill="var(--ambar)"/></svg></span><span class="tab__texto">Pesos</span></button>
@@ -222,6 +241,10 @@
       <button type="button" class="tab" id="tab-desincorporacion" data-tab="desincorporacion"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M9 6V4h6v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 10v6"/><path d="M14 10v6"/></svg></span><span class="tab__texto">Desincorporaciones</span></button>
       <button type="button" class="tab" id="tab-movimiento_rebano" data-tab="movimiento_rebano"><span class="tab__icono" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11"/><path d="M11 5l3 3-3 3"/><path d="M21 16H10"/><path d="M13 13l-3 3 3 3"/></svg></span><span class="tab__texto">Movimiento</span></button>
     </nav>
+
+    <section id="panel-inicio" class="panel">
+      <div id="inicio-contenido" class="inicio-panel"></div>
+    </section>
 
     <section id="panel-reportes" class="panel oculto">
       <div class="form-animal-contenedor">
@@ -298,7 +321,7 @@
       </div>
     </section>
 
-    <section id="panel-animales" class="panel">
+    <section id="panel-animales" class="panel oculto">
       <button id="boton-mostrar-form" type="button" class="boton-registrar">+ Registrar animal</button>
 
       <div id="form-animal-anchor"></div>
@@ -322,15 +345,11 @@
           <div class="campo">
             <label for="campo-arete">Nro de arete</label>
 
-            <input type="text" id="campo-arete" required autocomplete="off" aria-describedby="campo-arete-validacion">
-            <small id="campo-arete-validacion" class="validacion-arete" aria-live="polite">Se valida en este fundo al escribir y antes de guardar.</small>
+            <input type="text" id="campo-arete" required autocomplete="off" maxlength="15" autocapitalize="characters" aria-describedby="campo-arete-validacion">
+            <small id="campo-arete-validacion" class="validacion-arete" aria-live="polite">Números, letras y guiones (máx. 15). Se valida en este fundo.</small>
           </div>
         </div>
         <input type="hidden" id="campo-codigo-ternero">
-        <div class="campo oculto" id="grupo-fecha-nacimiento-animal">
-          <label for="campo-fecha-nacimiento">Fecha de nacimiento</label>
-          <input type="date" id="campo-fecha-nacimiento" data-solo-pasado>
-        </div>
         <div class="fila-campos">
           <div class="campo">
             <label for="campo-raza">Raza</label>
@@ -343,6 +362,32 @@
             <select id="campo-aptitud" required>
               <option value="">Selecciona...</option>
             </select>
+          </div>
+        </div>
+
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-estatus">Estatus</label>
+            <select id="campo-estatus">
+              <option value="1">Activo</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="campo-servicio">Servicio</label>
+            <select id="campo-servicio" required>
+              <option value="">Selecciona...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fila-campos">
+          <div class="campo" id="grupo-fecha-nacimiento-animal">
+            <label for="campo-fecha-nacimiento">Fecha de nacimiento</label>
+            <input type="date" id="campo-fecha-nacimiento" data-solo-pasado>
+          </div>
+          <div class="campo">
+            <label for="campo-fecha-ingreso">Fecha de ingreso</label>
+            <input type="date" id="campo-fecha-ingreso" data-solo-pasado>
           </div>
         </div>
 
@@ -368,9 +413,50 @@
           </div>
         </div>
 
-        <div class="campo">
-          <label for="campo-peso">Peso al nacer</label>
-          <input type="text" id="campo-peso" placeholder="Ej: 32 kg">
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-peso">Peso al nacer</label>
+            <input type="text" id="campo-peso" placeholder="Ej: 32 kg">
+          </div>
+          <div class="campo">
+            <label for="campo-alzada">Alzada</label>
+            <input type="text" id="campo-alzada" placeholder="Ej: 1,20 m">
+          </div>
+        </div>
+
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-rena">RENA</label>
+            <input type="text" id="campo-rena" autocomplete="off" placeholder="Registro Nacional">
+          </div>
+          <div class="campo">
+            <label for="campo-procedencia">Procedencia</label>
+            <input type="text" id="campo-procedencia" autocomplete="off" placeholder="Propia u otra finca">
+          </div>
+        </div>
+
+        <p class="form-seccion-titulo">Datos de la madre</p>
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-madre-codigo">Código / arete</label>
+            <input type="text" id="campo-madre-codigo" autocomplete="off" placeholder="Código SOVCA o arete">
+          </div>
+          <div class="campo">
+            <label for="campo-madre-nombre">Nombre</label>
+            <input type="text" id="campo-madre-nombre" autocomplete="off" placeholder="Nombre de la madre">
+          </div>
+        </div>
+
+        <p class="form-seccion-titulo">Datos del padre</p>
+        <div class="fila-campos">
+          <div class="campo">
+            <label for="campo-padre-codigo">Código / arete</label>
+            <input type="text" id="campo-padre-codigo" autocomplete="off" placeholder="Código SOVCA o arete">
+          </div>
+          <div class="campo">
+            <label for="campo-padre-nombre">Nombre</label>
+            <input type="text" id="campo-padre-nombre" autocomplete="off" placeholder="Nombre del padre">
+          </div>
         </div>
 
         <div class="campo">
@@ -473,7 +559,7 @@
               <label for="cs-lote-producto-detalles">Detalles / indicaciones</label>
               <textarea id="cs-lote-producto-detalles" rows="2" maxlength="300"></textarea>
             </div>
-            <button type="button" id="cs-lote-producto-agregar" class="boton-secundario">Agregar producto</button>
+            <button type="button" id="cs-lote-producto-agregar" class="boton-agregar">Agregar producto</button>
             <p id="cs-lote-productos-mensaje" class="texto-ayuda" aria-live="polite"></p>
             <div id="cs-lote-productos-lista" class="productos-control__lista"></div>
           </section>
@@ -554,7 +640,7 @@
               <label for="cs-producto-detalles">Detalles / indicaciones</label>
               <textarea id="cs-producto-detalles" rows="2" maxlength="300"></textarea>
             </div>
-            <button type="button" id="cs-producto-agregar" class="boton-secundario">Agregar producto</button>
+            <button type="button" id="cs-producto-agregar" class="boton-agregar">Agregar producto</button>
             <p id="cs-productos-mensaje" class="texto-ayuda" aria-live="polite"></p>
             <div id="cs-productos-lista" class="productos-control__lista"></div>
           </section>
@@ -759,6 +845,13 @@
                 <div id="servicios-hembra-opciones" class="buscador-animal__opciones oculto"></div>
               </div>
               <p id="servicios-hembra-mostrar" class="valor-bloqueado oculto"></p>
+              <!-- Explica por qué una hembra no aparece en la lista: el
+                   combo solo ofrece las que pueden recibir un servicio
+                   nuevo (con edad y sin ciclo abierto). -->
+              <p id="servicios-hembra-nota" class="texto-ayuda">
+                Solo aparecen las hembras disponibles para un servicio nuevo: con la edad mínima
+                y sin un servicio activo pendiente de palpación.
+              </p>
             </div>
             <div class="campo" id="servicios-macho-grupo">
               <label for="servicios-macho-buscar">Macho</label>
@@ -768,6 +861,12 @@
                 <div id="servicios-macho-opciones" class="buscador-animal__opciones oculto"></div>
               </div>
               <p id="servicios-macho-mostrar" class="valor-bloqueado oculto"></p>
+              <!-- La edad mínima es un parámetro del fundo
+                   (Parámetros → Períodos): los machos que no la cumplen
+                   no se ofrecen en la lista. -->
+              <p id="servicios-macho-nota" class="texto-ayuda">
+                Solo aparecen machos con la edad mínima para servicio.
+              </p>
             </div>
           </div>
 
@@ -864,7 +963,8 @@
             <div class="fila-campos">
               <div class="campo">
                 <label for="servicios-fecha-probable-parto">Fecha probable de parto</label>
-                <input type="date" id="servicios-fecha-probable-parto" data-solo-futuro>
+                <input type="date" id="servicios-fecha-probable-parto">
+                <p id="servicios-fecha-probable-parto-ayuda" class="texto-ayuda oculto"></p>
               </div>
               <div class="campo">
                 <label for="servicios-fecha-ultimo-parto">Fecha de último parto</label>
@@ -972,7 +1072,7 @@
           <div class="campo">
             <div class="terneros-cabecera">
               <label>Terneros del parto</label>
-              <button type="button" id="nacimientos-agregar-ternero" class="boton-secundario">Agregar ternero/a</button>
+              <button type="button" id="nacimientos-agregar-ternero" class="boton-agregar">Agregar ternero/a</button>
             </div>
             <div id="nacimientos-terneros" class="terneros-lista"></div>
             <p class="texto-ayuda">Registra una o varias crías del mismo parto. Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</p>
@@ -984,6 +1084,10 @@
               <select id="nacimientos-tipo-servicio">
                 <option value="">Selecciona...</option>
               </select>
+              <small id="nacimientos-tipo-servicio-aviso" class="texto-ayuda oculto">
+                Obligatorio: el servicio gestante no tiene tipo o la hembra no tiene servicio
+                (pudo llegar preñada de otro fundo). Se guardará también en el servicio.
+              </small>
             </div>
             <div class="campo">
               <label for="nacimientos-nro-parto">N.º de parto de la madre</label>
@@ -1003,9 +1107,9 @@
           </div>
 
           <div class="campo">
-            <label for="nacimientos-fecha-secado">Fecha de secado / destete (opcional)</label>
-            <input type="date" id="nacimientos-fecha-secado" data-solo-pasado>
-            <p class="texto-ayuda">Si el propósito es lactancia o producción de leche, el servidor calcula esta fecha con los períodos del fundo.</p>
+            <label for="nacimientos-fecha-secado">Fecha de secado / destete</label>
+            <input type="date" id="nacimientos-fecha-secado">
+            <p id="nacimientos-fecha-secado-ayuda" class="texto-ayuda oculto"></p>
           </div>
 
           <div class="campo">
@@ -1282,6 +1386,7 @@
 <div id="toast-contenedor" class="toast-contenedor" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
+<script src="js/acceso-modo-offline.js"></script>
 <script src="js/dispositivo.js"></script>
 <script src="js/credenciales.js"></script>
 <script src="js/db.js"></script>

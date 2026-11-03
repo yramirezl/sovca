@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../lib/especie_helper.php';
+require_once __DIR__ . '/../lib/arete_helper.php';
 require_once '../models/Manimale.php';
 require_once '../models/Manimalxfundo.php';
 require_once '../models/Mcategoria.php';
@@ -38,7 +39,7 @@ date_default_timezone_set('America/Caracas');
 @$fecha_ingreso = ($_POST['fecha_ingreso']);
 @$estatus_animal = ($_POST['estatus_animal']);
 @$aptitud_animal = ($_POST['aptitud_animal']);
-@$numero_arete = strtoupper($_POST['numero_arete']);
+@$numero_arete = bovs_arete_normalizar(isset($_POST['numero_arete']) ? $_POST['numero_arete'] : '');
 @$categoria_ingreso = ($_POST['categoria_ingreso']);
 @$categoria_futura = ($_POST['categoria_futura']);
 @$rgd_madre = ($_POST['rgd_madre']);
@@ -538,9 +539,12 @@ switch ($action) {
             $hoy = date('d-m-Y');
             $continue = false;
 
-            @$busca_arete = Manimale::find_by_sql("SELECT nro_arete  FROM Manimales  WHERE  nro_arete<>'' and nro_arete='$numero_arete' and status=1 and mfundos_id=" . $mfundos_id . ' ;');
+            /* N° de arete único dentro del fundo: regla única en
+               lib/arete_helper.php (mayúsculas y espacios normalizados,
+               solo contra animales con status=1). */
+            $arete_existente = bovs_arete_existente($mfundos_id, $numero_arete);
 
-            if ($busca_arete == null) {
+            if (!$arete_existente) {
 
                 $continue = true;
             }
@@ -683,6 +687,7 @@ switch ($action) {
       Alerta!
       </h4>
       Error al Intentar Guardar el Registro NRO DE ARETE DUPLICADO.
+      ' . htmlspecialchars(bovs_arete_mensaje($arete_existente), ENT_QUOTES, 'UTF-8') . '
     </div>';
             }
         }
@@ -759,9 +764,12 @@ switch ($action) {
                 break;
             }
 
-            @$busca_arete = Manimale::find_by_sql("SELECT nro_arete  FROM Manimales  WHERE  nro_arete<>'' and nro_arete='$numero_arete' and status=1 and mfundos_id=" . $mfundos_id . ' ;');
+            /* N° de arete único dentro del fundo: regla única en
+               lib/arete_helper.php (mayúsculas y espacios normalizados,
+               solo contra animales con status=1). */
+            $arete_existente = bovs_arete_existente($mfundos_id, $numero_arete);
 
-            if ($busca_arete == null) {
+            if (!$arete_existente) {
 
                 $continue = true;
             }
@@ -898,6 +906,7 @@ switch ($action) {
       Alerta!
       </h4>
       Error al Intentar Guardar el Registro NRO DE ARETE DUPLICADO.
+      ' . htmlspecialchars(bovs_arete_mensaje($arete_existente), ENT_QUOTES, 'UTF-8') . '
     </div>';
             }
         }
@@ -943,12 +952,16 @@ switch ($action) {
             $hoy = date('d-m-Y');
             $nro_arete = $numero_arete;
 
-            @$buscar_arete = Manimale::find_by_sql("SELECT nro_arete,codigo_rgb_id_animal
-         FROM Manimales
-         WHERE  nro_arete='$nro_arete' 
-          and	nro_arete NOT  in (select a.nro_arete FROM Manimales a
-           WHERE a.nro_arete='$nro_arete' and a.codigo_rgb_id_animal='$cod_animal'
-            and  a.status=1 and a.mfundos_id=" . $mfundos_id . ') and  status=1 and mfundos_id=' . $mfundos_id . ';');
+            /* Al editar, el propio animal se excluye POR ID y POR CÓDIGO.
+               La versión anterior excluía por VALOR de arete
+               (nro_arete NOT IN (SELECT nro_arete ...)), así que si otro
+               animal ya usaba ese arete el subselect devolvía el mismo
+               valor y la condición descartaba TODAS las filas: la edición
+               nunca detectaba el duplicado. */
+            $arete_existente = bovs_arete_existente($mfundos_id, $nro_arete, array(
+                'excluir_id'     => (int) $id_animal,
+                'excluir_codigo' => $cod_animal,
+            ));
 
             @$buscar_nombre_imagen = Manimale::find_by_sql("SELECT imagen,codigo_rgb_id_animal
           FROM Manimales
@@ -956,7 +969,7 @@ switch ($action) {
 
             $continuar = false;
 
-            if ($buscar_arete == null) {
+            if (!$arete_existente) {
                 $continuar = true;
             }
 
@@ -1108,6 +1121,7 @@ switch ($action) {
               Alerta!
               </h4>
               Error al Intentar ACTUALIZAR.. El Número de arete ya se encuentra registrado !!.
+              ' . htmlspecialchars(bovs_arete_mensaje($arete_existente), ENT_QUOTES, 'UTF-8') . '
               </div>';
             }
         }
@@ -1426,52 +1440,32 @@ switch ($action) {
 
         if ($nro_arete != null) {
 
-            if ($codigo_rgb_id_animal != null) {
-                @$data = Manimale::find_by_sql("SELECT nro_arete,codigo_rgb_id_animal
-        FROM Manimales
-        WHERE  nro_arete='$nro_arete' 
-         and	nro_arete NOT  in (select a.nro_arete FROM Manimales a
-          WHERE a.nro_arete='$nro_arete' and a.codigo_rgb_id_animal='$codigo_rgb_id_animal'
-           and  a.status=1 and a.mfundos_id=" . $mfundos_id . ') and  status=1 and mfundos_id=' . $mfundos_id . ';');
+            /* El propio animal se excluye por CÓDIGO (al editar), no por
+               valor de arete: la consulta anterior comparaba
+               `nro_arete NOT IN (SELECT nro_arete ...)` y, si otro animal
+               ya usaba el arete, el subselect devolvía el mismo texto y la
+               condición descartaba todas las filas (nunca avisaba). */
+            $opciones_busqueda = array();
+            if ($codigo_rgb_id_animal != null && trim((string) $codigo_rgb_id_animal) !== '') {
+                $opciones_busqueda['excluir_codigo'] = $codigo_rgb_id_animal;
+            }
 
-                if ($data != null) {
+            $arete_existente = bovs_arete_existente($mfundos_id, $nro_arete, $opciones_busqueda);
 
-                    foreach ($data as $rs) {
+            if ($arete_existente) {
 
-                        $resp = array(
-                            'nro_arete' => $rs->nro_arete,
-                            'codigo_rgb_id_animal' => $rs->codigo_rgb_id_animal
-
-                        );
-                    }
-                } else {
-                    $resp = array(
-                        'nro_arete' => 0,
-                        'codigo_rgb_id_animal' => 0
-
-                    );
-                }
+                $resp = array(
+                    'nro_arete'            => $arete_existente['nro_arete'],
+                    'codigo_rgb_id_animal' => $arete_existente['codigo_rgb_id_animal'],
+                    'nombre'               => $arete_existente['nombre'],
+                    'mensaje'              => htmlspecialchars(bovs_arete_mensaje($arete_existente), ENT_QUOTES, 'UTF-8')
+                );
             } else {
-                @$data = Manimale::find_by_sql("SELECT nro_arete
-                      FROM Manimales
-                      WHERE  nro_arete='$nro_arete' and status=1 and mfundos_id=" . $mfundos_id . ' ;');
+                $resp = array(
+                    'nro_arete' => 0,
+                    'codigo_rgb_id_animal' => 0
 
-                if ($data != null) {
-
-                    foreach ($data as $rs) {
-
-                        $resp = array(
-                            'nro_arete' => $rs->nro_arete
-
-                        );
-                    }
-                } else {
-                    $resp = array(
-                        'nro_arete' => 0,
-                        'codigo_rgb_id_animal' => 0
-
-                    );
-                }
+                );
             }
 
             echo json_encode($resp);

@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/../../lib/texto_helper.php';
 require_once __DIR__ . '/../../lib/mantenimiento_helper.php';
 

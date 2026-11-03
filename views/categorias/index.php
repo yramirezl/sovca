@@ -74,10 +74,14 @@ $crud = [
 
     /* Botón LISTAR + ocultar botones según rol */
     'customScript' => "
-        /* Ocultar botones si el rol no es 1 ni 4 */
+        /* El productor (rol 2/3) puede EDITAR las categorías de su fundo para
+           adaptarlas (por ejemplo, darle un nombre acorde a su zona), pero por
+           ahora solo el administrador crea categorías nuevas y las elimina.
+           Al editar una categoría general se guarda una copia en el fundo
+           (id_padre) y el catálogo general no se toca. */
         var rolx = " . (int)$_SESSION['rolx'] . ";
         if ((rolx != 1) && (rolx != 4)) {
-            \$('#add, #edit, #delete').hide();
+            \$('#add, #delete').hide();
         }
 
         /* Botón LISTAR: verifica datos antes de generar PDF */

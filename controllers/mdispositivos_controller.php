@@ -265,6 +265,315 @@ switch ($action) {
         break;
 
     #*******************************************************************************
+    case 'resumen_sync':
+        /* -------------------------------------------------------------
+         * RESUMEN DE SINCRONIZACIONES (modo offline)
+         * -------------------------------------------------------------
+         * Una fila por EQUIPO (dispositivo + usuario) con cuántas veces
+         * sincronizó, cuántas veces falló y dónde quedó el último fallo.
+         * Los datos salen de `sync_offline_log`, que escribe la API en
+         * cada pull/push (ver api/lib/SyncLogger.php).
+         * ------------------------------------------------------------- */
+        @session_start();
+        $usuario_id = (int) $_SESSION['idusuariox'];
+        $mfundos_id = (int) $_SESSION['mfundos_id'];
+        $rol = (int) $_SESSION['rolx'];
+
+        if (!$usuario_id) {
+            echo json_encode(array('resultado' => 'error', 'mensaje' => 'Sesión no válida.', 'dispositivos' => array()));
+            die();
+        }
+
+        if ($rol == 3) {
+            echo json_encode(array('resultado' => 'error', 'mensaje' => 'No tiene permisos para ver esta información.', 'dispositivos' => array()));
+            die();
+        }
+
+        $es_admin = in_array($rol, array(1, 4));
+        $dias = isset($_POST['dias']) ? (int) $_POST['dias'] : 30;
+        $solo_fallos = (isset($_POST['solo_fallos']) && $_POST['solo_fallos'] === '1');
+
+        $condiciones = array();
+        $parametros = array();
+        if (!$es_admin) {
+            $condiciones[] = 'l.mfundos_id = ?';
+            $parametros[] = $mfundos_id;
+        }
+        if ($dias > 0) {
+            $condiciones[] = 'l.created >= ?';
+            $parametros[] = date('Y-m-d H:i:s', strtotime('-' . $dias . ' days'));
+        }
+        $where = $condiciones ? ('WHERE ' . implode(' AND ', $condiciones)) : '';
+
+        $sql = "WITH base AS (
+                    SELECT l.id, l.dispositivo_id, l.nombre_dispositivo, l.musuarios_id,
+                           l.mfundos_id, l.modo_offline, l.accion, l.modulo, l.resultado,
+                           l.total, l.exitos, l.conflictos, l.errores, l.mensaje, l.detalle, l.created
+                      FROM sync_offline_log l
+                      $where
+                ),
+                agregado AS (
+                    SELECT b.dispositivo_id,
+                           b.musuarios_id,
+                           MAX(b.nombre_dispositivo) AS nombre_dispositivo,
+                           COUNT(*)::int AS total,
+                           COUNT(*) FILTER (WHERE b.resultado = 'ok')::int AS ok,
+                           COUNT(*) FILTER (WHERE b.resultado = 'parcial')::int AS parcial,
+                           COUNT(*) FILTER (WHERE b.resultado = 'error')::int AS error,
+                           COALESCE(SUM(b.exitos), 0)::int AS exitos,
+                           COALESCE(SUM(b.errores), 0)::int AS items_error,
+                           COALESCE(SUM(b.conflictos), 0)::int AS conflictos,
+                           MAX(b.created) AS ultima,
+                           MAX(b.created) FILTER (WHERE b.resultado <> 'ok') AS ultimo_fallo,
+                           STRING_AGG(DISTINCT f.nombre, ', ') AS fundos_nombres,
+                           STRING_AGG(DISTINCT b.modo_offline, ', ') AS modos
+                      FROM base b
+                      LEFT JOIN mfundos f ON f.id = b.mfundos_id
+                     GROUP BY b.dispositivo_id, b.musuarios_id
+                )
+                SELECT a.*,
+                       u.accion  AS fallo_accion,
+                       u.modulo  AS fallo_modulo,
+                       u.resultado AS fallo_resultado,
+                       u.mensaje AS fallo_mensaje,
+                       u.detalle AS fallo_detalle,
+                       u.created AS fallo_fecha
+                  FROM agregado a
+                  LEFT JOIN LATERAL (
+                        SELECT b2.accion, b2.modulo, b2.resultado, b2.mensaje, b2.detalle, b2.created
+                          FROM base b2
+                         WHERE b2.resultado <> 'ok'
+                           AND b2.musuarios_id = a.musuarios_id
+                           AND b2.dispositivo_id IS NOT DISTINCT FROM a.dispositivo_id
+                         ORDER BY b2.created DESC
+                         LIMIT 1
+                  ) u ON true
+                 ORDER BY a.ultimo_fallo DESC NULLS LAST, a.ultima DESC";
+
+        require_once __DIR__ . '/../api/lib/SyncLogger.php';
+
+        $cacheUsuarios = array();
+        $filas = array();
+        $totales = array('eventos' => 0, 'fallos' => 0, 'items_error' => 0, 'conflictos' => 0, 'equipos' => 0, 'equipos_con_fallo' => 0);
+
+        try {
+            $registros = \Musuario::connection()->query($sql, $parametros)->fetchAll();
+        } catch (\Throwable $e) {
+            echo json_encode(array(
+                'resultado' => 'error',
+                'mensaje' => 'No se pudo leer el registro de sincronizaciones. Ejecute scripts/migracion_sync_offline_log.sql.',
+                'detalle' => $e->getMessage(),
+                'dispositivos' => array()
+            ));
+            die();
+        }
+
+        foreach ($registros as $r) {
+            $uid = (int) $r['musuarios_id'];
+            if (!isset($cacheUsuarios[$uid])) {
+                $cacheUsuarios[$uid] = null;
+                try {
+                    $u = Musuario::find($uid);
+                    if ($u) {
+                        $cacheUsuarios[$uid] = $u->name ? $u->name : $u->username;
+                    }
+                } catch (\ActiveRecord\RecordNotFound $e) {
+                    $cacheUsuarios[$uid] = null;
+                }
+            }
+
+            $fallos = (int) $r['parcial'] + (int) $r['error'];
+
+            // "Dónde falló": se prefiere el motivo puntual del primer
+            // registro rechazado de esa tanda; si no hay detalle, queda el
+            // mensaje resumen del evento.
+            $mensajeFallo = $r['fallo_mensaje'] ? $r['fallo_mensaje'] : '';
+            $referenciaFallo = '';
+            $fallosDetalle = 0;
+            if (!empty($r['fallo_detalle'])) {
+                $listaFallos = json_decode($r['fallo_detalle'], true);
+                if (is_array($listaFallos) && $listaFallos) {
+                    $fallosDetalle = count($listaFallos);
+                    $primero = $listaFallos[0];
+                    if (!empty($primero['referencia'])) {
+                        $referenciaFallo = (string) $primero['referencia'];
+                    }
+                    if (!empty($primero['mensaje'])) {
+                        $mensajeFallo = (string) $primero['mensaje'];
+                    }
+                }
+            }
+            if ($fallosDetalle > 1) {
+                $mensajeFallo .= ' (+' . ($fallosDetalle - 1) . ' más)';
+            }
+
+            $totales['equipos']++;
+            $totales['eventos'] += (int) $r['total'];
+            $totales['fallos'] += $fallos;
+            $totales['items_error'] += (int) $r['items_error'];
+            $totales['conflictos'] += (int) $r['conflictos'];
+            if ($fallos > 0) {
+                $totales['equipos_con_fallo']++;
+            }
+
+            if ($solo_fallos && $fallos === 0) {
+                continue;
+            }
+
+            $filas[] = array(
+                'dispositivo_id'     => $r['dispositivo_id'] ? (string) $r['dispositivo_id'] : '',
+                'nombre_dispositivo' => $r['nombre_dispositivo'] ? $r['nombre_dispositivo'] : '(equipo sin identificar)',
+                'musuarios_id'       => $uid,
+                'usuario_nombre'     => $cacheUsuarios[$uid] ? $cacheUsuarios[$uid] : '(usuario huérfano)',
+                'fundos_nombres'     => $r['fundos_nombres'] ? $r['fundos_nombres'] : '',
+                'modo_offline'       => $r['modos'] ? $r['modos'] : '',
+                'total'              => (int) $r['total'],
+                'ok'                 => (int) $r['ok'],
+                'parcial'            => (int) $r['parcial'],
+                'error'              => (int) $r['error'],
+                'fallos'             => $fallos,
+                'exitos'             => (int) $r['exitos'],
+                'items_error'        => (int) $r['items_error'],
+                'conflictos'         => (int) $r['conflictos'],
+                'ultima'             => $r['ultima'] ? date('d-m-Y H:i', strtotime($r['ultima'])) : '—',
+                'ultima_ts'          => $r['ultima'] ? strtotime($r['ultima']) : 0,
+                'ultimo_fallo'       => $r['ultimo_fallo'] ? date('d-m-Y H:i', strtotime($r['ultimo_fallo'])) : '—',
+                'ultimo_fallo_ts'    => $r['ultimo_fallo'] ? strtotime($r['ultimo_fallo']) : 0,
+                'fallo_accion'       => $r['fallo_accion'] ? $r['fallo_accion'] : '',
+                'fallo_modulo'       => $r['fallo_modulo'] ? $r['fallo_modulo'] : '',
+                'fallo_modulo_etiqueta' => $r['fallo_modulo'] ? \Api\SyncLogger::etiquetaModulo($r['fallo_modulo']) : '',
+                'fallo_mensaje'      => $mensajeFallo,
+                'fallo_mensaje_lote' => $r['fallo_mensaje'] ? $r['fallo_mensaje'] : '',
+                'fallo_referencia'   => $referenciaFallo,
+                'fallo_fecha'        => $r['fallo_fecha'] ? date('d-m-Y H:i', strtotime($r['fallo_fecha'])) : '',
+            );
+        }
+
+        echo json_encode(array(
+            'resultado'    => 'ok',
+            'dispositivos' => $filas,
+            'totales'      => $totales,
+            'es_admin'     => $es_admin,
+            'dias'         => $dias,
+        ));
+        break;
+
+    #*******************************************************************************
+    case 'detalle_sync':
+        /* -------------------------------------------------------------
+         * DETALLE (línea de tiempo) de las sincronizaciones de UN equipo.
+         * Cada evento trae sus contadores y la lista de registros que el
+         * servidor rechazó, con módulo y motivo.
+         * ------------------------------------------------------------- */
+        @session_start();
+        $usuario_id = (int) $_SESSION['idusuariox'];
+        $mfundos_id = (int) $_SESSION['mfundos_id'];
+        $rol = (int) $_SESSION['rolx'];
+
+        if (!$usuario_id) {
+            echo json_encode(array('resultado' => 'error', 'mensaje' => 'Sesión no válida.', 'eventos' => array()));
+            die();
+        }
+
+        if ($rol == 3) {
+            echo json_encode(array('resultado' => 'error', 'mensaje' => 'No tiene permisos para ver esta información.', 'eventos' => array()));
+            die();
+        }
+
+        $es_admin = in_array($rol, array(1, 4));
+        $dispositivo_id = isset($_POST['dispositivo_id']) ? trim((string) $_POST['dispositivo_id']) : '';
+        $musuario_filtro = isset($_POST['musuarios_id']) ? (int) $_POST['musuarios_id'] : 0;
+        $dias = isset($_POST['dias']) ? (int) $_POST['dias'] : 30;
+
+        if ($dispositivo_id !== '' && !preg_match('/^[0-9a-fA-F-]{36}$/', $dispositivo_id)) {
+            echo json_encode(array('resultado' => 'error', 'mensaje' => 'Identificador de dispositivo inválido.', 'eventos' => array()));
+            die();
+        }
+
+        require_once __DIR__ . '/../api/lib/SyncLogger.php';
+
+        $condiciones = array('l.musuarios_id = ?');
+        $parametros = array($musuario_filtro);
+
+        if ($dispositivo_id === '') {
+            $condiciones[] = 'l.dispositivo_id IS NULL';
+        } else {
+            $condiciones[] = 'l.dispositivo_id = ?';
+            $parametros[] = $dispositivo_id;
+        }
+        if (!$es_admin) {
+            $condiciones[] = 'l.mfundos_id = ?';
+            $parametros[] = $mfundos_id;
+        }
+        if ($dias > 0) {
+            $condiciones[] = 'l.created >= ?';
+            $parametros[] = date('Y-m-d H:i:s', strtotime('-' . $dias . ' days'));
+        }
+
+        $sql = 'SELECT l.accion, l.modulo, l.resultado, l.total, l.exitos, l.conflictos,
+                       l.errores, l.duracion_ms, l.mensaje, l.detalle, l.created,
+                       l.nombre_dispositivo, f.nombre AS fundo_nombre
+                  FROM sync_offline_log l
+                  LEFT JOIN mfundos f ON f.id = l.mfundos_id
+                 WHERE ' . implode(' AND ', $condiciones) . '
+                 ORDER BY l.created DESC
+                 LIMIT 300';
+
+        try {
+            $registros = \Musuario::connection()->query($sql, $parametros)->fetchAll();
+        } catch (\Throwable $e) {
+            echo json_encode(array(
+                'resultado' => 'error',
+                'mensaje' => 'No se pudo leer el detalle de sincronizaciones.',
+                'detalle' => $e->getMessage(),
+                'eventos' => array()
+            ));
+            die();
+        }
+
+        $eventos = array();
+        foreach ($registros as $r) {
+            $detalle = array();
+            if (!empty($r['detalle'])) {
+                $decodificado = json_decode($r['detalle'], true);
+                if (is_array($decodificado)) {
+                    $detalle = $decodificado;
+                }
+            }
+
+            foreach ($detalle as $indice => $fallo) {
+                if (isset($fallo['modulo']) && $fallo['modulo'] !== '') {
+                    $detalle[$indice]['modulo_etiqueta'] = \Api\SyncLogger::etiquetaModulo($fallo['modulo']);
+                } else {
+                    $detalle[$indice]['modulo_etiqueta'] = '';
+                }
+            }
+
+            $eventos[] = array(
+                'fecha'              => $r['created'] ? date('d-m-Y H:i:s', strtotime($r['created'])) : '—',
+                'accion'             => $r['accion'],
+                'modulo'             => $r['modulo'],
+                'modulo_etiqueta'    => $r['modulo'] ? \Api\SyncLogger::etiquetaModulo($r['modulo']) : 'General',
+                'resultado'          => $r['resultado'],
+                'total'              => (int) $r['total'],
+                'exitos'             => (int) $r['exitos'],
+                'conflictos'         => (int) $r['conflictos'],
+                'errores'            => (int) $r['errores'],
+                'duracion_ms'        => (int) $r['duracion_ms'],
+                'mensaje'            => $r['mensaje'],
+                'fundo_nombre'       => $r['fundo_nombre'] ? $r['fundo_nombre'] : '',
+                'detalle'            => $detalle,
+            );
+        }
+
+        echo json_encode(array(
+            'resultado' => 'ok',
+            'eventos'   => $eventos,
+            'es_admin'  => $es_admin,
+        ));
+        break;
+
+    #*******************************************************************************
     default:
         echo json_encode(array('resultado' => 'error', 'mensaje' => 'Acción no reconocida.'));
         break;

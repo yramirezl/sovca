@@ -1,0 +1,342 @@
+/* =====================================================================
+   SOVCA Offline | Estilos de la pagina de inicio (portada)
+   ---------------------------------------------------------------------
+   Es la primera pantalla que ve el productor cuando abre el icono
+   instalado o escribe la direccion del modo offline. Reutiliza las
+   variables de color de `estilos.css` (se carga antes que este archivo)
+   para no inventar una paleta nueva.
+
+   Criterio de diseno: letra grande, botones altos y pocas decisiones.
+   Se usa en el corral, muchas veces con el sol de frente y una sola
+   mano libre.
+   ===================================================================== */
+
+.portada-body {
+  background:
+    radial-gradient(120% 60% at 50% 0%, #E7EEDF 0%, var(--hueso) 55%),
+    var(--hueso);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.portada {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---- Cabecera ------------------------------------------------------ */
+
+.portada__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.portada__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  box-shadow: var(--sombra);
+  flex: 0 0 auto;
+}
+
+.portada__titulo {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--verde-pasto-oscuro);
+  letter-spacing: -0.01em;
+}
+
+.portada__lema {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b6455;
+}
+
+/* ---- Estado del equipo --------------------------------------------- */
+
+.portada__estado {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--borde-suave);
+  border-left-width: 5px;
+  border-left-color: #C9C2AF;
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 14px 16px;
+}
+
+.portada__estado-icono {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  flex: 0 0 auto;
+  background: #EFEAD9;
+  color: #6B6455;
+}
+
+.portada__estado--listo  .portada__estado-icono { background: #DCEBDA; color: var(--verde-pasto-oscuro); }
+.portada__estado--aviso  .portada__estado-icono { background: #F7E4C0; color: #8A5A12; }
+.portada__estado--error  .portada__estado-icono { background: #F3D7D3; color: var(--rojo); }
+
+.portada__estado-titulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tinta);
+}
+
+.portada__estado-texto {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b6455;
+}
+
+.portada__estado-texto:empty { display: none; }
+
+/* Colores por situacion */
+.portada__estado--listo   { border-left-color: var(--verde-sync); }
+.portada__estado--listo   .portada__estado-titulo { color: var(--verde-pasto-oscuro); }
+
+.portada__estado--aviso   { border-left-color: var(--ambar); }
+.portada__estado--aviso   .portada__estado-titulo { color: #8A5A12; }
+
+.portada__estado--error   { border-left-color: var(--rojo); }
+.portada__estado--error   .portada__estado-titulo { color: var(--rojo); }
+
+.portada__estado--cargando { border-left-color: #C9C2AF; }
+
+/* ---- Acciones ------------------------------------------------------ */
+
+.portada__acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portada__boton {
+  width: 100%;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* "Instalar" es la accion que el productor debe encontrar sin buscarla:
+   alto contraste, con el ambar de la app y texto oscuro. */
+.portada__boton--instalar {
+  background: var(--ambar);
+  color: #3A2506;
+  box-shadow: 0 2px 0 #B4721E;
+}
+
+.portada__boton--instalar:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.portada__boton--secundario {
+  background: #fff;
+  color: var(--verde-pasto-oscuro);
+  border: 2px solid var(--hueso-oscuro);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 13px;
+}
+
+.portada__boton--secundario:active {
+  background: var(--hueso-oscuro);
+}
+
+/* ---- Panel de instrucciones ---------------------------------------- */
+
+.portada__panel {
+  background: #fff;
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 18px;
+}
+
+.portada__panel-titulo {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--verde-pasto-oscuro);
+}
+
+.portada__panel-texto {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4E483C;
+}
+
+.portada__pasos {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--hueso-oscuro);
+}
+
+.portada__pasos:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.portada__pasos h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--tinta);
+}
+
+.portada__pasos ol {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4E483C;
+}
+
+.portada__pasos li { margin-bottom: 4px; }
+
+.portada__nota {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7A7467;
+  font-style: italic;
+}
+
+/* La plataforma detectada se resalta; las demas quedan plegadas pero
+   visibles (si el productor usa otro equipo, las instrucciones siguen
+   estando). */
+.portada__pasos[data-detectada="si"] h3::after {
+  content: " · este equipo";
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--verde-sync);
+}
+
+/* ---- Aviso "falta preparar el equipo" ------------------------------ */
+
+.portada__aviso {
+  background: #FDF6E7;
+  border: 1px solid #EBD9AE;
+  border-radius: var(--radio);
+  padding: 16px 18px;
+}
+
+.portada__aviso-titulo {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: #8A5A12;
+}
+
+.portada__aviso p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #5F5334;
+}
+
+.portada__enlace-boton {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  background: var(--verde-pasto);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 10px;
+  padding: 13px;
+}
+
+.portada__enlace-boton:active { background: var(--verde-pasto-oscuro); }
+
+/* ---- Pie ----------------------------------------------------------- */
+
+.portada__pie {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #7A7467;
+}
+
+.portada__pie-enlace {
+  color: #234E35;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.portada__pie-sep { color: #B4AC98; }
+
+.portada__pie-estado--offline { color: var(--rojo); font-weight: 600; }
+.portada__pie-estado--online  { color: var(--verde-sync); font-weight: 600; }
+
+/* ---- Pantallas grandes --------------------------------------------- */
+
+@media (min-width: 720px) {
+  .portada {
+    max-width: 620px;
+    padding-top: 48px;
+  }
+
+  .portada__titulo { font-size: 28px; }
+
+  .portada__panel-texto,
+  .portada__pasos ol { font-size: 14px; }
+}
+
+/* ---- Teléfonos muy angostos (o ventana dividida) -------------------- */
+
+@media (max-width: 359px) {
+  .portada {
+    padding-left: 14px;
+    padding-right: 14px;
+    gap: 12px;
+  }
+
+  .portada__logo { width: 46px; height: 46px; }
+
+  .portada__titulo { font-size: 19px; }
+
+  .portada__lema { font-size: 12px; }
+
+  .portada__estado { padding: 12px; gap: 10px; }
+
+  .portada__estado-titulo { font-size: 14px; }
+
+  .portada__boton { font-size: 15px; padding: 14px; }
+}
+
+/* ---- Modo instalado (standalone): sin barra del navegador ---------- */
+
+@media (display-mode: standalone) {
+  .portada__pie-enlace[href="index.html"] { display: none; }
+  .portada__pie-sep:last-of-type { display: none; }
+}

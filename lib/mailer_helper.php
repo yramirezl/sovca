@@ -34,12 +34,16 @@ if (!function_exists('bovs_mail_config')) {
             'port'               => 465,
             'secure'             => 'ssl',
             'username'           => 'global@ruted.net',
+            // La clave NO se repite aquí: vive solo en config/mail.php o en la
+            // variable de entorno SOVCA_SMTP_PASS. Tenerla en dos sitios hacía
+            // que un cambio de contraseña en uno dejara el otro desactualizado.
             'password'           => '',
             'from_email'         => 'global@ruted.net',
             'from_name'          => 'SOVCA · Gestión Ovina y Caprina',
             'sender_email'       => 'global@ruted.net',
             'reply_to'           => 'global@ruted.net',
             'reply_to_name'      => 'SOVCA · Soporte',
+            // Se puede fijar con SOVCA_SMTP_HELO; por defecto, el histórico.
             'hostname'           => 'mail.ruted.net',
             'message_id_domain'  => 'ruted.net',
             'list_unsubscribe'   => 'mailto:global@ruted.net?subject=Baja%20SOVCA',
