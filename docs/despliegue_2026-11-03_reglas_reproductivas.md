@@ -93,8 +93,10 @@ for base in "$DB" "$DEMO"; do
         scripts/migracion_edad_minima_hembra.sql
     do
         echo "-- $sql"
+        # El archivo lo lee el shell (root) y se pasa por stdin. Con -f,
+        # psql corre como postgres y no puede abrir el código 640 root:www-data.
         sudo -u postgres psql -d "$base" -P pager=off \
-             -v ON_ERROR_STOP=1 -f "$sql" || exit 1
+             -v ON_ERROR_STOP=1 < "$sql" || exit 1
     done
 done
 ```
