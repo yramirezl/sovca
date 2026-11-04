@@ -28,8 +28,9 @@ el botón **Incluir** del control sanitario.
 
    ```bash
    cd /var/www/html/sovca
-   sudo -u postgres pg_dump -Fc -d sovca \
-        -f /root/sovca_$(date +%F_%H%M).dump
+   RESPALDO="/tmp/sovca_$(date +%F_%H%M).dump"
+   sudo -u postgres pg_dump -Fc -d sovca -f "$RESPALDO"
+   sudo mv "$RESPALDO" /root/
    ```
 
 3. Confirmar que `config/db.local.php` existe y apunta a la base real
@@ -154,6 +155,11 @@ php scripts/migracion_fecha_secado.php --modulo=todos --aplicar
 Guardar el **código de lote** que imprime. El script actualiza `updated` y
 `version` para que la PWA reciba el cambio en la siguiente sincronización.
 
+> El ejecutor crea/usa la tabla `migracion_fecha_secado_log`. Si esa tabla no
+existe y falla por permisos, ejecutarlo con las variables de administración del
+manual (§8): `SOVCA_DB_IGNORAR_LOCAL=1 SOVCA_DB_PORT=5432 SOVCA_DB_USER=postgres
+SOVCA_DB_PASS=...`.
+
 > Si solo se quieren completar fechas vacías sin tocar las existentes, usar
 > `--solo-vacios`. Para revertir, restaurar el respaldo del paso 0; los archivos
 > `*_revert.sql` no están incluidos en esta entrega.
@@ -221,7 +227,7 @@ fuera necesario deshacer todo:
 
 ```bash
 sudo -u postgres pg_restore --clean --no-owner --no-privileges \
-     -d sovca /root/sovca_<fecha>.dump
+     -d sovca < /root/sovca_<fecha>.dump
 ```
 
 Si se aplicó la migración histórica de secado y se quiere revertir, restaurar el
