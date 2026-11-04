@@ -55,6 +55,13 @@ switch ( $action ) {
             $segme->dias_gestacion = $dia_gestacion;
             $segme->mtipoganaderias_id = $tipo_ganaderia;
 
+            /* El código es la clave con la que Servicio y Control buscan
+               el período (PSP, PGB, PPS, PPL, PBL, EMM, EHM). */
+            $codigo_periodo = bovs_periodo_codigo_desde_nombre($nombre_periodo);
+            if ($codigo_periodo !== '') {
+                $segme->codper_bov = $codigo_periodo;
+            }
+
             $segme->user_create = $usuario_id;
             $segme->created = $hoy;
 
@@ -197,6 +204,15 @@ switch ( $action ) {
 
             $periodo->nombre = $nombre_periodo;
             $periodo->dias_gestacion = $dia_gestacion;
+
+            /* Completa el código si el período se creó antes de esta regla. */
+            if (empty($periodo->codper_bov) || trim((string) $periodo->codper_bov) === '0') {
+                $codigo_periodo = bovs_periodo_codigo_desde_nombre($nombre_periodo);
+                if ($codigo_periodo !== '') {
+                    $periodo->codper_bov = $codigo_periodo;
+                }
+            }
+
             $periodo->user_modify = $usuario_id;
             $periodo->updated = $hoy;
 
@@ -514,6 +530,19 @@ switch ( $action ) {
                                                     where b.mtipoganaderias_id=".$t_ganaderia.' and b.mfundos_id=' . $mfundos_id . ' ) ;' );
     }
 
+    /* Respaldo para instalaciones que aún tengan codper_bov = '0':
+       se busca el período por su nombre canónico. */
+    if ( $data == null ) {
+        $data = Mperiodo::find_by_sql( "select id, dias_gestacion as nombre
+                                          from mperiodos
+                                         where status > 0
+                                           and mtipoganaderias_id = " . intval( $t_ganaderia ) . "
+                                           and mfundos_id in (0, " . $mfundos_id . ")
+                                           and upper(nombre) like 'PERIODO DE GESTACION%'
+                                      order by case when mfundos_id = " . $mfundos_id . " then 0 else 1 end, id desc
+                                         limit 1" );
+    }
+
     if ( $data != null ) {
         foreach ( $data as $rs ) {
             $resp = array(
@@ -591,6 +620,19 @@ switch ( $action ) {
                                       where b.mtipoganaderias_id=".$t_ganaderia.' and b.mfundos_id=' . $mfundos_id . ' ) ;' );
     }
 
+    /* Respaldo para instalaciones que aún tengan codper_bov = '0':
+       se busca el período por su nombre canónico. */
+    if ( $data == null ) {
+        $data = Mperiodo::find_by_sql( "select id, dias_gestacion as nombre
+                                          from mperiodos
+                                         where status > 0
+                                           and mtipoganaderias_id = " . intval( $t_ganaderia ) . "
+                                           and mfundos_id in (0, " . $mfundos_id . ")
+                                           and upper(nombre) like 'PERIODO SERVICIO/PALPACION%'
+                                      order by case when mfundos_id = " . $mfundos_id . " then 0 else 1 end, id desc
+                                         limit 1" );
+    }
+
     if ( $data != null ) {
         foreach ( $data as $rs ) {
             $resp = array(
@@ -602,3 +644,46 @@ switch ( $action ) {
     break;
 }
 //end switch
+
+/**
+ * Código canónico del período (mperiodos.codper_bov) a partir del nombre.
+ *
+ * El módulo de Servicios/Control busca los períodos por código. Cuando el
+ * productor crea un período desde Parámetros → Períodos, el formulario solo
+ * pide nombre y días: esta función deduce el código para que el período
+ * quede utilizable (PSP, PGB, PPS, PPL, PBL, EMM, EHM).
+ */
+function bovs_periodo_codigo_desde_nombre($nombre)
+{
+    $n = strtoupper(trim((string) $nombre));
+    $n = str_replace(array('Á', 'É', 'Í', 'Ó', 'Ú', 'Ü'), array('A', 'E', 'I', 'O', 'U', 'U'), $n);
+    $n = preg_replace('/\s+/', ' ', $n);
+
+    if (strpos($n, 'EDAD MINIMA DEL MACHO') !== false) {
+        return 'EMM';
+    }
+    if (strpos($n, 'EDAD MINIMA DE LA HEMBRA') !== false) {
+        return 'EHM';
+    }
+    if (strpos($n, 'GESTACION') !== false) {
+        return 'PGB';
+    }
+    if (strpos($n, 'PALPACION') !== false && strpos($n, 'SERVICIO') !== false) {
+        return 'PSP';
+    }
+    if (strpos($n, 'PARTO') !== false && strpos($n, 'SERVICIO') !== false) {
+        return 'PPS';
+    }
+    if (strpos($n, 'LECHE') !== false
+        && (strpos($n, 'PRODUCCION') !== false || strpos($n, 'PRODUCION') !== false)) {
+        return 'PPL';
+    }
+    if (strpos($n, 'LACTANCIA') !== false) {
+        return 'PBL';
+    }
+    if (strpos($n, 'SECADO') !== false) {
+        return 'PSD';
+    }
+
+    return '';
+}

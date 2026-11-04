@@ -32,6 +32,7 @@
 require_once __DIR__ . '/config/bootstrap.php';
 require_once __DIR__ . '/lib/SyncModulos.php';
 require_once __DIR__ . '/../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/edad_hembra_helper.php';
 require_once __DIR__ . '/../lib/arete_helper.php';
 require_once __DIR__ . '/../models/Musuario.php';
 require_once __DIR__ . '/../models/Vusuario.php';
@@ -1328,8 +1329,20 @@ function validar_y_completar_servicio_nuevo(array $datos, array $usuario, $conex
     } catch (\Throwable $e) {
         return [$datos, 'La fecha de nacimiento de la hembra no es válida.'];
     }
-    if ($fechaNacimiento->diff(new \DateTimeImmutable('today'))->y < 1) {
-        return [$datos, 'La hembra debe tener al menos 12 meses para registrar un servicio.'];
+
+    /* En ovinos y caprinos la edad mínima son 210 días (≈ 7 meses),
+       configurable en Parámetros → Períodos (código EHM). Antes se exigía
+       1 año (regla bovina) y se rechazaban hembras aptas de 10 meses. */
+    $minimoDiasHembra = bovs_edad_minima_hembra_dias(
+        $fundoId,
+        (int) ($usuario['tipo_ganaderia_id'] ?? 0)
+    );
+    $edadDiasHembra = (int) $fechaNacimiento->diff(new \DateTimeImmutable('today'))->days;
+
+    if ($edadDiasHembra < $minimoDiasHembra) {
+        return [$datos, 'La hembra debe tener al menos '
+            . bovs_edad_meses_desde_dias($minimoDiasHembra) . ' meses ('
+            . $minimoDiasHembra . ' días) para registrar un servicio.'];
     }
 
     if ($tipoServicio === 3) {

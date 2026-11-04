@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../lib/especie_helper.php';
 require_once __DIR__ . '/../lib/edad_macho_helper.php';
+require_once __DIR__ . '/../lib/edad_hembra_helper.php';
 require_once '../models/Mregservicio.php';
 require_once '../models/Vdesincorporacione.php';
 require_once '../models/Manimale.php';
@@ -182,8 +183,9 @@ switch ($action) {
 
        Cuando el productor escribe un código/arete que no aparece en el
        listado, se explica POR QUÉ no está disponible: no existe, es de
-       otro fundo, es macho, no está activa, es menor de 12 meses o tiene
-       un servicio abierto pendiente de cerrar.
+       otro fundo, es macho, no está activa, no alcanza la edad mínima
+       (210 días en ovinos/caprinos) o tiene un servicio abierto pendiente
+       de cerrar.
        ============================================================ */
     case 'diagnostico_hembra':
 
@@ -267,16 +269,15 @@ switch ($action) {
             break;
         }
 
-        /* ---------- 4) Edad mínima ---------- */
-        $meses = null;
-        if ($animal->f_nacimiento instanceof DateTime) {
-            $dif = $animal->f_nacimiento->diff(new DateTime('now'));
-            $meses = ($dif->y * 12) + $dif->m;
-        }
+        /* ---------- 4) Edad mínima (210 días en ovinos y caprinos) ---------- */
+        $error_edad_hembra = bovs_error_edad_hembra(
+            $codigo,
+            $mfundos_id,
+            isset($_SESSION['tipo_ganaderia']) ? (int) $_SESSION['tipo_ganaderia'] : 0
+        );
 
-        if ($meses !== null && $meses < 12) {
-            $html = aviso_diagnostico('alerta', 'fa-clock-o',
-                $ref . ' tiene <strong>' . $meses . ' meses</strong>. La edad mínima para registrar servicio es de <strong>12 meses</strong>.');
+        if ($error_edad_hembra !== '') {
+            $html = aviso_diagnostico('alerta', 'fa-clock-o', $error_edad_hembra);
             echo json_encode(array('ok' => true, 'html' => $html));
             break;
         }
@@ -393,18 +394,22 @@ switch ($action) {
 
                 foreach ($data_animal as $rs_animal) {
 
-                    $fecha_nac = $rs_animal->f_nacimiento;
-                    @$fecha_nac = ($fecha_nac != null) ? (string) $fecha_nac->format('Y-m-d') : '';
-                    $edad = ($fecha_nac != '') ? tiempo_t($fecha_nac) : 0;
+                    /* Edad mínima en DÍAS (210 en ovinos/caprinos). Antes se
+                       exigían 12 meses y se rechazaban hembras aptas. */
+                    $error_edad_dona = bovs_error_edad_hembra(
+                        $rs_animal->cod_animal_h,
+                        $mfundos_id,
+                        isset($_SESSION['tipo_ganaderia']) ? (int) $_SESSION['tipo_ganaderia'] : 0
+                    );
 
-                    if ($edad < 12) {
+                    if ($error_edad_dona !== '') {
                         $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
                   <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                   <h4>
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                 La Edad de la HEMBRA DONADORA no puede ser Menor de 12 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
+                 ' . $error_edad_dona . '
                   </div>');
 
                         break;
@@ -463,8 +468,9 @@ switch ($action) {
     # condición del tipo de servicio en curso, con el estado reproductivo, para
     # que el formulario arme el listado filtrable (nombre, código o arete).
     # Las reglas son las MISMAS que validan las búsquedas get_buscar_rgb_*:
-    #   - hembra receptora : activa, >= 12 meses y sin ciclo abierto (o con el
-    #                        último control en Aborto/Vacía)
+    #   - hembra receptora : activa, edad mínima en días (210 en ovinos y
+    #                        caprinos) y sin ciclo abierto (o con el último
+    #                        control en Aborto/Vacía)
     #   - hembra donadora  : donadora (estatus_animal 2/3) con las mismas reglas
     #   - macho            : MONTA -> toro activo | INSEMINACION -> donador
     #*******************************************************************************
@@ -535,6 +541,14 @@ switch ($action) {
             $edad_sql = '(extract(year from age(current_date, a.f_nacimiento)) * 12
                          + extract(month from age(current_date, a.f_nacimiento)))';
 
+            /* Edad mínima en DÍAS: en ovinos y caprinos son 210 días
+               (≈ 7 meses), no los 12 meses de la regla bovina. Es
+               configurable en Parámetros → Períodos (código EHM). */
+            $minimo_dias_hembra = bovs_edad_minima_hembra_dias(
+                $mfundos_id,
+                isset($_SESSION['tipo_ganaderia']) ? (int) $_SESSION['tipo_ganaderia'] : 0
+            );
+
             $sql = "select distinct on (a.codigo_rgb_id_animal)
                            a.codigo_rgb_id_animal                  as codigo,
                            coalesce(a.nro_arete, '')                as nro_arete,
@@ -555,7 +569,7 @@ switch ($action) {
                        and a.sexo = 1
                        and a.f_nacimiento is not null
                        $cad_estatus
-                       and " . $edad_sql . " >= 12
+                       and (current_date - a.f_nacimiento::date) >= " . $minimo_dias_hembra . "
                      order by a.codigo_rgb_id_animal, c.id desc nulls last;";
 
             foreach (Manimale::find_by_sql($sql) as $rs) {
@@ -646,6 +660,23 @@ switch ($action) {
         Alerta!
         </h4>
         Ingrese El Código del Macho.
+        </div>');
+        } else if (($error_edad_hembra = bovs_error_edad_hembra(
+                $cod_animal_h,
+                intval($_SESSION['mfundos_id']),
+                intval($_SESSION['tipo_ganaderia'])
+            )) !== '') {
+
+            /* Última barrera: el listado y la búsqueda ya filtran por edad,
+               pero el servicio también puede llegar con un código escrito a
+               mano. En ovinos/caprinos el mínimo son 210 días. */
+            $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
+        <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+        <h4>
+        <i class="icon fa fa-ban"></i>
+        Alerta!
+        </h4>
+        ' . $error_edad_hembra . '
         </div>');
         } else if (($tipo_servicio != 3)
             && ($error_edad_macho = bovs_error_edad_macho(
@@ -1027,6 +1058,11 @@ switch ($action) {
                 $reg_servicio->f_ultimo_parto = trim((string)$fecha_fup) !== '' ? $fecha_fup : null;
                 $reg_servicio->f_secado = ($fecha_secado !== '') ? $fecha_secado : null;
                 $reg_servicio->f_palpacion = trim((string)$fecha_fp) !== '' ? $fecha_fp : null;
+                /* Si el servicio se guardó sin fecha probable de palpación,
+                   el control la calcula con el período PSP y la deja grabada. */
+                if (trim((string)$fecha_fpp) !== '') {
+                    $reg_servicio->f_probable_palpacion = $fecha_fpp;
+                }
                 $reg_servicio->medofisiologicos_id = $bovs_estado_fisio;
                 $reg_servicio->f_probable_parto = trim((string)$fecha_fppt) !== '' ? $fecha_fppt : null;
                 $reg_servicio->parto = $bovs_pario;
@@ -1256,18 +1292,21 @@ switch ($action) {
                 foreach ($data_animal as $rs_animal) {
 
 
-                    $fecha_nac = $rs_animal->f_nacimiento;
-                    @$fecha_nac = (string)$fecha_nac->format('Y-m-d');
-                    $edad = tiempo_t($fecha_nac);
+                    /* Edad mínima en DÍAS (210 en ovinos/caprinos). */
+                    $error_edad_hembra = bovs_error_edad_hembra(
+                        $rs_animal->cod_animal_h,
+                        $mfundos_id,
+                        isset($_SESSION['tipo_ganaderia']) ? (int) $_SESSION['tipo_ganaderia'] : 0
+                    );
 
-                    if ($edad < 12) {
+                    if ($error_edad_hembra !== '') {
                         $resp = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
                   <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                   <h4>
                   <i class="icon fa fa-ban"></i>
                   Alerta!
                   </h4>
-                 La Edad de la ' . bovs_especie_hembra(false, 'upper') . ' no puede ser Menor de 12 Meses.. EDAD ACTUAL  [ ' . $edad . ' ] meses !!.
+                 ' . $error_edad_hembra . '
                   </div>');
                         echo json_encode($resp);
 

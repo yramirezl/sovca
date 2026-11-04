@@ -296,28 +296,29 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             </select>
                         </div>
                         <div class="crud-form__field">
-                            <label>Periodo de lactancia</label>
+                            <label>Periodo de lactancia (destete)</label>
                             <input type="text" id="periodo_prodleche" class="form-control" placeholder="Periodo">
                         </div>
                     </div>
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="fecha_secado">Fecha de secado</label>
+                            <label for="fecha_secado">Fecha probable de destete</label>
                             <input class="form-control bbb" id="fecha_secado" data-date-format="dd-mm-yyyy"
                                    placeholder="dia-mes-año" type="text" onpaste="return false"
                                    tabindex="10" readonly="true">
+                            <small class="text-muted">Se calcula automáticamente con el período de lactancia del fundo.</small>
                         </div>
                     </div>
 
                 </div>
             </div>
 
-            <!-- ========== CARD 2: Datos del Padre + Ternero ========== -->
+            <!-- ========== CARD 2: Datos del Padre + Cría ========== -->
             <div class="crud-form__card">
                 <div class="crud-form__card-head">
                     <i class="fa fa-mars"></i>
-                    <h3>Datos del Padre / Ternero</h3>
+                    <h3>Datos del Padre / Cría</h3>
                 </div>
                 <div class="crud-form__card-body">
 
@@ -382,7 +383,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                         </button>
                     </div>
 
-                    <label>Datos del Ternero/a</label>
+                    <label>Datos de la Cría</label>
 
                     <div class="crud-form__row--3">
                         <div class="crud-form__field">
@@ -412,19 +413,19 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                     <div class="crud-form__row">
                         <div class="crud-form__field">
                             <label>ID-N° Arete
-                                <a data-toggle="tooltip" title="Identificador que se asignará al ternero o a la ternera.">
+                                <a data-toggle="tooltip" title="Identificador que se asignará a la cría.">
                                     <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                                 </a>
                             </label>
                             <input type="text" id="id_ternero" class="form-control"
-                                   placeholder="Id del Ternero/a"
+                                   placeholder="ID / Arete de la Cría"
                                    onpaste="return false"
                                    onkeypress="return es_id_ternero(event);">
                             <div id='ms_id_ternero'><p></p></div>
                         </div>
                         <div class="crud-form__field">
                             <label>Estado
-                                <a data-toggle="tooltip" title="Indica si el ternero ya tiene una ficha en el Registro de Animales.">
+                                <a data-toggle="tooltip" title="Indica si la cría ya tiene una ficha en el Registro de Animales.">
                                     <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                                 </a>
                             </label>
@@ -434,7 +435,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 
                     <div class="crud-form__field" id="fichar_id" style="display:none;">
                         <label for="fichar">¿ Ficharlo ?
-                            <a data-toggle="tooltip" title="Si el ternero o la ternera aún no tiene ficha, puedes crearla desde esta opción.">
+                            <a data-toggle="tooltip" title="Si la cría aún no tiene ficha, puedes crearla desde esta opción.">
                                 <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                             </a>
                         </label>
@@ -476,7 +477,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                     </style>
                     <div class="crud-form__field" id="bloque_crias_parto" style="display:none;">
                         <label>Crías del parto
-                            <a data-toggle="tooltip" title="Cada ternero/a lleva su propia ficha. Aquí puedes corregir los datos de cada cría (ID/arete, sexo, peso, si nació y aptitud).">
+                            <a data-toggle="tooltip" title="Cada cría lleva su propia ficha. Aquí puedes corregir los datos de cada cría (ID/arete, sexo, peso, si nació y aptitud).">
                                 <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                             </a>
                         </label>
@@ -586,7 +587,7 @@ $.post("../../controllers/mperiodos_controller", {
     periodoLactanciaDias = parseInt(parsedJson.periodo_lactancia_dias, 10) || 0;
     periodoProduccionLecheDias = parseInt(parsedJson.periodo_prodleche_dias, 10) || 0;
     $("#periodo_prodleche").val(parsedJson.periodo_lactancia);
-    actualizarFechaSecadoNacimiento();
+    actualizarFechaSecadoNacimiento(false);
 });
 
 $(document).ready(function() {
@@ -660,7 +661,7 @@ $(document).ready(function() {
         $("#nombre_h_donadora").val(parsedJson.nombre_animal_dona || '');
         $("#id_ternero").val(parsedJson.id_ternero);
         proposito = $("#proposito").val();
-        actualizarFechaSecadoNacimiento();
+        actualizarFechaSecadoNacimiento(false);
         cargarCriasParto();
     }, "json");
 });
@@ -1049,10 +1050,6 @@ $("#id_ternero").blur(function() {
 
 $('#fecha_parto').datepicker({
     endDate: '+0d', todayBtn: false, todayHighlight: true, autoclose: true,
-    language: 'es', showOnFocus: true
-});
-$('#fecha_secado').datepicker({
-    todayBtn: false, todayHighlight: true, autoclose: true,
     language: 'es', showOnFocus: true
 });
 
@@ -1492,21 +1489,24 @@ $('#fecha_parto').change(function(event) {
     document.getElementById("nacio").disabled = false;
     document.getElementById("proposito").disabled = false;
     document.getElementById("fecha_secado").disabled = false;
-    actualizarFechaSecadoNacimiento();
+    actualizarFechaSecadoNacimiento(true);
 });
 
 $('#proposito').change(function(event) {
-    actualizarFechaSecadoNacimiento();
+    actualizarFechaSecadoNacimiento(true);
 });
 
-function actualizarFechaSecadoNacimiento() {
+function actualizarFechaSecadoNacimiento(forzar) {
     var proposito = $("#proposito").val();
-    /* "Entrar en lactancia" = Sí (2): la fecha de secado es fecha de parto
-       + el período de lactancia configurado en el fundo (PPL). */
     /* "Entrar en lactancia" = Sí (2): fecha de parto + período de
        lactancia del fundo (PBL). */
     var dias = proposito === '2' ? periodoLactanciaDias : 0;
     var partes = $("#fecha_parto").val().split('-');
+
+    if (!forzar && $("#fecha_secado").val() !== "") {
+        return;
+    }
+
     if (dias <= 0 || partes.length !== 3) {
         $("#fecha_secado").val("");
         return;

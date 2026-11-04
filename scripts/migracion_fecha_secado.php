@@ -27,8 +27,9 @@
  *   - Nacimientos: f_parto + PBL (proposito 1) o + PPL (proposito 2), con el
  *     período del fundo y fallback global (mfundos_id = 0).
  *   - Servicios: solo gestantes con último parto y aptitud leche/doble propósito.
- *     Si el servicio fue antes de 180 días del parto → servicio + 210; si no,
- *     parto + PPL (y solo si esa fecha es posterior al servicio).
+ *     Si el servicio fue antes de 180 días del parto → servicio + PSD
+ *     (210 días en ovinos, 120 en caprinos); si no, parto + PPL (y solo si
+ *     esa fecha es posterior al servicio).
  *   - NUNCA borra una fecha existente cuando la regla ya no aplica: solo informa.
  *   - En modo --aplicar guarda el valor anterior en migracion_fecha_secado_log,
  *     agrupado por un código de lote que permite revertir.

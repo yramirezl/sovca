@@ -251,8 +251,8 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                     </div>
 
                     <div class="crud-form__field">
-                        <label for="nro_terneros">Nro.Terneros
-                            <a data-toggle="tooltip" title="Indica la cantidad de terneros que parió la hembra.">
+                        <label for="nro_terneros">Nro. Crías
+                            <a data-toggle="tooltip" title="Indica la cantidad de crías que parió la hembra.">
                                 <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                             </a>
                         </label>
@@ -334,17 +334,27 @@ $(document).ready(function() {
     $.post("../../controllers/mperiodos_controller", {
         action: "get_periodo_palpacion_det"
     }).done(function(data) {
-        var parsedJson = $.parseJSON(data);
-        $("#periodo_palpacion").html(parsedJson.periodo_palpacion);
-        $("#periodo_palpacion").val(parsedJson.periodo_palpacion);
+        var parsedJson = null;
+        try { parsedJson = $.parseJSON(data); } catch (e) { parsedJson = null; }
+
+        if (parsedJson && (typeof parsedJson.periodo_palpacion !== 'undefined')) {
+            $("#periodo_palpacion").html(parsedJson.periodo_palpacion);
+            $("#periodo_palpacion").val(parsedJson.periodo_palpacion);
+            calcularFechaProbablePalpacion(false);
+        }
     });
 
     $.post("../../controllers/mperiodos_controller", {
         action: "search_periodo_gestacion_det"
     }).done(function(data) {
-        var parsedJson = $.parseJSON(data);
-        $("#periodo_gestacion").html(parsedJson.periodo_gestacion);
-        $("#periodo_gestacion").val(parsedJson.periodo_gestacion);
+        var parsedJson = null;
+        try { parsedJson = $.parseJSON(data); } catch (e) { parsedJson = null; }
+
+        if (parsedJson && (typeof parsedJson.periodo_gestacion !== 'undefined')) {
+            $("#periodo_gestacion").html(parsedJson.periodo_gestacion);
+            $("#periodo_gestacion").val(parsedJson.periodo_gestacion);
+            calcularFechaProbableParto(false);
+        }
     });
 
     $.post("../../controllers/mservicios_controller", {
@@ -419,9 +429,24 @@ $(document).ready(function() {
                 }
             }
 
-            $("#dnp").val(parsedJson.dnp);
+            /* DNP = días entre el último parto y el servicio. Si el
+               servicio aún no lo tenía calculado, se calcula al abrir el
+               control para que el productor lo vea sin tocar nada. */
+            var dnpGuardado = parsedJson.dnp;
+            if (!dnpGuardado || Number(dnpGuardado) === 0) {
+                var dnpCalculado = calcularfecha();
+                if (dnpCalculado > 0) {
+                    dnpGuardado = dnpCalculado;
+                }
+            }
+            $("#dnp").val(dnpGuardado);
             $("#observaciones").val(parsedJson.observaciones);
             control = parsedJson.control;
+
+            /* Completa las fechas probables si el servicio se guardó sin
+               ellas (el período puede haber cargado después). */
+            calcularFechaProbablePalpacion(false);
+            calcularFechaProbableParto(false);
         }
 
         if (fecha_fup != "") {
@@ -433,6 +458,11 @@ $(document).ready(function() {
 
 $('#fecha_fp').change(function(event) {
     document.getElementById("estado_fisiologico").disabled = false;
+});
+
+$('#fecha_servicio').on('change changeDate', function() {
+    calcularFechaProbablePalpacion(true);
+    calcularFechaProbableParto(true);
 });
 
 $('#pario').change(function(event) {
@@ -567,32 +597,13 @@ $('#estado_fisiologico').change(function(event) {
         });
     }
 
-    var dias = 0;
     if (valor == '1') {
-        dias = calcularfecha();
+        var dias = calcularfecha();
         $("#dnp").val(dias);
 
-        var fecha_pp = 0;
-        var fecha = $("#fecha_servicio").val();
-        var fecha_pp = 0;
-        var fecha = 0;
-        var dias = 0;
-        if (dias != 0) {
-            dias = dias;
-        } else {
-            dias = parseInt($("#periodo_gestacion").val());
-        }
-        fecha = $("#fecha_servicio").val();
+        /* Fecha probable de parto = fecha de servicio + período PGB (PG). */
+        calcularFechaProbableParto(true);
 
-        var array_fecha = fecha.split('-');
-        var new_fecha = array_fecha[2] + '-' + array_fecha[1] + '-' + array_fecha[0];
-
-        var fecha_pp = new Date(new_fecha);
-        var mifecha = sumarDiasGestacion(fecha_pp, dias);
-
-        fecha_pp = formatDate(mifecha);
-
-        $("#fecha_fppt").val(fecha_pp);
         var aptitud_h = $("#aptitud_h").val();
 
         if ((aptitud_h == 2) || (aptitud_h == 3)) {
@@ -614,6 +625,41 @@ $('#estado_fisiologico').change(function(event) {
     }
     document.getElementById("observaciones").disabled = false;
 });
+
+/* Fecha probable de palpación = fecha de servicio + período PSP (PP). */
+function calcularFechaProbablePalpacion(forzar) {
+    return calcularFechaServicioMasPeriodo('#fecha_fpp', '#periodo_palpacion', forzar);
+}
+
+/* Fecha probable de parto = fecha de servicio + período PGB (PG). */
+function calcularFechaProbableParto(forzar) {
+    return calcularFechaServicioMasPeriodo('#fecha_fppt', '#periodo_gestacion', forzar);
+}
+
+function calcularFechaServicioMasPeriodo(campoDestino, campoDias, forzar) {
+    var fecha = $("#fecha_servicio").val();
+    var dias = parseInt($(campoDias).val(), 10);
+
+    if (!fecha || isNaN(dias) || dias <= 0) {
+        return;
+    }
+
+    if (!forzar && $(campoDestino).val() !== "") {
+        return;
+    }
+
+    var partes = fecha.split('-');
+    if (partes.length !== 3) {
+        return;
+    }
+
+    var fecha_servicio = new Date(partes[2] + '-' + partes[1] + '-' + partes[0]);
+    if (isNaN(fecha_servicio.getTime())) {
+        return;
+    }
+
+    $(campoDestino).val(formatDate(sumarDias(fecha_servicio, dias)));
+}
 
 function CalcularFechaSecado() {
     $.post("../../controllers/mservicios_controller", {
@@ -834,7 +880,7 @@ function ValidarCamposVacios() {
     if (pario == 1) {
         if (nro_terneros == 0) {
             document.getElementById('ms_nro_terneros').style.display = 'block';
-            document.getElementById("ms_nro_terneros").innerHTML = 'Indique Nro de Terneros';
+            document.getElementById("ms_nro_terneros").innerHTML = 'Indique Nro de Crías';
             msj = "ms_nro_terneros";
             setTimeout(function() {
                 document.getElementById(msj).innerHTML = '';
@@ -876,6 +922,7 @@ function Guardar_Control() {
                 id_regservicio: $("#id_regservicio").val(),
                 fecha_fup: $("#fecha_fup").val(),
                 fecha_servicio: $("#fecha_servicio").val(),
+                fecha_fpp: $("#fecha_fpp").val(),
                 fecha_fp: $("#fecha_fp").val(),
                 estado_fisiologico: $("#estado_fisiologico").val(),
                 fecha_fppt: $("#fecha_fppt").val(),

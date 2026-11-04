@@ -131,6 +131,9 @@ const Sync = {
           // Edad mínima del macho para servicio (Parámetros → Períodos).
           // Si el servidor no la manda se asume 365 días (≈12 meses).
           edad_minima_macho_dias: Number(resp.edad_minima_macho_dias || 0) || 365,
+          // Edad mínima de la hembra (Parámetros → Períodos, EHM).
+          // En ovinos y caprinos son 210 días (≈7 meses).
+          edad_minima_hembra_dias: Number(resp.edad_minima_hembra_dias || 0) || 210,
         },
       });
       await Db.guardarSyncMeta(clave, Date.now());

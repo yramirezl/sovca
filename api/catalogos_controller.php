@@ -16,6 +16,7 @@
 
 require_once __DIR__ . '/config/bootstrap.php';
 require_once __DIR__ . '/../lib/edad_macho_helper.php';
+require_once __DIR__ . '/../lib/edad_hembra_helper.php';
 require_once __DIR__ . '/../lib/fecha_secado_helper.php';
 require_once __DIR__ . '/../lib/arete_helper.php';
 require_once '../models/Vusuario.php';
@@ -217,6 +218,10 @@ switch ($action) {
         // que la PWA pueda filtrar y validar sin conexión.
         $edadMinimaMachoDias = bovs_edad_minima_macho_dias($usuario['fundo_id'], $tipoGanaderia);
 
+        // EDAD MÍNIMA DE LA HEMBRA (EHM), en días: en ovinos y caprinos son
+        // 210 días (≈ 7 meses), no 12 meses. Misma regla que la web.
+        $edadMinimaHembraDias = bovs_edad_minima_hembra_dias($usuario['fundo_id'], $tipoGanaderia);
+
         // PERÍODOS DE LACTANCIA (PBL) Y PRODUCCIÓN DE LECHE (PPL), en días.
         // La app offline los usa para calcular sola la fecha de secado de
         // un nacimiento (fecha de parto + período), igual que hace el
@@ -267,6 +272,7 @@ switch ($action) {
             'periodo_lactancia_dias' => $periodoLactanciaDias,
             'periodo_produccion_dias' => $periodoProduccionDias,
             'edad_minima_macho_dias' => $edadMinimaMachoDias,
+            'edad_minima_hembra_dias' => $edadMinimaHembraDias,
             'tipo_ganaderia_id' => $tipoGanaderia,
             'fundo_id' => (int) $usuario['fundo_id'],
             'servidor_ahora' => date('Y-m-d H:i:s'),

@@ -522,6 +522,7 @@ $.post("../../controllers/mperiodos_controller", {
     if (parsedJson && (typeof parsedJson.periodo_palpacion !== 'undefined')) {
         $("#periodo_palpacion").html(parsedJson.periodo_palpacion);
         $("#periodo_palpacion").val(parsedJson.periodo_palpacion);
+        calcularFechaProbablePalpacion(false);
     }
 });
 
@@ -885,26 +886,37 @@ $("#macho_codigo").click(function() {
     }
 });
 
-$('#fecha_servicio').change(function(event) {
-    var fecha_pp = 0;
-    var fecha = 0;
-    var dias = 0;
-    if (dias != 0) {
-        dias = dias;
-    } else {
-        dias = parseInt($("#periodo_palpacion").val());
+/* Fecha probable de palpación = fecha de servicio + período PSP (PP).
+   Se recalcula al cambiar la fecha y, si el campo está vacío, cuando
+   termina de cargar el período por AJAX (antes podía quedar en blanco si
+   el período llegaba después de escribir la fecha). */
+function calcularFechaProbablePalpacion(forzar) {
+    var fecha = $("#fecha_servicio").val();
+    var dias = parseInt($("#periodo_palpacion").val(), 10);
+
+    if (!fecha || isNaN(dias) || dias <= 0) {
+        return;
     }
-    fecha = $("#fecha_servicio").val();
 
-    var array_fecha = fecha.split('-');
-    var new_fecha = array_fecha[2] + '-' + array_fecha[1] + '-' + array_fecha[0];
+    if (!forzar && $("#fecha_fpp").val() !== "") {
+        return;
+    }
 
-    var fecha_pp = new Date(new_fecha);
-    var mifecha = sumarDias(fecha_pp, dias);
+    var partes = fecha.split('-');
+    if (partes.length !== 3) {
+        return;
+    }
 
-    fecha_pp = formatDate(mifecha);
+    var fecha_servicio = new Date(partes[2] + '-' + partes[1] + '-' + partes[0]);
+    if (isNaN(fecha_servicio.getTime())) {
+        return;
+    }
 
-    $("#fecha_fpp").val(fecha_pp);
+    $("#fecha_fpp").val(formatDate(sumarDias(fecha_servicio, dias)));
+}
+
+$('#fecha_servicio').on('change changeDate', function() {
+    calcularFechaProbablePalpacion(true);
 });
 
 function sumarDias(fecha, dias) {
@@ -1702,8 +1714,8 @@ function partesRespuestaBusqueda(data) {
 /* ================================================================
    DIAGNÓSTICO DE LA HEMBRA ESCRITA A MANO
    Si el texto no coincide con ninguna fila del listado, se consulta al
-   servidor por qué: otro fundo, no activa, macho, menor de 12 meses o
-   con un servicio abierto pendiente de cerrar.
+   servidor por qué: otro fundo, no activa, macho, edad mínima (210 días
+   en ovinos/caprinos) o con un servicio abierto pendiente de cerrar.
    ================================================================ */
 var diagHemTimer = null;
 

@@ -46,6 +46,13 @@ $controles = array(
     'views/animales/frm_registrar.php'              => array('bovsFijarSelect', null),
     // Backend
     'controllers/manimales_controller.php'          => array('listar_animales_reporte', null),
+    // Reglas reproductivas y control sanitario (2026-11-03)
+    'controllers/mnacimientos_controller.php'       => array('BETWEEN 4 AND 7', null),
+    'controllers/mdeta_productosxcontrol_controller.php' => array('No se pudo guardar el producto. Detalle', null),
+    'controllers/mcontrolsanitario_controller.php'  => array('session_status() !== PHP_SESSION_ACTIVE', null),
+    'views/controlsanitario/frm_registrar.php'       => array('El botón queda activo desde que se abre el modal', null),
+    'views/nacimientos/index.php'                    => array('El servidor devolvió una respuesta no válida al unificar', null),
+    'app_offline/service-worker.js'                  => array('sovca-shell-v5', null),
     // Assets del selector y del teclado
     'css/servicio-selector.css'                     => array('.sel-animal', null),
     'js/servicio-selector.js'                       => array('bovsSelectorAnimal', null),
@@ -57,7 +64,7 @@ $controles = array(
     // PWA
     // (la versión del frontend ya no se compara por número: desde V1.nnnnn la
     //  revisión cambia en cada entrega, así que solo se comprueba el archivo)
-    'app_offline/versiones.json'                    => array('"actual"', null),
+    'app_offline/versiones.json'                    => array('"actual": "1.00047"', null),
     'app_offline/service-worker.php'                => array('VERSION_CACHE', null),
 );
 

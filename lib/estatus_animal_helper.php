@@ -146,14 +146,25 @@ if (!function_exists('bovs_estatus_animal_catalogo')) {
         static $cache = null;
 
         if ($cache === null) {
-            $cache = bovs_estatus_animal_base();
+            $base  = bovs_estatus_animal_base();
+            $cache = $base;
 
             $filas = _ea_q('SELECT id, nombre, sexo, status, orden FROM mestatusanimales ORDER BY orden, id');
             foreach ($filas as $fila) {
-                $id = intval($fila['id']);
+                $id        = intval($fila['id']);
+                $sexo_fila = intval($fila['sexo']);
+
+                /* Si la columna `sexo` del catálogo quedó en 0 ("ambos")
+                   para un estatus base, se aplica la regla de
+                   bovs_estatus_animal_base(): el filtro por sexo debe
+                   funcionar aunque la BD no se haya sembrado/actualizado. */
+                if ($sexo_fila === 0 && isset($base[$id])) {
+                    $sexo_fila = intval($base[$id]['sexo']);
+                }
+
                 $cache[$id] = array(
                     'nombre' => (string) $fila['nombre'],
-                    'sexo'   => intval($fila['sexo']),
+                    'sexo'   => $sexo_fila,
                     'status' => isset($fila['status']) ? intval($fila['status']) : 1,
                     'orden'  => isset($fila['orden']) ? intval($fila['orden']) : $id,
                 );

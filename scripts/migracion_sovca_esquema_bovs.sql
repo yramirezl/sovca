@@ -2493,10 +2493,18 @@ CREATE VIEW public.vmregnacimientos_old AS
 -- ============================================================================
 -- 11) DATOS SEMILLA DE CATÁLOGOS NUEVOS
 -- ============================================================================
-INSERT INTO public.mestatusanimales (id, nombre)
-SELECT * FROM (VALUES (1,'ACTIVO'),(2,'DONADOR ACTIVO'),(3,'DONADOR'),
-                      (4,'DONADORA ACTIVO'),(5,'DONADORA')) AS v(id,nombre)
+INSERT INTO public.mestatusanimales (id, nombre, sexo)
+SELECT * FROM (VALUES (1,'ACTIVO',0),(2,'DONADOR ACTIVO',2),(3,'DONADOR',2),
+                      (4,'DONADORA ACTIVO',1),(5,'DONADORA',1)) AS v(id,nombre,sexo)
 ON CONFLICT (id) DO NOTHING;
+
+/* Corrige catálogos ya sembrados con sexo = 0 en todos los estatus:
+   sin esto, la ficha del animal ofrece DONADOR (macho) a las hembras. */
+UPDATE public.mestatusanimales m
+   SET sexo = v.sexo
+  FROM (VALUES (1,0),(2,2),(3,2),(4,1),(5,1)) AS v(id,sexo)
+ WHERE m.id = v.id
+   AND m.sexo IS DISTINCT FROM v.sexo;
 
 INSERT INTO public.msuscripciones (id, descripcion, cantidad_dias)
 SELECT * FROM (VALUES (1,'Mensual',30),(2,'Trimestral',90),

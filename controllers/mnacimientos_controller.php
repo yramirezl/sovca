@@ -128,6 +128,7 @@ function construirGruposUnificacionNacimiento($mfundos_id)
     $estados_ficha = array();
     $numeros_parto = array();
     $ids_crias = array();
+    $crias_sin_id = 0;
     $cantidad_crias = 0;
     $bloqueos = array();
     $avisos = array();
@@ -151,49 +152,63 @@ function construirGruposUnificacionNacimiento($mfundos_id)
       $fichado = in_array($fila->fichado, array(true, 1, '1', 't', 'true'), true);
       $estados_ficha[$fichado ? '1' : '0'] = true;
 
-      $cantidad_crias += max(1, (int)$fila->cantidad_terneros);
       $ids_registro = json_decode((string)$fila->ids_terneros, true);
       if (!is_array($ids_registro) || count($ids_registro) === 0) {
         $ids_registro = array($fila->id_ternero);
       }
+      $ids_fila = array();
       foreach ($ids_registro as $id_cria) {
         $id_cria = strtoupper(trim((string)$id_cria));
         if ($id_cria === '') {
           continue;
         }
+        $ids_fila[$id_cria] = true;
         if (isset($ids_crias[$id_cria])) {
-          $bloqueos[] = 'Hay IDs de cría repetidos entre los registros.';
+          /* La misma cría registrada en varios partos duplicados: no impide
+             unificar, se conserva un solo detalle al consolidar. */
+          $avisos[] = 'Hay IDs de cría repetidos; al unificar se conserva un solo registro por cría.';
+        } else {
+          $ids_crias[$id_cria] = true;
         }
-        $ids_crias[$id_cria] = true;
+      }
+      if (count($ids_fila) === 0) {
+        $crias_sin_id++;
       }
     }
 
     if (count($servicios) > 1) {
-      $bloqueos[] = 'Los registros pertenecen a servicios distintos.';
+      $avisos[] = 'Los registros apuntan a servicios distintos; al unificar se conserva el del primer registro informado.';
     }
     if (count($estados_ficha) > 1) {
-      $bloqueos[] = 'Los registros tienen estados de ficha distintos.';
+      $avisos[] = 'Los registros tienen estados de ficha distintos; al unificar se conserva el estado de ficha del registro principal.';
     }
 
     /* Números de parto distintos: el sistema numera solo, así que el MISMO
-       parto registrado dos veces queda con 2 y 3. Antes esto descartaba el
-       grupo (`return`) y el productor no podía hacer nada; ahora se ofrece
-       con aviso cuando los números son consecutivos y solo se bloquea cuando
-       la diferencia es grande, que es cuando sí parecen dos partos reales. */
+       parto registrado varias veces puede quedar con 1, 2 y 3. Se permite
+       mientras sean consecutivos (sin saltos); un salto indica que son
+       partos diferentes de la misma fecha. */
     if (count($numeros_parto) > 1) {
       $nros = array_keys($numeros_parto);
       sort($nros, SORT_NUMERIC);
-      $menor = (int) $nros[0];
-      $mayor = (int) $nros[count($nros) - 1];
 
-      if (($mayor - $menor) <= 1) {
-        $avisos[] = 'Los números de parto no coinciden (' . $menor . ' y ' . $mayor
-          . '): al anular se conserva el del registro que queda y al unificar se toma el menor.';
+      $consecutivos = true;
+      for ($i = 1; $i < count($nros); $i++) {
+        if ((int) $nros[$i] !== ((int) $nros[$i - 1] + 1)) {
+          $consecutivos = false;
+          break;
+        }
+      }
+
+      if ($consecutivos) {
+        $avisos[] = 'Los números de parto no coinciden (' . implode(', ', $nros)
+          . '): son consecutivos; al unificar se toma el menor.';
       } else {
-        $bloqueos[] = 'Los números de parto son muy distintos (' . $menor . ' y ' . $mayor
-          . '): parecen dos partos diferentes de la misma fecha.';
+        $avisos[] = 'Los números de parto no son consecutivos (' . implode(', ', $nros)
+          . '); si se trata de partos distintos de la misma fecha, no los unifiques.';
       }
     }
+
+    $cantidad_crias = count($ids_crias) + $crias_sin_id;
 
     $ids = array_values(array_unique($ids));
     sort($ids, SORT_NUMERIC);
@@ -343,7 +358,7 @@ if (!function_exists('nac_resumen_error')) {
 switch ($action) {
 
   case 'analizar_unificacion_nacimientos':
-    session_start();
+    if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
     $mfundos_id = (int)$_SESSION['mfundos_id'];
     $rol = (int)$_SESSION['rolx'];
     if (!in_array($rol, array(1, 2), true)) {
@@ -371,7 +386,7 @@ switch ($action) {
     break;
 
   case 'unificar_nacimientos':
-    session_start();
+    if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
     $mfundos_id = (int)$_SESSION['mfundos_id'];
     $usuario_id = (int)$_SESSION['idusuariox'];
     $rol = (int)$_SESSION['rolx'];
@@ -511,6 +526,35 @@ switch ($action) {
             ORDER BY ABS(nro_ternero), id",
           array($id_principal)
         );
+
+        /* Si la misma cría quedó registrada en más de un parto duplicado,
+           se conserva un solo detalle activo para no duplicar la cría. */
+        $ids_cria_vistos = array();
+        $hubo_cria_repetida = false;
+        foreach ($detalles_consolidados as $detalle) {
+          $id_cria = strtoupper(trim((string)$detalle->id_ternero));
+          if ($id_cria === '') {
+            continue;
+          }
+          if (isset($ids_cria_vistos[$id_cria])) {
+            $conexion->query(
+              "UPDATE public.mternerosxnacimientos SET status = 0 WHERE id = ?",
+              array((int)$detalle->id)
+            );
+            $hubo_cria_repetida = true;
+          } else {
+            $ids_cria_vistos[$id_cria] = true;
+          }
+        }
+        if ($hubo_cria_repetida) {
+          $detalles_consolidados = Mterneroxnacimiento::find_by_sql(
+            "SELECT * FROM public.mternerosxnacimientos
+              WHERE status = 1 AND mregnacimientos_id = ?
+              ORDER BY ABS(nro_ternero), id",
+            array($id_principal)
+          );
+        }
+
         foreach ($detalles_consolidados as $indice => $detalle) {
           /* ⚠️ find_by_sql() devuelve modelos en SOLO LECTURA (AR le pasa
              readonly=true), así que $detalle->save() lanzaría
@@ -524,6 +568,31 @@ switch ($action) {
         $principal_actual = Mregnacimiento::find($id_principal);
         if (!$principal_actual) {
           throw new RuntimeException('No se encontró el nacimiento que debía conservarse.');
+        }
+        /* Si el registro principal no tenía cría identificada, se toma el
+           primer código no vacío de los duplicados para no perder el vínculo
+           con la ficha del animal. */
+        if (trim((string)$principal_actual->codigo_ternero) === '') {
+          foreach ($registros as $registro) {
+            $codigo_candidato = trim((string)$registro->codigo_ternero);
+            if ($codigo_candidato !== '') {
+              $principal_actual->codigo_ternero = $codigo_candidato;
+              break;
+            }
+          }
+        }
+
+        /* Si cualquiera de los registros estaba fichado, el consolidado
+           también queda fichado. */
+        $fichado_consolidado = false;
+        foreach ($registros as $registro) {
+          if (in_array($registro->fichado, array(true, 1, '1', 't', 'true'), true)) {
+            $fichado_consolidado = true;
+            break;
+          }
+        }
+        if ($fichado_consolidado) {
+          $principal_actual->fichado = true;
         }
         if (count($detalles_consolidados) > 0) {
           $primera_cria = $detalles_consolidados[0];
@@ -646,15 +715,18 @@ switch ($action) {
     } catch (Throwable $e) {
       $conexion->rollback();
       error_log('Error al unificar nacimientos: ' . $e->getMessage());
+      $detalle = ($e instanceof RuntimeException)
+        ? ' ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')
+        : ' ' . htmlspecialchars(nac_resumen_error($e->getMessage()), ENT_QUOTES, 'UTF-8');
       echo json_encode(array(
         'resultado' => 'error',
-        'mensaje' => '<div class="alert alert-danger">No se completó la unificación; todos los cambios fueron revertidos. Vuelve a analizar los grupos e inténtalo de nuevo.</div>'
+        'mensaje' => '<div class="alert alert-danger">No se completó la unificación; todos los cambios fueron revertidos.' . $detalle . ' Vuelve a analizar los grupos e inténtalo de nuevo.</div>'
       ));
     }
     break;
 
   case 'anular_nacimientos_duplicados':
-    session_start();
+    if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
     $mfundos_id = (int)$_SESSION['mfundos_id'];
     $usuario_id = (int)$_SESSION['idusuariox'];
     $rol = (int)$_SESSION['rolx'];
@@ -1011,7 +1083,7 @@ switch ($action) {
                AND COALESCE(s.parto, 0) = 0
                AND s.f_servicio::date <= CURRENT_DATE
                AND (EXTRACT(YEAR FROM age(CURRENT_DATE, s.f_servicio::date)) * 12
-                    + EXTRACT(MONTH FROM age(CURRENT_DATE, s.f_servicio::date))) BETWEEN 7 AND 10" .
+                    + EXTRACT(MONTH FROM age(CURRENT_DATE, s.f_servicio::date))) BETWEEN 4 AND 7" .
                $condicionBusqueda . "
           ORDER BY s.f_servicio DESC, s.id DESC
              LIMIT 25";
@@ -1870,11 +1942,11 @@ switch ($action) {
                  AND s.medofisiologicos_id=1
                  AND COALESCE(s.parto, 0)=0
                  AND s.f_servicio::date<=CURRENT_DATE
-                 AND $mesesGestacionSql BETWEEN 7 AND 10
+                 AND $mesesGestacionSql BETWEEN 4 AND 7
                LIMIT 1", array($mregservicios_id, $mfundos_id));
           if (!$serviciosValidos || count($serviciosValidos) !== 1) {
             $conexion->rollback();
-            echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning">El servicio ya no está disponible o no cumple las condiciones de gestación de 7 a 10 meses.</div>'));
+            echo json_encode(array('resultado' => 'error', 'mensaje' => '<div class="alert alert-warning">El servicio ya no está disponible o no cumple las condiciones de gestación de 4 a 7 meses.</div>'));
             break;
           }
           $servicio_gestante = $serviciosValidos[0];

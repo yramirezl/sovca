@@ -15,8 +15,12 @@
  *   2. Si la hembra está gestante (el control del servicio así lo indica),
  *      existe fecha de último parto y el servicio se registró ANTES de
  *      180 días desde ese parto, la fecha de secado se programa a los
- *      210 días de la FECHA DE SERVICIO. Es el "ajuste" que evita que la
- *      lactancia se solape con el último tercio de la gestación.
+ *      días del período PSD (Período de secado) de la FECHA DE SERVICIO.
+ *      En ovinos el valor histórico es 210 días; en caprinos son 120 días
+ *      (4 meses), porque la lactancia de las cabras es más corta. Si el
+ *      fundo no tiene PSD configurado se usa 210/120 según la especie.
+ *      Es el "ajuste" que evita que la lactancia se solape con el último
+ *      tercio de la gestación.
  *   3. En el resto de los casos (servicio a los 180 días o más desde el
  *      parto) se respeta el ciclo normal de lactancia: FECHA DE PARTO +
  *      período de producción de leche (PPL) configurado en el fundo. Es
@@ -33,8 +37,12 @@
  */
 
 if (!defined('SOVCA_SECADO_DIAS_AJUSTE')) {
-    /** Días desde el servicio para el cierre anticipado de lactancia (regla de la imagen). */
+    /** Días desde el servicio para el cierre anticipado de lactancia (ovinos). */
     define('SOVCA_SECADO_DIAS_AJUSTE', 210);
+}
+if (!defined('SOVCA_SECADO_DIAS_AJUSTE_CAPRINO')) {
+    /** Días desde el servicio para el cierre anticipado de lactancia en caprinos (4 meses). */
+    define('SOVCA_SECADO_DIAS_AJUSTE_CAPRINO', 120);
 }
 if (!defined('SOVCA_SECADO_DIAS_MINIMOS_PARTO_SERVICIO')) {
     /** Días mínimos entre el último parto y el servicio para considerar el ajuste. */
@@ -109,6 +117,36 @@ if (!function_exists('bovs_periodo_reproductivo_dias')) {
         );
 
         $fila = $consulta ? $consulta->fetch(PDO::FETCH_ASSOC) : false;
+
+        /* Respaldo: instalaciones migradas de BOVS que todavía tienen
+           `codper_bov = '0'`. Se busca el período por su nombre canónico
+           (el mismo criterio de scripts/migracion_periodos_codper_bov.sql). */
+        if (!$fila || !isset($fila['dias_gestacion'])) {
+            $patrones = array(
+                'PGB' => 'PERIODO DE GESTACION%',
+                'PSP' => 'PERIODO SERVICIO/PALPACION%',
+                'PPS' => 'PERIODO PARTO/SERVICIO%',
+                'PPL' => 'PERIODO DE PRODUC%LECHE%',
+                'PBL' => 'PERIODO DE LACTANCIA%',
+                'PSD' => 'PERIODO DE SECADO%',
+            );
+
+            if (isset($patrones[$codigo])) {
+                $consulta = $conexion->query(
+                    "SELECT dias_gestacion
+                       FROM mperiodos
+                      WHERE mfundos_id IN (?, 0)
+                        AND mtipoganaderias_id = ?
+                        AND status = 1
+                        AND upper(nombre) LIKE ?
+                   ORDER BY CASE WHEN mfundos_id = ? THEN 0 ELSE 1 END, id DESC
+                      LIMIT 1",
+                    array((int)$mfundos_id, (int)$tipo_ganaderia, $patrones[$codigo], (int)$mfundos_id)
+                );
+                $fila = $consulta ? $consulta->fetch(PDO::FETCH_ASSOC) : false;
+            }
+        }
+
         if (!$fila || !isset($fila['dias_gestacion'])) {
             return 0;
         }
@@ -175,15 +213,24 @@ if (!function_exists('bovs_calcular_secado_servicio')) {
             return $resultado;
         }
 
-        // (2) Ajuste de la imagen: servicio antes de 180 días post-parto.
+        // (2) Ajuste: servicio antes de 180 días post-parto.
         if ($dias_desde_parto < SOVCA_SECADO_DIAS_MINIMOS_PARTO_SERVICIO) {
+            /* Días de secado configurables (PSD). Si no existe el período,
+               se usan 210 días en ovinos y 120 en caprinos (4 meses). */
+            $dias_ajuste = bovs_periodo_reproductivo_dias('PSD', $mfundos_id, $tipo_ganaderia);
+            if ($dias_ajuste <= 0) {
+                $dias_ajuste = ((int)$tipo_ganaderia === 2)
+                    ? SOVCA_SECADO_DIAS_AJUSTE_CAPRINO
+                    : SOVCA_SECADO_DIAS_AJUSTE;
+            }
+
             $fecha = clone $servicio;
-            $fecha->modify('+' . SOVCA_SECADO_DIAS_AJUSTE . ' days');
+            $fecha->modify('+' . $dias_ajuste . ' days');
             $resultado['fecha'] = $fecha;
-            $resultado['regla'] = 'AJUSTE_' . SOVCA_SECADO_DIAS_AJUSTE;
-            $resultado['dias_periodo'] = SOVCA_SECADO_DIAS_AJUSTE;
+            $resultado['regla'] = 'AJUSTE_' . $dias_ajuste;
+            $resultado['dias_periodo'] = $dias_ajuste;
             $resultado['mensaje'] = 'Servicio antes de los 180 días post-parto: secado a los '
-                . SOVCA_SECADO_DIAS_AJUSTE . ' días del servicio.';
+                . $dias_ajuste . ' días del servicio (período PSD del fundo).';
             return $resultado;
         }
 

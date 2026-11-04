@@ -48,7 +48,7 @@ $crud = [
         '<button id="unificar_nacimiento" type="button" class="crud-btn crud-btn--warning" style="display:none" enabled><i class="fa fa-clone"></i> <span>Revisar duplicados</span></button>',
 
     'columns' => [
-        ['data' => 'codigo_ternero',                'title' => 'Código del Ternero'],
+        ['data' => 'codigo_ternero',                'title' => 'Código de la Cría'],
         ['data' => 'terneros',                      'title' => 'Crías del Parto'],
         ['data' => 'fichado',                       'title' => 'Estado'],
         ['data' => 'codigo_rgb_id_animal_hembra',   'title' => 'Código / HEMBRA'],
@@ -128,7 +128,14 @@ $crud = [
             boton.prop('disabled', true);
             $.post('../../controllers/mnacimientos_controller', {
                 action: 'analizar_unificacion_nacimientos'
-            }, null, 'json').done(function(respuesta) {
+            }, null, 'text').done(function(data) {
+                var respuesta;
+                try {
+                    respuesta = (typeof data === 'object') ? data : JSON.parse(data);
+                } catch (e) {
+                    crud.dialogInfo('El servidor devolvió una respuesta no válida al analizar: ' + String(data).slice(0, 300));
+                    return;
+                }
                 if (respuesta.resultado !== 'ok') {
                     crud.dialogInfo(respuesta.mensaje || 'No se pudo analizar los nacimientos.');
                     return;
@@ -184,20 +191,35 @@ $crud = [
                         $.post('../../controllers/mnacimientos_controller', {
                             action: 'unificar_nacimientos',
                             grupos: JSON.stringify(seleccionados)
-                        }, null, 'json').done(function(resultado) {
+                        }, null, 'text').done(function(data) {
+                            var resultado;
+                            try {
+                                resultado = (typeof data === 'object') ? data : JSON.parse(data);
+                            } catch (e) {
+                                crud.dialogInfo('El servidor devolvió una respuesta no válida al unificar: ' + String(data).slice(0, 300));
+                                return;
+                            }
                             $('.message').html(resultado.mensaje || '');
                             if (resultado.resultado === 'ok') {
                                 setTimeout(function() { window.location.reload(); }, 1800);
+                            } else if (!resultado.mensaje) {
+                                crud.dialogInfo('No se pudo completar la unificación. No se aplicaron cambios.');
                             }
-                        }).fail(function() {
-                            crud.dialogInfo('No se pudo completar la unificación. No se aplicaron cambios.');
+                        }).fail(function(xhr) {
+                            var detalle = (xhr && xhr.responseText)
+                                ? String(xhr.responseText).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 250)
+                                : '';
+                            crud.dialogInfo('No se pudo completar la unificación. No se aplicaron cambios.' + (detalle ? ' Detalle: ' + detalle : ''));
                         }).always(function() {
                             boton.prop('disabled', false);
                         });
                     }
                 });
-            }).fail(function() {
-                crud.dialogInfo('No se pudo consultar los nacimientos coincidentes.');
+            }).fail(function(xhr) {
+                var detalle = (xhr && xhr.responseText)
+                    ? String(xhr.responseText).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 250)
+                    : '';
+                crud.dialogInfo('No se pudo consultar los nacimientos coincidentes.' + (detalle ? ' Detalle: ' + detalle : ''));
             }).always(function() {
                 boton.prop('disabled', false);
             });

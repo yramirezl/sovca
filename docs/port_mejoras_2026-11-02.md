@@ -17,6 +17,9 @@ Migraciones aplicadas en **`sovca`** y **`sovca_demo`** (todas idempotentes):
 | `scripts/migracion_alerta_palpacion.sql` | Vista `v_palpacion_alertas` corregida (motivo siempre informado, solo ciclos abiertos, 7 días). |
 | `scripts/migracion_vmregnacimientos_tipo_servicio.sql` / `migracion_vmregnacimientos_sin_duplicados.sql` | Vista `vmregnacimientos` con LEFT JOIN y `LATERAL … LIMIT 1`. Conserva las columnas propias de SOVCA (`lactancia`, `raza`). |
 | `scripts/migracion_edad_minima_macho.sql` | Período `EMM` (365 días) para ovinos y caprinos. |
+| `scripts/migracion_edad_minima_hembra.sql` | Período `EHM` (210 días) para ovinos y caprinos. |
+| `scripts/migracion_periodos_codper_bov.sql` | Asigna `codper_bov` (PSP/PGB/PPS/PPL/PBL) a los períodos migrados desde BOVS. |
+| `scripts/migracion_secado_caprino_120.sql` | Períodos `PSD` (210 ovino / 120 caprino) y `PBL` (120) para el destete. |
 | `scripts/migracion_correlativos_contador.sql` | Contadores de animales, nacimientos y servicios alineados con los códigos ya usados. |
 | `scripts/migracion_servicios_contador.sql` | Mismo ajuste para `codigo_servicio`. |
 | `scripts/migracion_conexiones_consolidar.sql` | Une las filas duplicadas de una misma sesión en `conexiones_historial`. |

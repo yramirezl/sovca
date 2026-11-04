@@ -5,7 +5,7 @@
 // (../api/...) NUNCA se cachean aquí — esas las gestiona sync.js contra
 // IndexedDB, que es donde vive la verdad de los datos offline.
 
-const VERSION_CACHE = 'sovca-shell-v4'; // v4: port completo de mejoras SOVCA (inicio, aretes, servicios, nacimientos)
+const VERSION_CACHE = 'sovca-shell-v5'; // v5: reglas reproductivas y control sanitario (2026-11-03)
 
 const ARCHIVOS_SHELL = [
   './',

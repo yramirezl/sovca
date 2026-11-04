@@ -4583,6 +4583,9 @@ async function poblarSelectAnimalesServicios() {
   // Antes la app no miraba la edad y dejaba elegir un becerro de 6 meses
   // como toro de monta.
   const edadMinimaMachoDias = Number(parametros.edad_minima_macho_dias) || 365;
+  // Edad mínima de la hembra: 210 días en ovinos y caprinos (≈7 meses),
+  // configurable en la web (Parámetros → Períodos → EHM).
+  const edadMinimaHembraDias = Number(parametros.edad_minima_hembra_dias) || 210;
   const servicios = await Servicios.listar();
 
   const hembrasActivas = animales.filter(
@@ -4594,8 +4597,8 @@ async function poblarSelectAnimalesServicios() {
   // rechazo recién llegaba al guardar ("La hembra ya tiene un servicio
   // activo…"), después de cargar todo el formulario.
   const hembras = hembrasActivas.filter((animal) => {
-    const meses = mesesCompletosDesde(animal.f_nacimiento);
-    if (meses === null || meses < EDAD_MINIMA_HEMBRA_MESES) return false;
+    const dias = diasDesdeNacimiento(animal.f_nacimiento);
+    if (dias === null || dias < edadMinimaHembraDias) return false;
     return !hembraTieneServicioAbierto(animal.codigo_rgb_id_animal, servicios);
   });
 
@@ -4616,8 +4619,9 @@ async function poblarSelectAnimalesServicios() {
   poblarSelectAnimalesDesdeLista('servicios-dona', donadoras, 'Selecciona donadora...');
 }
 
-/** Edad mínima de la hembra para servicio (meses). Misma regla que la web. */
-const EDAD_MINIMA_HEMBRA_MESES = 12;
+/** Edad mínima de la hembra para servicio (días). Misma regla que la web:
+ *  210 días (≈7 meses) en ovinos y caprinos, configurable con el período EHM. */
+const EDAD_MINIMA_HEMBRA_DIAS = 210;
 
 /**
  * ¿Esta hembra ya tiene un ciclo abierto? Misma regla que
@@ -4712,9 +4716,12 @@ async function numeroServicioParaHembra(codigoHembra, mostrarError = true) {
     return fallar('La hembra no está activa o no pertenece a los animales disponibles de este fundo. Sincroniza los datos e inténtalo de nuevo.');
   }
 
-  const edadMeses = mesesCompletosDesde(hembra.f_nacimiento);
-  if (edadMeses === null || edadMeses < 12) {
-    return fallar('La hembra debe tener al menos 12 meses y una fecha de nacimiento registrada.');
+  const parametrosHembra = (await Db.obtenerCatalogo('parametros_servicios')) || {};
+  const minimoHembraDias = Number(parametrosHembra.edad_minima_hembra_dias) || EDAD_MINIMA_HEMBRA_DIAS;
+  const edadDias = diasDesdeNacimiento(hembra.f_nacimiento);
+  if (edadDias === null || edadDias < minimoHembraDias) {
+    return fallar('La hembra debe tener al menos ' + Math.round(minimoHembraDias / 30.4375)
+      + ' meses (' + minimoHembraDias + ' días) y una fecha de nacimiento registrada.');
   }
 
   const servicios = await Servicios.listar();
@@ -5681,8 +5688,8 @@ async function mostrarServicioEnNacimiento(servicio) {
  * fuera de ese rango, el registro sube y el servidor lo rechaza siempre,
  * que es justo el bucle que hay que evitar.
  */
-const MESES_MIN_GESTACION = 7;
-const MESES_MAX_GESTACION = 12;
+const MESES_MIN_GESTACION = 4;
+const MESES_MAX_GESTACION = 7;
 
 /**
  * Motivo por el que un servicio NO sirve como origen de un parto, o

@@ -57,61 +57,71 @@ switch ($action) {
         } else {
             //( A )
 
-            session_start();
+            if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
             @$usuario_id = $_SESSION['idusuariox'];
             $id_sesion_usuario = $_SESSION['instante'];
             $mfundos_id = $_SESSION['mfundos_id'];
 
             $hoy = date('d-m-Y');
+            $conexion = null;
 
-            $reg_prod_control_sanitario = new Mdetacrlsanitario();
+            try {
+                $reg_prod_control_sanitario = new Mdetacrlsanitario();
 
-            $reg_prod_control_sanitario->mcontrolsanitarios_id = $id_control_sanit;
+                $reg_prod_control_sanitario->mcontrolsanitarios_id = $id_control_sanit;
 
-            $reg_prod_control_sanitario->mproductos_id = $producto;
-            $reg_prod_control_sanitario->dosis = $dosis;
-            $reg_prod_control_sanitario->detalles = $detalles_indicaciones;
+                $reg_prod_control_sanitario->mproductos_id = $producto;
+                $reg_prod_control_sanitario->dosis = $dosis;
+                $reg_prod_control_sanitario->detalles = $detalles_indicaciones;
 
-            $reg_prod_control_sanitario->mfundos_id = $mfundos_id;
+                $reg_prod_control_sanitario->mfundos_id = $mfundos_id;
 
-            $reg_prod_control_sanitario->user_create = $usuario_id;
-            $reg_prod_control_sanitario->created = $hoy;
+                $reg_prod_control_sanitario->user_create = $usuario_id;
+                $reg_prod_control_sanitario->created = $hoy;
 
-            $conexion = Mcontrolsanitario::connection();
-            $conexion->transaction();
-            if ($reg_prod_control_sanitario->save()) {
-                $controlActualizado = marcar_control_sanitario_actualizado(
-                    (int) $id_control_sanit,
-                    (int) $mfundos_id,
-                    (int) $usuario_id
-                );
+                $conexion = Mcontrolsanitario::connection();
+                $conexion->transaction();
+                if ($reg_prod_control_sanitario->save()) {
+                    $controlActualizado = marcar_control_sanitario_actualizado(
+                        (int) $id_control_sanit,
+                        (int) $mfundos_id,
+                        (int) $usuario_id
+                    );
 
-                if ($controlActualizado) {
-                    $conexion->commit();
+                    if ($controlActualizado) {
+                        $conexion->commit();
 
-                    $respuesta = array('resultado' => 'ok', 'mensaje' => '<div class="alert alert-success alert-dismissable">
-             <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
-             <h4>
-             <i class="icon fa fa-check"></i>
-             Excelente!
-             </h4>
-             Los datos han sido registrados exitosamente!.
-             </div>');
-                } else {
-                    $conexion->rollBack();
-                    $respuesta = array('resultado' => 'error', 'mensaje' => 'No se pudo actualizar el control sanitario. No se guardó el producto.');
-                }
-            } else {
-                $conexion->rollBack();
-
-                $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
+                        $respuesta = array('resultado' => 'ok', 'mensaje' => '<div class="alert alert-success alert-dismissable">
                  <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                  <h4>
-                 <i class="icon fa fa-ban"></i>
-                 Alerta!
+                 <i class="icon fa fa-check"></i>
+                 Excelente!
                  </h4>
-                 Error al registrar los datos.
+                 Los datos han sido registrados exitosamente!.
                  </div>');
+                    } else {
+                        $conexion->rollBack();
+                        $respuesta = array('resultado' => 'error', 'mensaje' => 'No se pudo actualizar el control sanitario. No se guardó el producto.');
+                    }
+                } else {
+                    $conexion->rollBack();
+
+                    $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
+                     <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
+                     <h4>
+                     <i class="icon fa fa-ban"></i>
+                     Alerta!
+                     </h4>
+                     Error al registrar los datos.
+                     </div>');
+                }
+            } catch (Throwable $e) {
+                if ($conexion) {
+                    try { $conexion->rollBack(); } catch (Throwable $e2) { /* sin transacción */ }
+                }
+                error_log('[control sanitario] add_productos: ' . $e->getMessage());
+                $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudo guardar el producto. Detalle: '
+                    . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</div>');
             }
         }
         echo json_encode($respuesta);
@@ -147,7 +157,7 @@ switch ($action) {
         } else {
             //( A )
 
-            session_start();
+            if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
             @$usuario_id = $_SESSION['idusuariox'];
             $id_sesion_usuario = $_SESSION['instante'];
             $mfundos_id = $_SESSION['mfundos_id'];
@@ -244,7 +254,7 @@ switch ($action) {
         } else {
 
 
-            session_start();
+            if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
             @$usuario_id = $_SESSION['idusuariox'];
             $id_sesion_usuario = $_SESSION['instante'];
             $mfundos_id = $_SESSION['mfundos_id'];

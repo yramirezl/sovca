@@ -709,7 +709,10 @@ function HabilitarProducto() {
     document.getElementById("dosis").disabled = true;
     document.getElementById("detalles_indicaciones").disabled = true;
     document.getElementById("cancelar").disabled = false;
-    document.getElementById("incluir").disabled = true;
+    /* El botón queda activo desde que se abre el modal: si el navegador no
+       dispara "change" al elegir el producto, el clic igual muestra la
+       validación en lugar de quedar bloqueado sin explicación. */
+    document.getElementById("incluir").disabled = false;
     $("#producto").val(null);
     $("#dosis").val(null);
     $("#detalles_indicaciones").val(null);
@@ -832,15 +835,42 @@ $('#quitar').click(function() {
 });
 
 $("#incluir").click(function() {
+    var boton = $(this);
+    var producto = $("#producto").val();
+    var dosis = $.trim($("#dosis").val());
+
+    if (!producto) {
+        $(".message1").html('<div class="alert alert-warning">Selecciona el producto.</div>');
+        return;
+    }
+    if (dosis === '') {
+        $(".message1").html('<div class="alert alert-warning">Indica la dosis aplicada.</div>');
+        return;
+    }
+
+    boton.prop('disabled', true);
+
     $.post("../../controllers/mdeta_productosxcontrol_controller", {
         action: "add_productos",
         id_control_sanit: id_contsanitario,
-        producto: $("#producto").val(),
-        dosis: $("#dosis").val(),
+        producto: producto,
+        dosis: dosis,
         detalles_indicaciones: $("#detalles_indicaciones").val()
     }).done(function(data) {
-        var parsedJson = $.parseJSON(data);
-        $(".message1").html(parsedJson.mensaje);
+        var parsedJson = null;
+        try {
+            parsedJson = (typeof data === 'string') ? $.parseJSON(data) : data;
+        } catch (e) {
+            parsedJson = null;
+        }
+
+        if (!parsedJson) {
+            $(".message1").html('<div class="alert alert-danger">No se pudo leer la respuesta del servidor. Vuelve a intentarlo.</div>');
+            boton.prop('disabled', false);
+            return;
+        }
+
+        $(".message1").html(parsedJson.mensaje || '');
         if (parsedJson.resultado != 'error') {
             LimpiarModal();
             setTimeout(function() {
@@ -850,8 +880,13 @@ $("#incluir").click(function() {
                 CargarDetalles();
                 document.getElementById('nuevo').disabled = false;
             }, 1500);
+        } else {
+            boton.prop('disabled', false);
         }
-    }, "json");
+    }).fail(function() {
+        $(".message1").html('<div class="alert alert-danger">No se pudo guardar el producto. Inténtalo de nuevo.</div>');
+        boton.prop('disabled', false);
+    });
 });
 
 function LimpiarModal() {

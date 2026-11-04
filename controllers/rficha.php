@@ -58,6 +58,15 @@ function fx($val, $fmt = 'd-m-Y') {
     return '';
 }
 
+/* ---------- Texto seguro para FPDF ----------
+   Las fuentes core de FPDF son Latin-1: utf8_decode('—') devuelve '?', así
+   que los campos sin dato se imprimían con signos de interrogación. Se
+   normalizan los guiones largos a un guión simple. */
+function ficha_txt($val) {
+    $val = str_replace(array('—', '–', '−', '‒', '―'), '-', (string)$val);
+    return utf8_decode($val);
+}
+
 // ---------- Datos base ----------
 $data = Manimale::find('all', [
     'conditions' => ['id=? and mfundos_id=? and status=1', $id_animal, $mfundos_id]
@@ -101,10 +110,11 @@ if ($q) {
 }
 
 $sexo_txt = ($rs->sexo == 1) ? 'HEMBRA' : (($rs->sexo == 2) ? 'MACHO' : 'N/D');
-$est_map  = [1 => 'ACTIVO', 2 => 'DONADOR ACTIVO', 3 => 'DONADOR'];
+$est_map  = [1 => 'ACTIVO', 2 => 'DONADOR ACTIVO', 3 => 'DONADOR',
+             4 => 'DONADORA ACTIVO', 5 => 'DONADORA'];
 $est_txt  = isset($est_map[$rs->estatus_animal]) ? $est_map[$rs->estatus_animal] : 'No Definido';
 $apt_map  = [1 => 'LECHE', 2 => 'CARNE', 3 => 'DOBLE PROPÓSITO'];
-$apt_txt  = isset($apt_map[$rs->aptitud]) ? $apt_map[$rs->aptitud] : '—';
+$apt_txt  = isset($apt_map[$rs->aptitud]) ? $apt_map[$rs->aptitud] : '-';
 
 $foto_path = '';
 if ($rs->imagen && file_exists('../dist/img/fotos_animales/' . $rs->imagen)) {
@@ -119,7 +129,7 @@ class FichaPDF extends FPDF {
 
     function Header() {
         $this->SetFont('Arial', 'B', 12);
-        $this->Cell(0, 6, utf8_decode($this->fundo), 0, 1);
+        $this->Cell(0, 6, ficha_txt($this->fundo), 0, 1);
         $this->SetFont('Arial', '', 9);
         $this->Cell(0, 4, 'RIF: ' . $this->rif, 0, 1);
         $this->SetFont('Arial', 'B', 15);
@@ -139,23 +149,23 @@ class FichaPDF extends FPDF {
         $this->SetY(-12);
         $this->SetFont('Arial', 'I', 7);
         $this->SetTextColor(120, 120, 120);
-        $this->Cell(0, 8, utf8_decode('Documento generado el ' . date('d-m-Y H:i')), 0, 0, 'C');
+        $this->Cell(0, 8, ficha_txt('Documento generado el ' . date('d-m-Y H:i')), 0, 0, 'C');
     }
 
     function SeccionTitulo($txt) {
         $this->SetFillColor(60, 141, 188);
         $this->SetTextColor(255, 255, 255);
         $this->SetFont('Arial', 'B', 9);
-        $this->Cell(0, 6, '  ' . utf8_decode($txt), 0, 1, 'L', true);
+        $this->Cell(0, 6, '  ' . ficha_txt($txt), 0, 1, 'L', true);
         $this->SetTextColor(0, 0, 0);
         $this->Ln(1);
     }
 
     function Fila($etq, $val) {
         $this->SetFont('Arial', 'B', 8);
-        $this->Cell(40, 5, utf8_decode($etq), 0, 0);
+        $this->Cell(40, 5, ficha_txt($etq), 0, 0);
         $this->SetFont('Arial', '', 8);
-        $this->Cell(0, 5, utf8_decode($val), 0, 1);
+        $this->Cell(0, 5, ficha_txt($val), 0, 1);
     }
 }
 
@@ -175,55 +185,55 @@ if ($foto_path) { $pdf->Image($foto_path, 12, $y0, 40, 40); }
 $pdf->SetXY(56, $y0);
 $pdf->SetFont('Arial', 'B', 13);
 $pdf->SetTextColor(60, 141, 188);
-$pdf->Cell(0, 7, utf8_decode($codigo), 0, 1);
+$pdf->Cell(0, 7, ficha_txt($codigo), 0, 1);
 $pdf->SetTextColor(0, 0, 0);
 
 $pdf->SetX(56);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(22, 5, 'Nombre:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, utf8_decode($rs->nombre), 0, 0);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, ficha_txt($rs->nombre), 0, 0);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(20, 5, 'Arete:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, utf8_decode($rs->nro_arete ? $rs->nro_arete : 'NO Registrado'), 0, 1);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, ficha_txt($rs->nro_arete ? $rs->nro_arete : 'NO Registrado'), 0, 1);
 
 $pdf->SetX(56);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(22, 5, 'Sexo:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, utf8_decode($sexo_txt), 0, 0);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, ficha_txt($sexo_txt), 0, 0);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(20, 5, 'Raza:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, utf8_decode($raza_txt ? $raza_txt : '—'), 0, 1);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, ficha_txt($raza_txt ? $raza_txt : '-'), 0, 1);
 
 $pdf->SetX(56);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(22, 5, 'Edad:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, utf8_decode($edad_txt ? $edad_txt : '—'), 0, 0);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(55, 5, ficha_txt($edad_txt ? $edad_txt : '-'), 0, 0);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(20, 5, 'Estatus:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, utf8_decode($est_txt), 0, 1);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, ficha_txt($est_txt), 0, 1);
 
 $pdf->SetX(56);
 $pdf->SetFont('Arial', 'B', 8); $pdf->Cell(22, 5, 'Aptitud:', 0, 0);
-$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, utf8_decode($apt_txt), 0, 1);
+$pdf->SetFont('Arial', '', 8);  $pdf->Cell(0,  5, ficha_txt($apt_txt), 0, 1);
 
 $pdf->SetY(max($pdf->GetY(), $y0 + 42) + 3);
 
 // Registro
 $pdf->SeccionTitulo('DATOS DE REGISTRO');
-$pdf->Fila('Fecha nacimiento:', $f_nac ? $f_nac : '—');
-$pdf->Fila('Fecha ingreso:',    $f_ing ? $f_ing : '—');
-$pdf->Fila('Peso nacimiento:',  $rs->peso_nacimiento ? $rs->peso_nacimiento : '—');
-$pdf->Fila('RENA:',             $rs->rena ? $rs->rena : '—');
-$pdf->Fila('Alzada:',           $rs->alza ? $rs->alza : '—');
+$pdf->Fila('Fecha nacimiento:', $f_nac ? $f_nac : '-');
+$pdf->Fila('Fecha ingreso:',    $f_ing ? $f_ing : '-');
+$pdf->Fila('Peso nacimiento:',  $rs->peso_nacimiento ? $rs->peso_nacimiento : '-');
+$pdf->Fila('RENA:',             $rs->rena ? $rs->rena : '-');
+$pdf->Fila('Alzada:',           $rs->alza ? $rs->alza : '-');
 $pdf->Fila('Lote:',             $lote_txt);
-$pdf->Fila('Procedencia:',      $rs->procedencia ? $rs->procedencia : '—');
-$pdf->Fila('Servicio:',         $rs->servicio ? $rs->servicio : '—');
+$pdf->Fila('Procedencia:',      $rs->procedencia ? $rs->procedencia : '-');
+$pdf->Fila('Servicio:',         $rs->servicio ? $rs->servicio : '-');
 
 // Genealogía
 $pdf->Ln(2);
 $pdf->SeccionTitulo('GENEALOGÍA');
-$pdf->Fila('Madre:', trim(($rs->rgd_madre ? $rs->rgd_madre : '—') . '  ' . ($rs->nombre_madre ? $rs->nombre_madre : '')));
-$pdf->Fila('Padre:', trim(($rs->rgd_padre ? $rs->rgd_padre : '—') . '  ' . ($rs->nombre_padre ? $rs->nombre_padre : '')));
+$pdf->Fila('Madre:', trim(($rs->rgd_madre ? $rs->rgd_madre : '-') . '  ' . ($rs->nombre_madre ? $rs->nombre_madre : '')));
+$pdf->Fila('Padre:', trim(($rs->rgd_padre ? $rs->rgd_padre : '-') . '  ' . ($rs->nombre_padre ? $rs->nombre_padre : '')));
 
 if ($rs->observaciones) {
     $pdf->Ln(2);
     $pdf->SeccionTitulo('OBSERVACIONES');
     $pdf->SetFont('Arial', '', 8);
-    $pdf->MultiCell(0, 4, utf8_decode($rs->observaciones));
+    $pdf->MultiCell(0, 4, ficha_txt($rs->observaciones));
 }
 
 // Movimientos
@@ -259,10 +269,10 @@ if ($mov_q) {
         $mot  = trim(($m->motivo ? $m->motivo : '') .
                      ($m->observaciones ? ' - ' . $m->observaciones : ''));
         $pdf->Cell(22, 5, fx($m->fecha_movimiento, 'd-m-Y'), 1, 0);
-        $pdf->Cell(22, 5, utf8_decode($m->tipo_movimiento), 1, 0);
-        $pdf->Cell(45, 5, utf8_decode($orig), 1, 0);
-        $pdf->Cell(45, 5, utf8_decode($dest), 1, 0);
-        $pdf->Cell(0,  5, utf8_decode($mot), 1, 1);
+        $pdf->Cell(22, 5, ficha_txt($m->tipo_movimiento), 1, 0);
+        $pdf->Cell(45, 5, ficha_txt($orig), 1, 0);
+        $pdf->Cell(45, 5, ficha_txt($dest), 1, 0);
+        $pdf->Cell(0,  5, ficha_txt($mot), 1, 1);
     }
 }
 
@@ -279,7 +289,7 @@ if ($lec_q && (int)$lec_q[0]->total > 0) {
     $pdf->Ln(3);
     $pdf->SeccionTitulo('PRODUCCIÓN DE LECHE');
     $pdf->SetFont('Arial', '', 8);
-    $pdf->Cell(0, 5, utf8_decode(
+    $pdf->Cell(0, 5, ficha_txt(
         'Promedio: ' . $lec_q[0]->promedio . ' L/día   ·   Último: ' .
         fx($lec_q[0]->ultimo, 'd-m-Y') .
         '   ·   Registros: ' . $lec_q[0]->total), 0, 1);
@@ -297,10 +307,10 @@ if ($san_q) {
     $pdf->Ln(3);
     $pdf->SeccionTitulo('CONTROLES SANITARIOS');
     $pdf->Fila('Último control:', fx($san_q[0]->fecha_control, 'd-m-Y'));
-    $pdf->Fila('Evento:',         $san_q[0]->evento ? $san_q[0]->evento : '—');
-    $pdf->Fila('Responsable:',    $san_q[0]->responsable ? $san_q[0]->responsable : '—');
+    $pdf->Fila('Evento:',         $san_q[0]->evento ? $san_q[0]->evento : '-');
+    $pdf->Fila('Responsable:',    $san_q[0]->responsable ? $san_q[0]->responsable : '-');
     $pdf->Fila('Próximo:',        fx($san_q[0]->fecha_prox_control, 'd-m-Y'));
-    $pdf->Fila('Observaciones:',  $san_q[0]->observaciones ? $san_q[0]->observaciones : '—');
+    $pdf->Fila('Observaciones:',  $san_q[0]->observaciones ? $san_q[0]->observaciones : '-');
 }
 
 // ---------- QR + Firma ----------

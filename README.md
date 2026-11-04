@@ -12,6 +12,8 @@ códigos de animal con prefijo `SOVCA-`.
 - [Despliegue — Modo offline MULTIFUNDO (v4.1)](docs/despliegue_offline_multifundo.md):
   pasos, migración de base de datos, verificación del API, comportamiento de los equipos
   que ya usan la app offline y plan de rollback.
+- [Despliegue — reglas reproductivas (2026-11-03)](docs/despliegue_2026-11-03_reglas_reproductivas.md):
+  migraciones, verificación y rollback de la entrega de servicios, nacimientos y control sanitario.
 - [Alerta por inactividad de fundos](docs/alerta_inactividad_fundos.md): aviso al productor
   cuando ningún usuario del fundo se conecta en 7 días, con registro de envíos y modo de prueba.
 - [Catálogo de estatus del animal](docs/catalogo_estatus_animal.md): ACTIVO (hembras y machos),

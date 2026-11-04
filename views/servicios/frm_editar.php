@@ -243,9 +243,14 @@ $(document).ready(function() {
     $.post("../../controllers/mperiodos_controller", {
         action: "get_periodo_palpacion_det"
     }).done(function(data) {
-        var parsedJson = $.parseJSON(data);
-        $("#periodo_palpacion").html(parsedJson.periodo_palpacion);
-        $("#periodo_palpacion").val(parsedJson.periodo_palpacion);
+        var parsedJson = null;
+        try { parsedJson = $.parseJSON(data); } catch (e) { parsedJson = null; }
+
+        if (parsedJson && (typeof parsedJson.periodo_palpacion !== 'undefined')) {
+            $("#periodo_palpacion").html(parsedJson.periodo_palpacion);
+            $("#periodo_palpacion").val(parsedJson.periodo_palpacion);
+            calcularFechaProbablePalpacion(false);
+        }
     });
 
     $.post("../../controllers/mservicios_controller", {
@@ -267,6 +272,10 @@ $(document).ready(function() {
         $("#raza_animal").val(parsedJson.raza_animal);
         $("#observaciones").val(parsedJson.observaciones);
         $("#activa_edit").val(parsedJson.activa_edit);
+
+        /* Si el servicio no tenía fecha probable de palpación guardada,
+           se calcula con el período PSP una vez cargados ambos datos. */
+        calcularFechaProbablePalpacion(false);
 
         var bloqueado = parsedJson.bloquear;
         var act_edit = parsedJson.activa_edit;
@@ -557,25 +566,36 @@ $('#modificar').click(function() {
     }
 });
 
-$('#fecha_servicio').change(function(event) {
-    var fecha_pp = 0;
-    var fecha = 0;
-    var dias = 0;
-    if (dias != 0) {
-        dias = dias;
-    } else {
-        dias = parseInt($("#periodo_palpacion").val());
+/* Fecha probable de palpación = fecha de servicio + período PSP (PP).
+   Con `forzar = true` siempre recalcula (cambio de fecha del usuario);
+   con `false` solo completa el campo si está vacío. */
+function calcularFechaProbablePalpacion(forzar) {
+    var fecha = $("#fecha_servicio").val();
+    var dias = parseInt($("#periodo_palpacion").val(), 10);
+
+    if (!fecha || isNaN(dias) || dias <= 0) {
+        return;
     }
-    fecha = $("#fecha_servicio").val();
 
-    var array_fecha = fecha.split('-');
-    var new_fecha = array_fecha[2] + '-' + array_fecha[1] + '-' + array_fecha[0];
+    if (!forzar && $("#fecha_fpp").val() !== "") {
+        return;
+    }
 
-    var fecha_pp = new Date(new_fecha);
-    var mifecha = sumarDias(fecha_pp, dias);
-    fecha_pp = formatDate(mifecha);
+    var partes = fecha.split('-');
+    if (partes.length !== 3) {
+        return;
+    }
 
-    $("#fecha_fpp").val(fecha_pp);
+    var fecha_servicio = new Date(partes[2] + '-' + partes[1] + '-' + partes[0]);
+    if (isNaN(fecha_servicio.getTime())) {
+        return;
+    }
+
+    $("#fecha_fpp").val(formatDate(sumarDias(fecha_servicio, dias)));
+}
+
+$('#fecha_servicio').on('change changeDate', function(event) {
+    calcularFechaProbablePalpacion(true);
 });
 
 function sumarDias(fecha, dias) {

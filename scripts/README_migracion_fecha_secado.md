@@ -24,7 +24,8 @@ vacíos son los que hoy no alimentan las alertas de secado.
   con fallback global (`mfundos_id = 0`). Solo si `produccion_leche = 1`.
 - **Servicios**: solo gestantes (`medofisiologicos_id = 1`) con último parto y
   aptitud **LECHE (2)** o **DOBLE PROPÓSITO (3)**:
-  - `servicio − parto < 180` → `servicio + 210`
+  - `servicio − parto < 180` → `servicio + PSD` (210 días en ovinos, 120 en
+    caprinos; período `PSD` configurable en Parámetros → Períodos)
   - en otro caso → `parto + PPL`, solo si esa fecha es posterior al servicio.
 - **Nunca borra** una fecha existente cuando la regla ya no aplica (por ejemplo,
   los 5 servicios de aptitud carne): solo los informa como omitidos.

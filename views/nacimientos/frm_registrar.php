@@ -151,7 +151,7 @@ ValidaSession("../login");
         <span class="crud-form__icon"><i class="fa fa-plus-circle"></i></span>
         <div>
             <h3 class="crud-form__title">Registrar Nacimiento</h3>
-            <p class="crud-form__subtitle">Registre el parto y los terneros/as del mismo</p>
+            <p class="crud-form__subtitle">Registre el parto y las crías del mismo</p>
         </div>
         <div class="crud-form__header-actions">
             <button id="exit_top" type="button" class="btn btn-warning">
@@ -174,7 +174,7 @@ ValidaSession("../login");
                 <div class="crud-form__card-body">
 
                     <div class="crud-form__field nac-servicio-buscador">
-                        <label for="buscar_servicio_gestante">Buscar servicio gestante (7–10 meses)</label>
+                        <label for="buscar_servicio_gestante">Buscar servicio gestante (4–7 meses)</label>
                         <div class="input-group">
                             <input type="search" id="buscar_servicio_gestante" class="form-control"
                                    placeholder="Código de servicio, código, nombre o arete de la hembra" autocomplete="off">
@@ -365,17 +365,18 @@ ValidaSession("../login");
                             </select>
                         </div>
                         <div class="crud-form__field">
-                            <label>Periodo de lactancia</label>
+                            <label>Periodo de lactancia (destete)</label>
                             <input type="text" id="periodo_prodleche" class="form-control" placeholder="Periodo">
                         </div>
                     </div>
 
                     <div class="crud-form__row">
                         <div class="crud-form__field">
-                            <label for="fecha_secado">Fecha de secado</label>
+                            <label for="fecha_secado">Fecha probable de destete</label>
                             <input class="form-control bbb" id="fecha_secado" data-date-format="dd-mm-yyyy"
                                    placeholder="dia-mes-año" type="text" onpaste="return false"
                                    tabindex="10" readonly="true">
+                            <small class="text-muted">Se calcula automáticamente con el período de lactancia del fundo.</small>
                         </div>
                     </div>
 
@@ -386,7 +387,7 @@ ValidaSession("../login");
             <div class="crud-form__card">
                 <div class="crud-form__card-head">
                     <i class="fa fa-mars"></i>
-                    <h3>Datos del Padre / Terneros</h3>
+                    <h3>Datos del Padre / Crías</h3>
                 </div>
                 <div class="crud-form__card-body">
 
@@ -454,10 +455,10 @@ ValidaSession("../login");
                     <!-- ===== Terneros ===== -->
                     <div class="nac-terneros-toolbar">
                         <label style="font-size:1.25rem; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.04em; margin:0;">
-                            Terneros / As del Parto
+                            Crías al Parto
                         </label>
                         <button id="agregar_ternero" type="button" class="btn btn-success btn-sm">
-                            <i class="fa fa-plus"></i> Agregar ternero/a
+                            <i class="fa fa-plus"></i> Agregar cría
                         </button>
                     </div>
                     <small class="nac-terneros-hint">Registra aquí las crías del mismo parto (máximo 5). Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</small>
@@ -601,7 +602,7 @@ function agregarFilaTernero(datos) {
         '<td><input type="text" class="form-control input-sm ternero-input ternero-peso" placeholder="Peso" onpaste="return false" onkeypress="return filterFloat(event,this)"></td>' +
         '<td class="ternero-cell-id"><input type="text" class="form-control input-sm ternero-input ternero-id" placeholder="ID / Arete" onpaste="return false" onkeypress="return es_id_ternero(event)"><small class="ternero-id-error"></small></td>' +
         '<td><select class="form-control input-sm ternero-input ternero-aptitud">' + opcionesAptitud + '</select></td>' +
-        '<td class="ternero-cell-accion"><button type="button" class="btn btn-danger btn-xs quitar-ternero" title="Quitar ternero"><i class="fa fa-trash"></i></button></td>' +
+        '<td class="ternero-cell-accion"><button type="button" class="btn btn-danger btn-xs quitar-ternero" title="Quitar cría"><i class="fa fa-trash"></i></button></td>' +
     '</tr>');
     $('#terneros_tbody').append(fila);
     fila.find('.ternero-nacio').val(datos.estatus_nacido || '');
@@ -649,7 +650,7 @@ function buscarServiciosGestantesWeb() {
         serviciosGestantesDisponibles = resp && resp.ok ? (resp.servicios || []) : [];
         lista.empty();
         if (!serviciosGestantesDisponibles.length) {
-            lista.html('<div class="nac-servicio-opcion text-muted">No hay servicios gestantes de 7 a 10 meses que coincidan en este fundo.</div>').addClass('open');
+            lista.html('<div class="nac-servicio-opcion text-muted">No hay servicios gestantes de 4 a 7 meses que coincidan en este fundo.</div>').addClass('open');
             return;
         }
         serviciosGestantesDisponibles.forEach(function(servicio) {
@@ -1144,13 +1145,6 @@ $('#buscar_m').click(function() {
 
 $('#fecha_parto').datepicker({
     endDate: '+0d',
-    todayBtn: false,
-    todayHighlight: true,
-    autoclose: true,
-    language: 'es',
-    showOnFocus: true
-});
-$('#fecha_secado').datepicker({
     todayBtn: false,
     todayHighlight: true,
     autoclose: true,

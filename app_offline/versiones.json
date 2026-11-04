@@ -1,6 +1,18 @@
 {
-  "actual": "1.00046",
+  "actual": "1.00047",
   "versiones": [
+    {
+      "version": "1.00047",
+      "fecha": "2026-11-03",
+      "notas": [
+        "Servicios: la hembra puede recibir servicio desde los 210 días (7 meses) y el sistema calcula la fecha probable de palpación y de parto.",
+        "Nacimientos: el servicio gestante se busca entre 4 y 7 meses; el destete se calcula con el período de lactancia del fundo.",
+        "Nacimientos: se pueden unificar partos duplicados aunque tengan números de parto o servicios distintos.",
+        "Control sanitario: el botón Incluir guarda el producto aplicado y muestra el motivo si algo falla.",
+        "Caprinos: el secado se calcula con 4 meses (120 días).",
+        "Ficha del animal: el PDF ya no muestra signos de interrogación cuando falta un dato."
+      ]
+    },
     {
       "version": "1.00046",
       "fecha": "2026-11-02",

@@ -11,11 +11,26 @@ offline) y cómo se genera el recordatorio de palpación.
 |---|---|---|
 | Sexo | Hembra (`sexo = 1`) | `mservicios_controller` · `numeroServicioParaHembra()` (PWA) |
 | Estatus | `mestatus_id = 1` (ACTIVO) | ídem |
-| Edad mínima | **12 meses** con fecha de nacimiento registrada | ídem |
+| Edad mínima | **210 días** (≈ 7 meses) con fecha de nacimiento registrada | ídem |
 | Ciclo abierto | **No puede tener un servicio abierto** | ídem |
 
 Un ciclo deja de estar abierto cuando el control sanitario lo cierra con
 **Aborto (4)** o **Vacía (5)**: recién ahí la hembra vuelve a estar disponible.
+
+La edad mínima **ya no son 12 meses**: en ovinos y caprinos la pubertad llega
+cerca de los 7 meses, así que el mínimo son **210 días**. El valor se guarda
+como un período más (`mperiodos`, código `EHM`) y se ajusta desde
+**Parámetros → Períodos**:
+
+```
+Nombre del Periodo : EDAD MINIMA DE LA HEMBRA PARA SERVICIO (DIAS)
+Días de Gestación  : 210        (≈ 7 meses)
+```
+
+Resolución (`lib/edad_hembra_helper.php`): fila del fundo → fila global
+(`mfundos_id = 0`) → 210 días. Se aplica en el listado de candidatas, en
+`get_buscar_rgb_h` / `get_buscar_rgb_h_dona`, en `add` (última barrera) y en
+la sincronización offline.
 
 **Antes** la app offline la listaba igual y el rechazo aparecía al guardar
 (*«La hembra ya tiene un servicio activo. Registra el resultado de palpación
@@ -74,12 +89,27 @@ existe.
 
 ## 3. Fecha probable de palpación (FPP)
 
-Se calcula como `f_servicio + días del período PSP` del fundo (fundo 2 = 80
-días; global = 28). En la PWA el campo es de solo lectura y se recalcula al
-cambiar la fecha o el tipo de servicio; el servidor la vuelve a calcular al
-sincronizar. Al guardar, el aviso muestra la fecha:
+Se calcula como `f_servicio + días del período PSP` del fundo. El formulario
+recalcula la fecha al cambiar la fecha de servicio y también cuando termina
+de cargar el período (antes podía quedar vacía si el AJAX llegaba después).
+El control del servicio usa el mismo cálculo para `Fecha Prob. de Palpación`
+y para `Fecha.PP` (período PGB).
 
-> Servicio guardado · palpación probable: 19/01/2027
+Los períodos se identifican por `mperiodos.codper_bov`:
+
+| Código | Período | Uso |
+|---|---|---|
+| `PSP` | Servicio/palpación | `PP` · fecha probable de palpación |
+| `PGB` | Gestación | `PG` · fecha probable de parto |
+| `PPS` | Parto/servicio | celo · días no productivos |
+| `PPL` | Producción de leche | secado normal (parto + PPL) |
+| `PSD` | Secado | ajuste por servicio (210 ovino · 120 caprino) |
+| `PBL` | Lactancia | destete (120 días en ovinos y caprinos) |
+| `EMM` / `EHM` | Edad mínima macho/hembra | validación de servicios |
+
+Si una instalación aún tiene `codper_bov = '0'`, ejecutar
+`scripts/migracion_periodos_codper_bov.sql` (idempotente). Los endpoints de
+palpación/gestación además buscan el período por nombre como respaldo.
 
 ---
 
@@ -112,8 +142,11 @@ Corregido en `scripts/migracion_alerta_palpacion.sql`:
 ## 5. Puesta en producción
 
 ```bash
-psql -d bovs_server -f scripts/migracion_edad_minima_macho.sql
-psql -d bovs_server -f scripts/migracion_alerta_palpacion.sql
+psql -d sovca -f scripts/migracion_periodos_codper_bov.sql
+psql -d sovca -f scripts/migracion_edad_minima_hembra.sql
+psql -d sovca -f scripts/migracion_secado_caprino_120.sql
+psql -d sovca -f scripts/migracion_edad_minima_macho.sql
+psql -d sovca -f scripts/migracion_alerta_palpacion.sql
 php alertas/controlador_alertas.php      # regenera malertas (o esperar al cron)
 ```
 

@@ -68,7 +68,7 @@ switch ($action) {
 
             // $consulta = Mcontrolsanitario::find( 'all', array( 'conditions' => array( 'id=?', $id ) ) );
 
-            session_start();
+            if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
             $usuario_id = $_SESSION['idusuariox'];
             $mfundos_id = $_SESSION['mfundos_id'];
             $id_sesion_usuario = $_SESSION['instante'];
@@ -880,7 +880,7 @@ switch ($action) {
     // Nuevas Busquedas
 
     case 'buscar_maxid':
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
         $mfundos_id = $_SESSION['mfundos_id'];
         $id_sesion_usuario = $_SESSION['instante'];
 
