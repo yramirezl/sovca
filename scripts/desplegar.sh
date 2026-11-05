@@ -466,6 +466,31 @@ for f in "${CONFIG_PROTEGIDA[@]}"; do
     run "cp -a '$f' '$RESPALDOS/$f'"
     PROTEGIDOS+=("$f")
 done
+# Fotos de los animales: son DATOS del servidor, no código. Quedan ignoradas
+# por dist/img/fotos_animales/.gitignore, así que ni el reset ni el apartado de
+# archivos sueltos las tocan (git reset --hard no borra archivos ignorados).
+# Si alguna foto llegara a estar versionada por error, se respalda y se
+# restaura igual que la configuración del servidor.
+FOTOS_DIR="dist/img/fotos_animales"
+if [ -d "$FOTOS_DIR" ]; then
+    FOTOS_SERVIDOR="$(find "$FOTOS_DIR" -maxdepth 1 -type f \
+        ! -name 'index.php' ! -name '.gitignore' 2>/dev/null | wc -l)"
+    ok "$FOTOS_SERVIDOR foto(s) de animales en el servidor (no se tocan)"
+fi
+while IFS= read -r foto; do
+    [ -n "$foto" ] || continue
+    case "$foto" in
+        "$FOTOS_DIR/index.php"|"$FOTOS_DIR/.gitignore") continue ;;
+    esac
+    [ -f "$foto" ] || continue
+    warn "foto versionada por error: $foto (se conserva la del servidor)"
+    run "mkdir -p '$RESPALDOS/$(dirname "$foto")'"
+    run "cp -a '$foto' '$RESPALDOS/$foto'"
+    PROTEGIDOS+=("$foto")
+done <<< "$({ git ls-tree -r --name-only HEAD -- "$FOTOS_DIR" 2>/dev/null
+             git ls-tree -r --name-only "$OBJETIVO" -- "$FOTOS_DIR" 2>/dev/null
+           } | sort -u)"
+
 if [ "${#PROTEGIDOS[@]}" -eq 0 ]; then
     ok "sin configuración modificada en el servidor"
 fi

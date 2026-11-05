@@ -1,0 +1,18 @@
+# =============================================================================
+# Fotos de los animales: son DATOS del servidor, no código.
+# -----------------------------------------------------------------------------
+# Las imágenes se generan al registrar o editar un animal (y al sincronizar
+# desde la app sin conexión) y viven SOLO en el servidor de producción.
+#
+# Se ignoran para que:
+#   · no se suban al repositorio por accidente (git add -A / git add .);
+#   · el despliegue (git reset --hard origin/main) no las reemplace nunca;
+#   · git status quede limpio en producción.
+#
+# El despliegue no las borra: git reset --hard no elimina archivos ignorados
+# y scripts/desplegar.sh las reporta sin tocarlas. Además respalda y restaura
+# cualquier foto que por error llegara a estar versionada.
+# =============================================================================
+*
+!index.php
+!.gitignore

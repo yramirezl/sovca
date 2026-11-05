@@ -377,6 +377,29 @@ acaso. `config/mail.php` sí está versionado: si en el servidor se ajustó
 tras el reset, avisando en pantalla. La contraseña SMTP se recomienda
 pasarla por la variable de entorno `SOVCA_SMTP_PASS` del pool de PHP-FPM.
 
+### 9.2.1 Datos que genera el servidor (no se versionan)
+
+| Carpeta | Contenido | Trato |
+|---|---|---|
+| `dist/img/fotos_animales/` | Fotos de los animales (`.webp`) | **Ignorada** por su propio `.gitignore`. El despliegue no la toca |
+| `file/correo/` | Copias de correos del modo de prueba | Ignorada. Puede contener códigos de recuperación |
+
+Las fotos se generan al registrar o editar un animal (y al sincronizar desde
+la app sin conexión) y viven **solo** en el servidor:
+
+- `git reset --hard` no borra archivos ignorados, así que se conservan entre
+  despliegues; el script informa «N foto(s) de animales en el servidor (no se
+  tocan)».
+- Si alguna foto llegara a quedar **versionada por error** (un `git add -A`
+  en el servidor), el script la respalda y **devuelve la versión del
+  servidor** después del reset, con el aviso «foto versionada por error».
+- No hace falta subirlas al repositorio. Para respaldarlas, copiarlas aparte:
+
+  ```bash
+  sudo tar czf /root/sovca-fotos-$(date +%F).tar.gz -C /var/www/html/sovca \
+       dist/img/fotos_animales --exclude=index.php --exclude=.gitignore
+  ```
+
 ### 9.3 Caché de navegador
 
 Ya viene resuelto en el código:

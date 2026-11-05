@@ -1,0 +1,9 @@
+# =============================================================================
+# Copias de correos del modo de prueba: DATOS del servidor, no código.
+# -----------------------------------------------------------------------------
+# Con config/mail.php → 'guardar_en_archivo' el sistema escribe aquí una copia
+# de cada correo. Esas copias pueden contener enlaces con códigos de
+# recuperación de contraseña, así que NO se versionan.
+# =============================================================================
+*
+!.gitignore
