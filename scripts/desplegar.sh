@@ -6,12 +6,16 @@
 #   1. comprueba el entorno y la autenticación con GitHub;
 #   2. respalda los commits locales que hubiera (rama respaldo-auto-*);
 #   3. aparta los archivos sueltos que colisionen con el árbol del remoto;
-#   4. git fetch + git reset --hard origin/main;
-#   5. ajusta permisos de los archivos cambiados;
-#   6. valida sintaxis PHP y recarga PHP-FPM;
-#   7. verifica la conexión a la base de datos (usuario y NOMBRE de la base);
-#   8. pone al día la base de la demostración (sovca_demo) si está instalada;
-#   9. informa la versión del frontend offline y la caché del shell.
+#   4. respalda la CONFIGURACIÓN DEL SERVIDOR y la devuelve tras el reset
+#      (config/db.local.php, lib/firma.local.php y config/mail.php si está
+#      modificado: no se reemplazan nunca);
+#   5. git fetch + git reset --hard origin/main;
+#   6. ajusta permisos de los archivos cambiados;
+#   7. valida sintaxis PHP y comprueba los archivos que la entrega necesita;
+#   8. recarga PHP-FPM;
+#   9. verifica la conexión a la base de datos (usuario y NOMBRE de la base);
+#  10. pone al día la base de la demostración (sovca_demo) si está instalada;
+#  11. informa la versión del frontend offline y la caché del shell.
 #
 # Uso:
 #   ./scripts/desplegar.sh                  # despliega
@@ -26,8 +30,13 @@
 #     repo local, se sube y se vuelve a desplegar.
 #   · La configuración del servidor va SOLO en archivos ignorados:
 #       config/db.local.php    → credenciales de PostgreSQL
-#   · La clave del SMTP va en la variable de entorno SOVCA_SMTP_PASS del pool de
-#     PHP-FPM, no en config/mail.php (que está versionado).
+#       lib/firma.local.php    → clave HMAC de los QR y URL pública
+#   · config/mail.php está versionado: si el servidor lo tiene modificado, el
+#     script lo respalda y lo restaura (ver paso 4). Igual conviene llevar la
+#     contraseña SMTP por la variable de entorno SOVCA_SMTP_PASS del pool de
+#     PHP-FPM.
+#   · Cada entrega agrega en el paso 7 la lista de archivos que necesita; si
+#     falta uno, el despliegue se revierte solo.
 # =============================================================================
 set -uo pipefail
 
@@ -43,12 +52,25 @@ DRY=0
 ROLLBACK=""
 FORZAR=0
 SOLO_PERMISOS=0
+
+# Archivos de configuración DEL SERVIDOR que no se reemplazan nunca.
+#   · config/db.local.php  → credenciales de PostgreSQL (ignorado por git)
+#   · lib/firma.local.php  → clave HMAC de los QR (ignorado por git)
+#   · config/mail.php      → versionado, pero puede llevar ajustes del servidor
+#                             (host/puerto/remitente). Si está modificado se
+#                             restaura después del reset; si no, no se toca.
+CONFIG_PROTEGIDA=(
+    "config/db.local.php"
+    "lib/firma.local.php"
+    "config/mail.php"
+)
+PROTEGIDOS=()
 case "${1:-}" in
     --dry-run) DRY=1 ;;
     --rollback) ROLLBACK="${2:-}" ;;
     --forzar|--force) FORZAR=1 ;;
     --solo-permisos|--reparar) SOLO_PERMISOS=1 ;;
-    -h|--help) sed -n '2,31p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,40p' "${BASH_SOURCE[0]}"; exit 0 ;;
     "") ;;
     *) echo "Opción no reconocida: $1 (usar --help)" >&2; exit 2 ;;
 esac
@@ -424,6 +446,30 @@ if [ -n "$SUELTOS" ]; then
     [ "$COLISION" = 1 ] && warn "los archivos movidos quedaron en $RESPALDOS"
 fi
 
+# ------------------------------------------ 3b) configuración del servidor
+# El reset reescribe el árbol desde el remoto. Los archivos de configuración
+# del servidor (base de datos, correo y firma) se guardan antes y se devuelven
+# después: ni las credenciales ni la clave de los QR se pierden con un
+# despliegue. Los archivos *.local.php además están fuera de git, así que el
+# reset no los toca; el respaldo es por si acaso.
+log "Protegiendo la configuración del servidor"
+for f in "${CONFIG_PROTEGIDA[@]}"; do
+    [ -f "$f" ] || continue
+    if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        # Versionado: solo se protege si el servidor lo tiene modificado.
+        [ -n "$(git status --porcelain -- "$f" 2>/dev/null)" ] || continue
+        warn "$f está modificado en el servidor: se conserva la versión del servidor"
+    else
+        warn "$f no está versionado: se respalda por seguridad"
+    fi
+    run "mkdir -p '$RESPALDOS/$(dirname "$f")'"
+    run "cp -a '$f' '$RESPALDOS/$f'"
+    PROTEGIDOS+=("$f")
+done
+if [ "${#PROTEGIDOS[@]}" -eq 0 ]; then
+    ok "sin configuración modificada en el servidor"
+fi
+
 # ------------------------------------------------------ 4) alinear con el remoto
 log "Alineando con $OBJETIVO"
 if [ "$DRY" = 1 ]; then
@@ -458,6 +504,19 @@ fi
 if [ "$DRY" = 1 ]; then
     log "Fin del dry-run (no se cambió nada)"
     exit 0
+fi
+
+# ------------------------------------- 4b) devolver la configuración protegida
+if [ "${#PROTEGIDOS[@]}" -gt 0 ]; then
+    log "Restaurando la configuración del servidor"
+    for f in "${PROTEGIDOS[@]}"; do
+        if [ -f "$RESPALDOS/$f" ]; then
+            mkdir -p "$(dirname "$f")"
+            cp -a "$RESPALDOS/$f" "$f"
+            ok "$f (versión del servidor)"
+        fi
+    done
+    warn "revisá a mano si el repositorio traía cambios en esos archivos"
 fi
 
 # ------------------------------------------------------------- 5) permisos
@@ -517,6 +576,36 @@ if [ "$FALLO_LINT" = 1 ]; then
     die "despliegue revertido"
 fi
 ok "sintaxis correcta"
+
+# ---------------------------------------- 6b) archivos de ESTA entrega (2026-11-05)
+# Si falta un archivo nuevo, el flujo que lo usa falla. Esta entrega agrega:
+#   · lib/transaccion_helper.php   → transacciones con SAVEPOINT (25P02)
+#   · js/crud-form-acciones.js     → botones Editar/Guardar/Regresar arriba
+# Esta entrega NO trae migraciones SQL.
+log "Comprobando los archivos de la entrega"
+FALTA_ENTREGA=0
+for archivo in lib/transaccion_helper.php js/crud-form-acciones.js; do
+    if [ -f "$archivo" ]; then
+        ok "$archivo"
+    else
+        err "falta $archivo"
+        FALTA_ENTREGA=1
+    fi
+done
+for controlador in controllers/mnacimientos_controller.php controllers/mdeta_productosxcontrol_controller.php; do
+    if grep -q "transaccion_helper.php" "$controlador" 2>/dev/null; then
+        ok "$controlador usa transaccion_helper"
+    else
+        err "$controlador no referencia transaccion_helper.php"
+        FALTA_ENTREGA=1
+    fi
+done
+if [ "$FALTA_ENTREGA" = 1 ]; then
+    err "el código desplegado no quedó completo; se vuelve a $ANTES_CORTO"
+    git reset --hard "$ANTES" >/dev/null
+    die "despliegue revertido"
+fi
+ok "entrega completa (sin migraciones SQL)"
 
 # ------------------------------------------------------------ 7) PHP-FPM
 log "Recargando PHP-FPM"

@@ -332,90 +332,91 @@ No requiere migraciones SQL.
 
 ## 9. Despliegue de la entrega del 2026-11-05
 
-**No requiere migraciones SQL.** Solo hay código, estilos y documentos.
+**No requiere migraciones SQL.** Es solo código, estilos y documentos.
 
-### 9.1 Archivos nuevos
+### 9.1 Un solo paso
 
-| Archivo | Para qué |
-|---|---|
-| `lib/transaccion_helper.php` | Transacciones con SAVEPOINT (arreglo del 25P02) |
-| `js/crud-form-acciones.js` | Botones Editar / Guardar / Regresar en la cabecera |
-
-Si se suben solo los archivos modificados y se olvidan estos dos, las
-acciones de nacimientos y control sanitario fallan, así que verificar que
-queden en el servidor.
-
-### 9.2 Actualización
+El despliegue se hace con el script de siempre, ya actualizado con los
+controles de esta entrega:
 
 ```bash
 cd /var/www/html/sovca
-sudo -u www-data git pull origin main      # o rsync de los archivos
-sudo find . -path ./vendor -prune -o -name '*.php' -newer composer.json -print | head
+sudo ./scripts/desplegar.sh --dry-run    # opcional: ver qué haría
+sudo ./scripts/desplegar.sh
 ```
 
-Comprobar que existen y son legibles:
+El script:
 
-```bash
-ls -l lib/transaccion_helper.php js/crud-form-acciones.js
-php -l lib/transaccion_helper.php
-php -l controllers/mnacimientos_controller.php
-```
+1. hace `git fetch` y `git reset --hard origin/main` (producción es espejo
+   del repositorio);
+2. **protege la configuración del servidor** (ver 9.2);
+3. ajusta permisos y comprueba que el usuario del pool de PHP-FPM lea el
+   código;
+4. valida la sintaxis PHP de los archivos cambiados;
+5. **comprueba los archivos de esta entrega**:
+   - `lib/transaccion_helper.php`
+   - `js/crud-form-acciones.js`
+   - que los controladores de nacimientos y de control sanitario los usen.
+   Si falta alguno, revierte el despliegue;
+6. recarga PHP-FPM;
+7. verifica la conexión a la base (`SOVCA_DB_NAME`) y sincroniza `sovca_demo`;
+8. informa la versión del frontend offline y la caché del shell.
 
-### 9.3 Recargar PHP
+### 9.2 Configuración del servidor que NO se reemplaza
 
-```bash
-sudo systemctl reload apache2       # o php-fpm
-```
+| Archivo | Contenido | Trato en el despliegue |
+|---|---|---|
+| `config/db.local.php` | Credenciales de PostgreSQL | Fuera de git. Se respalda y se conserva |
+| `lib/firma.local.php` | Clave HMAC de los QR y URL pública | Fuera de git. Se respalda y se conserva |
+| `config/mail.php` | SMTP, remitente y HELO | Si el servidor lo tiene modificado, se respalda y **se restaura la versión del servidor** |
 
-Si el servidor usa OPcache con `validate_timestamps=0`, reiniciar PHP-FPM
-para que tome el código nuevo:
+Los dos `*.local.php` no los toca `git reset` (no están versionados); el
+script los copia a `/root/sovca-respaldo-<fecha>/` antes del reset por si
+acaso. `config/mail.php` sí está versionado: si en el servidor se ajustó
+(host, puerto, remitente), el script lo detecta, lo respalda y lo devuelve
+tras el reset, avisando en pantalla. La contraseña SMTP se recomienda
+pasarla por la variable de entorno `SOVCA_SMTP_PASS` del pool de PHP-FPM.
 
-```bash
-sudo systemctl restart php8.3-fpm   # ajustar a la versión instalada
-```
+### 9.3 Caché de navegador
 
-### 9.4 Caché del navegador
-
-Las versiones ya vienen incrementadas en el código:
+Ya viene resuelto en el código:
 
 - `views/layouts/constantes.php` → `tema-bovs.css?v=14`
 - `views/layouts/pie.php` → `crud-form-acciones.js?v=3`
 
-Los navegadores piden los archivos nuevos solos. Si algún equipo muestra
-los botones en el lugar anterior, hacer una recarga forzada
-(Ctrl+F5 / mantener recargar en el móvil).
+Si algún equipo sigue viendo los botones al final del formulario, recarga
+forzada (Ctrl+F5 en escritorio; mantener «recargar» en el móvil).
 
-### 9.5 App sin conexión (PWA)
+### 9.4 App sin conexión (PWA)
 
-- `app_offline/service-worker.js` sube a `sovca-shell-v6`: al abrir la app
-  instalada descarga el shell nuevo y aplica el tope de crías por especie.
-- `app_offline/versiones.json` queda en **1.00048** (visible en el badge).
+- `app_offline/service-worker.js` sube a `sovca-shell-v6`: las PWA
+  instaladas descargan el shell nuevo (tope de crías 3/4).
+- `app_offline/versiones.json` queda en **1.00048** (se ve en el badge).
 
-En los equipos de campo: abrir la app con internet una vez para que
-actualice, y confirmar en **Nacimientos → Nueva cría** que el botón
-"Agregar cría" se detiene en 3 (caprinos) o 4 (ovinos).
+En los equipos de campo: abrir la app **con internet una vez** y comprobar
+en *Nacimientos → Nueva cría* que «Agregar cría» se detiene en 3 (caprinos)
+o 4 (ovinos).
 
-### 9.6 Verificación después del despliegue
+### 9.5 Verificación funcional después del despliegue
 
-- [ ] Login y cambio de fundo funcionan.
-- [ ] Formularios (ficha animal, servicios, control sanitario): los botones
-      Editar / Guardar / Regresar aparecen arriba y funcionan.
+- [ ] Login y cambio de fundo.
+- [ ] Ficha animal / servicios / control sanitario: botones
+      **Editar · Guardar · Regresar** en la cabecera, también en móvil.
 - [ ] Control de servicio: la fecha de secado no se puede escribir y se
-      calcula sola (servicio + 120 días si el parto fue hace menos de 6 meses).
-- [ ] Registrar nacimiento: guarda y, si falta un dato, muestra el motivo
+      calcula sola.
+- [ ] Registrar nacimiento: guarda; si falta un dato muestra el motivo
       (ya no aparece un 500 vacío).
-- [ ] Intentar un 4.º ternero en un fundo caprino: lo bloquea con el mensaje
-      "Un parto de caprinos admite como máximo 3 crías".
-- [ ] Revisar duplicados → unificar: completa sin 25P02.
+- [ ] 4.º ternero en un fundo caprino → *«Un parto de caprinos admite como
+      máximo 3 crías»*.
+- [ ] Revisar duplicados → unificar: termina sin 25P02.
 - [ ] Control sanitario → Incluir producto: guarda sin 25P02.
 
-### 9.7 Reversión
+### 9.6 Reversión
 
 ```bash
 cd /var/www/html/sovca
-git log --oneline -8
-git reset --hard <commit_anterior>
-sudo systemctl reload apache2
+sudo ./scripts/desplegar.sh --rollback a3dd83d    # commit previo a esta entrega
 ```
 
-No hay cambios de base de datos que revertir.
+No hay cambios de base de datos que revertir. Los respaldos de la corrida
+anterior quedan en `/root/sovca-respaldo-<fecha>/`.
