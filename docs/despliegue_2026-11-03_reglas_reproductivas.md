@@ -248,3 +248,82 @@ respaldo del paso 0 (o el lote indicado por el script, si se conserva el log).
 - [ ] Login, servicios, nacimientos, control sanitario y PDF probados.
 - [ ] La PWA muestra la versión 1.00047 y actualiza el shell.
 - [ ] Respaldo de base guardado en `/root/`.
+
+---
+
+## 8. Correcciones posteriores (2026-11-05)
+
+### Fecha de secado calculada
+
+En el **control del servicio**, la fecha de secado ya no se elige en el
+calendario: el campo es de solo lectura y el servidor la calcula al guardar.
+
+- Intervalo último parto → servicio **menor a 6 meses**:
+  `fecha de servicio + 120 días` (4 meses). En caprinos siempre 120; en ovinos
+  se respeta `PSD` si está entre 1 y 180 días (si no, 210).
+- Intervalo de 6 meses o más: se mantiene `fecha de parto + PPL`.
+
+Detalle en `docs/servicios_reglas_reproductivas.md` §4.
+
+### Error 25P02 en unificación de nacimientos y control sanitario
+
+`SQLSTATE[25P02] current transaction is aborted` aparecía cuando una
+sentencia fallaba dentro de la transacción: PostgreSQL rechaza todo lo que
+venga después, así que el error real quedaba oculto y la operación moría.
+
+- Nuevo `lib/transaccion_helper.php`: transacciones con **SAVEPOINT** y
+  `ROLLBACK TO SAVEPOINT`, de modo que un fallo interno no envenena la
+  transacción.
+- Si aun así llega un 25P02, ambos flujos **revierte**n y **reintentan una
+  vez** desde cero (la pasada anterior no deja cambios).
+- **Unificación de nacimientos**: se corrigieron dos choques con
+  restricciones UNIQUE reales:
+  - `codigo_ternero` es UNIQUE: el duplicado libera su código (queda como
+    `…-U<id>`) antes de que lo tome el registro principal.
+  - `mternerosxnacimientos (mregnacimientos_id, nro_ternero)` es UNIQUE e
+    incluye los detalles archivados: al crear o renumerar detalles se apartan
+    primero los archivados a valores negativos.
+- **Control sanitario**: se valida que el control exista en el fundo antes de
+  insertar el producto y se informa el motivo real si algo falla.
+
+### Nacimientos: tope de crías por parto según la especie
+
+| Especie del fundo (`mfondos.mtipoganaderias_id`) | Crías por parto |
+|---|---|
+| Caprina (2) | **3** |
+| Ovina (1) | **4** |
+
+La regla vive en `lib/especie_helper.php` (`bovs_max_crias_parto()` /
+`bovs_mensaje_max_crias_parto()`) y se aplica en el alta
+(`mnacimientos_controller` · `case 'add'`), en la edición (antes de guardar),
+en el formulario web (`frm_registrar` / `frm_editar`), en la app sin conexión
+(`app_offline/js/app.js`) y en la sincronización (`api/sync_controller.php`).
+Antes el tope era fijo en 5 crías.
+
+### Alta de nacimiento: fin del HTTP 500 sin mensaje
+
+`POST mnacimientos_controller action=add` respondía **500 con el cuerpo
+vacío** cuando PHP moría por un error fatal no controlado (y el navegador solo
+podía mostrar «Error de comunicación con el servidor (HTTP 500)»).
+
+- Un `register_shutdown_function` + un `try/catch` alrededor de todo el
+  `switch` devuelven siempre JSON con el detalle del error (que además queda
+  en el log como `[NAC] error fatal: …`).
+- Los `save()` de las crías, del vínculo con el fundo y del cierre del
+  servicio gestante se ejecutan dentro de `try/catch`: `Model::save()` lanza
+  `DatabaseException` en vez de devolver `false`, y esa excepción rompía la
+  respuesta.
+- `observaciones` (NOT NULL) se normaliza a cadena vacía si el campo no llega,
+  y `$dias` (período `PPS`) se inicializa: los fondos sin período PPS
+  provocaban un *Undefined variable*.
+
+### Botones Editar / Guardar / Regresar arriba del formulario
+
+`js/crud-form-acciones.js` (cargado desde `views/layouts/pie.php`) mueve los
+botones de la barra inferior (`.crud-form__actions`) a la cabecera del
+formulario (`.crud-form__header-actions`), a la izquierda de «Regresar». Son
+los mismos nodos, así que los manejadores de cada vista siguen intactos. En
+móvil los tres botones comparten una sola fila. Aplica a todos los
+formularios de proceso y de gestión sin tocar cada vista.
+
+No requiere migraciones SQL.
