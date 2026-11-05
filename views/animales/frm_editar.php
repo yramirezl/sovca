@@ -548,11 +548,44 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
 
     document.getElementById('categoria_actual').disabled = true;
 
+    /* Los catálogos (razas, lotes, aptitudes, servicios) se cargan por AJAX
+       al mismo tiempo que la ficha del animal. Si la ficha llega ANTES que
+       el catálogo, el .val() se perdía al reemplazar las <option>.
+       Se guarda el valor y se vuelve a aplicar cuando llega cada catálogo. */
+    var catPendiente = {};
+
+    function fijarCatalogo(id, valor) {
+        catPendiente[id] = valor;
+        aplicarPendiente(id);
+    }
+
+    function aplicarPendiente(id) {
+        if (catPendiente[id] === undefined || catPendiente[id] === null || catPendiente[id] === '') {
+            return;
+        }
+
+        var $campo = $("#" + id);
+        $campo.val(catPendiente[id]);
+
+        /* Si el id del animal no está en la lista (catálogo archivado, de
+           otro fundo o cargado antes que la ficha), se agrega una opción
+           para no perder el dato ni enviar el campo vacío al guardar.
+           Es el caso de Servicio = 0: el catálogo solo trae 1, 2 y 3. */
+        if ($campo.val() === null) {
+            var etiqueta = '(id ' + catPendiente[id] + ')';
+            if (id === 'servicio_animal' && String(catPendiente[id]) === '0') {
+                etiqueta = 'Sin servicio';
+            }
+            $campo.append($("<option>").val(catPendiente[id]).text(etiqueta));
+            $campo.val(catPendiente[id]);
+        }
+    }
 
     $.post("../../controllers/mrazas_controller", {
         action: "get_razas"
     }).done(function (data) {
         $("#raza_animal").html(data);
+        aplicarPendiente('raza_animal');
 
     });
     $.post("../../controllers/mlotes_controller", {
@@ -560,12 +593,14 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
     }).done(function (data) {
         /* El lote es opcional: "Sin lote" (0) es una respuesta válida. */
         $("#lote").html('<option value="0">Sin lote</option>' + data);
+        aplicarPendiente('lote');
 
     });
     $.post("../../controllers/maptitudes_controller", {
         action: "get_aptitud"
     }).done(function (data) {
         $("#aptitud_animal").html(data);
+        aplicarPendiente('aptitud_animal');
 
     });
 
@@ -575,6 +610,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
         action: "get_servicio_animal"
     }).done(function (data) {
         $("#servicio_animal").html(data);
+        aplicarPendiente('servicio_animal');
 
     });
     $(document).ready(function () {
@@ -600,20 +636,20 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
             $("#nombre_animal").val(parsedJson.nombre_animal);
             nombre_real = parsedJson.nombre_animal;
             $("#estatus_animal").val(parsedJson.estatus_animal);
-            $("#lote").val(parsedJson.lote);
+            fijarCatalogo('lote', parsedJson.lote);
             $("#rena").val(parsedJson.rena);
             $("#alza").val(parsedJson.alza);
-            $("#raza_animal").val(parsedJson.raza_animal);
+            fijarCatalogo('raza_animal', parsedJson.raza_animal);
             $("#fech_nac").val(parsedJson.fech_nac);
             $("#peso_nac").val(parsedJson.peso_nac);
             $("#fecha_ingreso").val(parsedJson.fecha_ingreso);
-            $("#aptitud_animal").val(parsedJson.aptitud_animal);
+            fijarCatalogo('aptitud_animal', parsedJson.aptitud_animal);
             $("#rgd_madre").val(parsedJson.rgd_madre);
             $("#nombre_madre").val(parsedJson.nombre_madre);
             $("#rgd_padre").val(parsedJson.rgd_padre);
             $("#nombre_padre").val(parsedJson.nombre_padre);
             $("#procedencia").val(parsedJson.procedencia);
-            $("#servicio_animal").val(parsedJson.servicio_animal);
+            fijarCatalogo('servicio_animal', parsedJson.servicio_animal);
             $("#observaciones").val(parsedJson.observaciones);
             $("#numero_arete").val(parsedJson.numero_arete);
             $("#categoria_actual").val(parsedJson.categoria_actual);

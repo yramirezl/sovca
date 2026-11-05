@@ -1019,20 +1019,31 @@ switch ($action) {
 
                     $reg_animal = Manimale::find($id_animal);
                     $reg_animal->nombre = $nombre_animal;
-                    $reg_animal->sexo = $sexo;
+                    $reg_animal->sexo = (int) $sexo;
                     $reg_animal->rena = $rena;
                     $reg_animal->alza = $alza;
-                    $reg_animal->estatus_animal = $estatus_animal;
-                    $reg_animal->mlotes_id = $lote;
+                    $reg_animal->estatus_animal = (int) $estatus_animal;
+                    $reg_animal->mlotes_id = (int) $lote;
                     $reg_animal->nro_arete = $numero_arete;
-                    $reg_animal->categoria_ingreso_id = $categoria_ingreso;
-                    $reg_animal->categoria_futura_id = $categoria_futura;
-                    $reg_animal->aptitud = $aptitud_animal;
-                    $reg_animal->mrazas_id = $raza_animal;
+                    $reg_animal->categoria_ingreso_id = (int) $categoria_ingreso;
+                    $reg_animal->categoria_futura_id = (int) $categoria_futura;
+                    $reg_animal->aptitud = (int) $aptitud_animal;
+                    $reg_animal->mrazas_id = (int) $raza_animal;
                     $reg_animal->f_nacimiento = $fech_nac;
                     $reg_animal->peso_nacimiento = $peso_nac;
                     $reg_animal->f_ingreso = $fecha_ingreso;
-                    $reg_animal->servicio = $servicio_animal;
+
+                    /* El select de Servicio solo ofrece los servicios del
+                       catalogo (1, 2, 3). Un animal guardado con 0 llega
+                       vacio si el catalogo cargo antes que la ficha; el ORM
+                       intentaba convertir '' a entero (TypeError en PHP 8)
+                       y el front mostraba "el servidor no respondio".
+                       Cuando no llega un servicio valido se CONSERVA el que
+                       ya tiene el animal. */
+                    $servicio_post = trim((string) $servicio_animal);
+                    $reg_animal->servicio = ($servicio_post === '')
+                        ? (int) $reg_animal->servicio
+                        : (int) $servicio_post;
                     $reg_animal->rgd_madre = $rgd_madre;
                     $reg_animal->nombre_madre = $nombre_madre;
                     $reg_animal->rgd_padre = $rgd_padre;
@@ -1044,6 +1055,12 @@ switch ($action) {
                     $reg_animal->updated = $hoy;
 
                     if ($reg_animal->save()) {
+
+                        /* Animales que NO vienen de un nacimiento
+                           (nac_fundo = false) no tienen fila en
+                           mregnacimientos: se inicializa para no dejar
+                           una variable indefinida al evaluarla. */
+                        $buscar_reg = null;
 
                         @$buscar_reg_nac = Manimale::find_by_sql("SELECT nac_fundo,codigo_ternero
             FROM Manimales

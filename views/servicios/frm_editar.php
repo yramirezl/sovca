@@ -228,17 +228,43 @@ $(document).ready(function() {
     $('#nro_servicio').hide();
     $('label[for="nro_servicio"]').hide();
 
+    /* Si la ficha del servicio llega ANTES que los catálogos, el .val() se
+       perdía al reemplazar las <option>. Se guarda el valor y se reaplica. */
+    var catPendiente = {};
+
+    function fijarCatalogo(id, valor) {
+        catPendiente[id] = valor;
+        aplicarPendiente(id);
+    }
+
+    function aplicarPendiente(id) {
+        if (catPendiente[id] === undefined || catPendiente[id] === null || catPendiente[id] === '') {
+            return;
+        }
+
+        var $campo = $("#" + id);
+        $campo.val(catPendiente[id]);
+
+        /* Si el valor guardado no está en el catálogo (o el catálogo cargó
+           antes que la ficha), se agrega la opción para no enviar el campo
+           vacío ni perder el dato al guardar. */
+        if ($campo.val() === null) {
+            $campo.append($("<option>").val(catPendiente[id]).text('(id ' + catPendiente[id] + ')'));
+            $campo.val(catPendiente[id]);
+        }
+    }
+
     $.post("../../controllers/mtiposervicios_controller", {
         action: "get_servicio_animal"
-    }).done(function(data) { $("#tipo_servicio").html(data); });
+    }).done(function(data) { $("#tipo_servicio").html(data); aplicarPendiente('tipo_servicio'); });
 
     $.post("../../controllers/maptitudes_controller", {
         action: "get_aptitud"
-    }).done(function(data) { $("#aptitud_animal").html(data); });
+    }).done(function(data) { $("#aptitud_animal").html(data); aplicarPendiente('aptitud_animal'); });
 
     $.post("../../controllers/mrazas_controller", {
         action: "get_razas"
-    }).done(function(data) { $("#raza_animal").html(data); });
+    }).done(function(data) { $("#raza_animal").html(data); aplicarPendiente('raza_animal'); });
 
     $.post("../../controllers/mperiodos_controller", {
         action: "get_periodo_palpacion_det"
@@ -266,10 +292,10 @@ $(document).ready(function() {
         $("#nombre_m").val(parsedJson.nombre_animal_m);
         $("#fecha_servicio").val(parsedJson.fecha_servicio);
         $("#fecha_fpp").val(parsedJson.fecha_fpp);
-        $("#tipo_servicio").val(parsedJson.tipo_servicio);
-        $("#aptitud_animal").val(parsedJson.aptitud_animal);
+        fijarCatalogo('tipo_servicio', parsedJson.tipo_servicio);
+        fijarCatalogo('aptitud_animal', parsedJson.aptitud_animal);
         $("#nro_servicio").val(parsedJson.nro_servicio);
-        $("#raza_animal").val(parsedJson.raza_animal);
+        fijarCatalogo('raza_animal', parsedJson.raza_animal);
         $("#observaciones").val(parsedJson.observaciones);
         $("#activa_edit").val(parsedJson.activa_edit);
 
