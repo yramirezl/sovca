@@ -998,6 +998,27 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
       font-weight: 800;
     }
 
+    /* Copyright: un tono más oscuro que el resto del pie para que se lea
+       mejor (antes heredaba el gris claro #94a3b8). */
+    .login-footer__copy {
+      color: #5B3A1E;
+      font-weight: 700;
+    }
+
+    .login-footer__copy a {
+      color: #B45309;
+      font-weight: 800;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(180, 83, 9, .35);
+      transition: color .2s ease, border-color .2s ease;
+    }
+
+    .login-footer__copy a:hover,
+    .login-footer__copy a:focus {
+      color: #8A4B12;
+      border-bottom-color: #8A4B12;
+    }
+
     .footer-corner-logo {
       position: absolute;
       right: 0;
@@ -1557,7 +1578,11 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
 
         <!-- Footer con logo secundario -->
         <div class="login-footer">
-          <span class="version">SOVCA</span> · © <?= date('Y') ?> Global-SOVCA
+          <span class="login-footer__copy">
+            <span class="version">SOVCA</span> · © <?= date('Y') ?>
+            <a href="https://global.ruted.net" target="_blank" rel="noopener noreferrer"
+               title="Sitio de Global (se abre en una pestaña nueva)">Global</a>
+          </span>
           <img src="../dist/img/logo_sirelog.png" alt="SIREL" class="footer-corner-logo">
         </div>
 
