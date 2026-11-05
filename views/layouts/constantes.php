@@ -55,7 +55,7 @@
 //------------------------------------------------------------------------------------------------------------
   $constante["css_skyn"]='<link href="../../dist/css/skins/skin-green-light.css" rel="stylesheet" type="text/css" />';
 //------------------------------------------------------------------------------------------------------------
- $constante["css_tema_bovs"]='<link href="../../css/tema-bovs.css?v=11" rel="stylesheet" type="text/css" />';
+ $constante["css_tema_bovs"]='<link href="../../css/tema-bovs.css?v=14" rel="stylesheet" type="text/css" />';
 //----------------------------------------------------------------------------
 //-- Tooltips globales (todos los módulos usan data-toggle="tooltip") --------
 //----------------------------------------------------------------------------

@@ -925,3 +925,139 @@ body {
 .pie-footer ~ * {
   scroll-margin-bottom: 70px;
 }
+
+/* ==========================================================================
+   BOTONES DE ACCIÓN EN LA CABECERA DE LOS FORMULARIOS
+   --------------------------------------------------------------------------
+   La barra de acciones (.crud-form__actions) vive al final del formulario.
+   En el móvil obligaba a bajar toda la pantalla para guardar, editar o salir.
+   js/crud-form-acciones.js mueve esos mismos botones a la cabecera
+   (.crud-form__header-actions), a la izquierda del botón Regresar.
+
+   Estas reglas les devuelven el tamaño y los colores que tenían en la barra
+   inferior (esas reglas estaban ancladas a .crud-form__actions y ya no
+   aplican). La especificidad es mayor que la de css/crud-form.css, que se
+   carga después de este archivo.
+   ========================================================================== */
+.crud-form .crud-form__header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.crud-form .crud-form__header-actions .btn.crud-form__accion,
+.crud-form .crud-form__header-actions #save.btn-success,
+.crud-form .crud-form__header-actions #modificar.btn-primary {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.crud-form .crud-form__header-actions #save.btn-success {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(22, 163, 74, .30);
+}
+.crud-form .crud-form__header-actions #save.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #15803d 0%, #14532d 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(22, 163, 74, .40);
+}
+
+.crud-form .crud-form__header-actions #modificar.btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, .30);
+}
+.crud-form .crud-form__header-actions #modificar.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(37, 99, 235, .40);
+}
+
+.crud-form .crud-form__header-actions .btn:disabled,
+.crud-form .crud-form__header-actions .btn.disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* En pantallas estrechas los tres botones comparten la fila: nada de
+   columnas de 50 px que empujen el formulario hacia abajo. */
+@media (max-width: 640px) {
+  .crud-form .crud-form__header-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .crud-form .crud-form__header-actions .btn,
+  .crud-form .crud-form__header-actions .btn.crud-form__accion,
+  .crud-form .crud-form__header-actions #save.btn-success,
+  .crud-form .crud-form__header-actions #modificar.btn-primary {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 8px;
+    font-size: 12.5px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .crud-form .crud-form__header-actions .btn i {
+    font-size: 13px;
+  }
+}
+
+/* Cabecera del formulario pegada arriba: js/crud-form-acciones.js agrega la
+   clase .crud-form__header--acciones cuando los botones Editar / Guardar /
+   Regresar quedan en ella, de modo que sigan a la vista al recorrer un
+   formulario largo (sobre todo en el móvil).
+   z-index 840: por encima del contenido pero por debajo del menú lateral
+   móvil (850), para que el menú abierto no quede tapado. */
+.crud-form .crud-form__header.crud-form__header--acciones {
+  position: sticky;
+  top: 0;
+  z-index: 840;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .10);
+}
+
+/* El aviso de guardado (.message) no debe quedar tapado por la cabecera
+   pegajosa al desplazarse hasta él. */
+.crud-form .message {
+  scroll-margin-top: 120px;
+}
+
+@media (max-width: 640px) {
+  .crud-form .crud-form__header.crud-form__header--acciones {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .crud-form .crud-form__header--acciones .crud-form__subtitle {
+    display: none;
+  }
+  .crud-form .crud-form__header--acciones .crud-form__title {
+    font-size: .85rem;
+  }
+  .crud-form .crud-form__header--acciones .crud-form__icon {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+  .crud-form .message {
+    scroll-margin-top: 96px;
+  }
+}

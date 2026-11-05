@@ -166,6 +166,9 @@ if ($__tipo_g === 1) {
 
     <!-- Navegación estandarizada del botón Regresar (sin confirmación) -->
     <script type="text/javascript" src="../../js/crud-back.js?v=1"></script>
+    <!-- Sube Editar / Guardar / Regresar a la cabecera del formulario para no
+         tener que bajar hasta el final (sobre todo en móvil). -->
+    <script type="text/javascript" src="../../js/crud-form-acciones.js?v=3"></script>
     <!-- Decodifica los escapes \uXXXX de las respuestas AJAX (Ñ, acentos, N°) -->
     <script type="text/javascript" src="../../js/ajax-unicode.js?v=2"></script>
     <!-- Quita los <p></p> de relleno de los contenedores de mensajes (barras rojas
