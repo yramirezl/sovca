@@ -12,10 +12,79 @@ require_once '../models/Mterneroxnacimiento.php';
 require_once '../models/Mregservicio.php';
 
 include '../lib/sanitizar.php';
-require_once '../lib/estatus_animal_helper.php';
-require_once '../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/estatus_animal_helper.php';
+require_once __DIR__ . '/../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/transaccion_helper.php';
 require_once __DIR__ . '/../lib/macho_resolver_helper.php';
 require_once __DIR__ . '/../lib/arete_helper.php';
+
+/* =========================================================================
+   RESPUESTA JSON GARANTIZADA
+   -------------------------------------------------------------------------
+   Todas las acciones de este controlador responden JSON. Si PHP muere por un
+   error fatal (una clase que no se pudo cargar, memoria agotada, un TypeError
+   no capturado…) el navegador recibía un HTTP 500 con el cuerpo VACÍO y el
+   formulario solo podía mostrar "Error de comunicación con el servidor
+   (HTTP 500)". Con este manejador el cliente recibe siempre el JSON de error
+   con el detalle, y el error real queda en el log del servidor.
+   ========================================================================= */
+if (!function_exists('nac_resumen_tecnico')) {
+  function nac_resumen_tecnico($mensaje, $archivo = '', $linea = 0)
+  {
+    $texto = trim((string) $mensaje);
+    $partes = preg_split('/\R/', $texto);
+    $texto = isset($partes[0]) ? trim($partes[0]) : '';
+    if ($texto === '') {
+      return '';
+    }
+    if ($archivo !== '') {
+      $texto = basename((string) $archivo) . ':' . (int) $linea . ' · ' . $texto;
+    }
+    $texto = preg_replace('/^(PDOException|Exception|Error):\s*/i', '', $texto);
+
+    return function_exists('mb_substr')
+      ? mb_substr($texto, 0, 300, 'UTF-8')
+      : substr($texto, 0, 300);
+  }
+}
+
+if (!function_exists('nac_responder_error_interno')) {
+  function nac_responder_error_interno($detalle)
+  {
+    if (headers_sent()) {
+      return;
+    }
+    while (ob_get_level() > 0) {
+      @ob_end_clean();
+    }
+    /* Se responde 200 a propósito: los formularios leen la respuesta en
+       .done() y pintan el campo "mensaje". Con un 500 el navegador entra en
+       .fail() y solo puede mostrar el texto crudo de la respuesta. El error
+       igual queda registrado en el log del servidor. */
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+      'resultado' => 'error',
+      'mensaje' => '<div class="alert alert-danger">No se pudo completar la operación por un error interno del servidor.'
+        . ($detalle !== '' ? '<br><small>Detalle: ' . htmlspecialchars($detalle, ENT_QUOTES, 'UTF-8') . '</small>' : '')
+        . '</div>'
+    ));
+  }
+}
+
+register_shutdown_function(function () {
+  $error = error_get_last();
+  if (!$error) {
+    return;
+  }
+  $fatales = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
+  if (!in_array((int) $error['type'], $fatales, true)) {
+    return;
+  }
+  $detalle = nac_resumen_tecnico($error['message'], isset($error['file']) ? $error['file'] : '', isset($error['line']) ? $error['line'] : 0);
+  error_log('[NAC] error fatal: ' . $detalle);
+  nac_responder_error_interno($detalle);
+});
 
 date_default_timezone_set('America/Caracas');
 
@@ -37,10 +106,15 @@ date_default_timezone_set('America/Caracas');
 @$nro_parto = (isset($_POST["nro_parto"]) && (int) $_POST["nro_parto"] > 0)
     ? (int) $_POST["nro_parto"]
     : 0;
-@$nacio = ($_POST["nacio"]);
+/* estatus_nacido es smallint NOT NULL: si el cliente no lo manda (o manda
+   vacío) el cast del ORM deja NULL y PostgreSQL rechaza el INSERT/UPDATE.
+   Se asume "vivo" (1), que es el valor por defecto de la columna. */
+@$nacio = (isset($_POST["nacio"]) && (int) $_POST["nacio"] > 0)
+    ? (int) $_POST["nacio"]
+    : 1;
 @$peso_nacer = ($_POST["peso_nacer"]);
 @$fecha_secado = ($_POST["fecha_secado"]);
-@$observaciones = ($_POST["observaciones"]);
+@$observaciones = (isset($_POST["observaciones"]) ? trim((string) $_POST["observaciones"]) : '');
 @$sexo = ($_POST["sexo"]);
 @$proposito = (isset($_POST["proposito"]) && (int) $_POST["proposito"] > 0)
     ? (int) $_POST["proposito"]
@@ -355,6 +429,9 @@ if (!function_exists('nac_resumen_error')) {
   }
 }
 
+/* Cualquier excepción que se escape de una acción se devuelve como JSON:
+   antes el navegador recibía un 500 vacío y el usuario no sabía qué pasó. */
+try {
 switch ($action) {
 
   case 'analizar_unificacion_nacimientos':
@@ -424,11 +501,19 @@ switch ($action) {
       $ids_solicitados[] = $grupo_ids;
     }
 
-    $conexion = Mregnacimiento::connection();
-    $conexion->transaction();
-    try {
+    /* La unificación se ejecuta dentro de una transacción. Si PostgreSQL
+       aborta la transacción (25P02) por un fallo interno, se revierte y se
+       reintenta UNA vez desde cero: la primera pasada no dejó cambios. */
+    $unificados = 0;
+    $error_unificacion = null;
+
+    for ($intento_unificacion = 1; $intento_unificacion <= 2; $intento_unificacion++) {
+      $conexion = Mregnacimiento::connection();
+      $token_transaccion = null;
       $unificados = 0;
-      foreach ($ids_solicitados as $ids) {
+      try {
+        $token_transaccion = bovs_tx_iniciar($conexion);
+        foreach ($ids_solicitados as $ids) {
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $valores_bloqueo = array_merge(array($mfundos_id), $ids);
         $conexion->query(
@@ -487,7 +572,16 @@ switch ($action) {
           $detalle = new Mterneroxnacimiento();
           $detalle->mregnacimientos_id = $id_evento;
           $detalle->mfundos_id = $mfundos_id;
-          $detalle->nro_ternero = 1;
+          /* El ordinal debe ser único por evento e incluye los registros
+             archivados (status = 0): la restricción UNIQUE no distingue
+             estados y un 1 fijo chocaría con un detalle histórico. */
+          $siguiente_nro = (int) $conexion->query_and_fetch_one(
+            "SELECT GREATEST(COALESCE(MAX(nro_ternero), 0), 0) + 1
+               FROM public.mternerosxnacimientos
+              WHERE mregnacimientos_id = ?",
+            array($id_evento)
+          );
+          $detalle->nro_ternero = $siguiente_nro > 0 ? $siguiente_nro : 1;
           $detalle->id_ternero = $registro->id_ternero;
           $detalle->peso_nacimiento = $registro->peso_nacimiento;
           $detalle->sexo = $registro->sexo;
@@ -501,6 +595,22 @@ switch ($action) {
           }
         }
 
+        /* Los detalles archivados conservan su ordinal y comparten la misma
+           restricción UNIQUE (mregnacimientos_id, nro_ternero). Se apartan a
+           valores negativos únicos antes de renumerar los activos; si no,
+           el UPDATE de renumeración chocaría con ellos. */
+        $conexion->query(
+          "WITH orden AS (
+               SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS posicion
+                 FROM public.mternerosxnacimientos
+                WHERE status <> 1 AND mregnacimientos_id IN ($placeholders)
+           )
+           UPDATE public.mternerosxnacimientos AS detalle
+              SET nro_ternero = -(20000 + orden.posicion)::smallint
+             FROM orden
+            WHERE detalle.id = orden.id",
+          $ids
+        );
         $conexion->query(
           "WITH orden AS (
                SELECT id, ROW_NUMBER() OVER (ORDER BY mregnacimientos_id, nro_ternero, id) AS posicion
@@ -555,6 +665,21 @@ switch ($action) {
           );
         }
 
+        /* Se apartan los detalles archivados del nacimiento principal para
+           que la renumeración 1..n no choque con su UNIQUE. */
+        $conexion->query(
+          "WITH orden AS (
+               SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS posicion
+                 FROM public.mternerosxnacimientos
+                WHERE status <> 1 AND mregnacimientos_id = ?
+           )
+           UPDATE public.mternerosxnacimientos AS detalle
+              SET nro_ternero = -(20000 + orden.posicion)::smallint
+             FROM orden
+            WHERE detalle.id = orden.id",
+          array($id_principal)
+        );
+
         foreach ($detalles_consolidados as $indice => $detalle) {
           /* ⚠️ find_by_sql() devuelve modelos en SOLO LECTURA (AR le pasa
              readonly=true), así que $detalle->save() lanzaría
@@ -575,10 +700,33 @@ switch ($action) {
         if (trim((string)$principal_actual->codigo_ternero) === '') {
           foreach ($registros as $registro) {
             $codigo_candidato = trim((string)$registro->codigo_ternero);
-            if ($codigo_candidato !== '') {
-              $principal_actual->codigo_ternero = $codigo_candidato;
-              break;
+            if ($codigo_candidato === '' || (int)$registro->id === $id_principal) {
+              continue;
             }
+
+            /* codigo_ternero tiene restricción UNIQUE: el duplicado debe
+               soltar su código ANTES de que lo tome el principal, o el
+               UPDATE falla con "duplicate key value violates unique
+               constraint". El duplicado queda archivado con un código
+               marcado como unificado. */
+            $duplicado_origen = Mregnacimiento::find((int)$registro->id);
+            if ($duplicado_origen
+                && trim((string)$duplicado_origen->codigo_ternero) === $codigo_candidato) {
+              $sufijo = '-U' . (int)$registro->id;
+              $largo = max(1, 20 - strlen($sufijo));
+              $base = function_exists('mb_substr')
+                ? mb_substr($codigo_candidato, 0, $largo, 'UTF-8')
+                : substr($codigo_candidato, 0, $largo);
+              $duplicado_origen->codigo_ternero = $base . $sufijo;
+              $duplicado_origen->updated = date('Y-m-d H:i:s');
+              $duplicado_origen->user_modify = $usuario_id;
+              if (!$duplicado_origen->save()) {
+                throw new RuntimeException('No se pudo liberar el código de la cría duplicada.');
+              }
+            }
+
+            $principal_actual->codigo_ternero = $codigo_candidato;
+            break;
           }
         }
 
@@ -704,20 +852,42 @@ switch ($action) {
           }
         }
         $unificados++;
-      }
+        }
 
-      $conexion->commit();
+        bovs_tx_confirmar($conexion, $token_transaccion);
+        $error_unificacion = null;
+        break;
+      } catch (Throwable $e) {
+        if ($token_transaccion !== null) {
+          try {
+            bovs_tx_revertir($conexion, $token_transaccion);
+          } catch (Throwable $e_revertir) {
+            error_log('Error al revertir la unificación de nacimientos: ' . $e_revertir->getMessage());
+          }
+        }
+
+        $error_unificacion = $e;
+
+        /* Transacción abortada por PostgreSQL: se limpia con el rollback y
+           se repite la operación completa una sola vez. */
+        if ($intento_unificacion === 1 && bovs_tx_error_abortado($e)) {
+          continue;
+        }
+        break;
+      }
+    }
+
+    if ($error_unificacion === null) {
       echo json_encode(array(
         'resultado' => 'ok',
         'unificados' => $unificados,
         'mensaje' => '<div class="alert alert-success">Se unificaron ' . $unificados . ' grupo(s). Se conservaron las crías y sus fichas asociadas.</div>'
       ));
-    } catch (Throwable $e) {
-      $conexion->rollback();
-      error_log('Error al unificar nacimientos: ' . $e->getMessage());
-      $detalle = ($e instanceof RuntimeException)
-        ? ' ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')
-        : ' ' . htmlspecialchars(nac_resumen_error($e->getMessage()), ENT_QUOTES, 'UTF-8');
+    } else {
+      error_log('Error al unificar nacimientos: ' . $error_unificacion->getMessage());
+      $detalle = ($error_unificacion instanceof RuntimeException)
+        ? ' ' . htmlspecialchars($error_unificacion->getMessage(), ENT_QUOTES, 'UTF-8')
+        : ' ' . htmlspecialchars(nac_resumen_error($error_unificacion->getMessage()), ENT_QUOTES, 'UTF-8');
       echo json_encode(array(
         'resultado' => 'error',
         'mensaje' => '<div class="alert alert-danger">No se completó la unificación; todos los cambios fueron revertidos.' . $detalle . ' Vuelve a analizar los grupos e inténtalo de nuevo.</div>'
@@ -1575,12 +1745,15 @@ switch ($action) {
       ));
     }
 
-    /* Un parto admite como máximo 2 crías (mellizos). Es el mismo tope que
-       aplica el formulario web y la app sin conexión. */
-    if (count($terneros) > 5) {
+    /* Tope de crías por parto según la especie del fundo: 3 en caprinos y
+       4 en ovinos (lib/especie_helper.php). Es el mismo tope que aplican el
+       formulario web, la edición y la app sin conexión. */
+    if (count($terneros) > bovs_max_crias_parto()) {
       echo json_encode(array(
         'resultado' => 'error',
-        'mensaje' => '<div class="alert alert-warning">Un nacimiento admite como máximo 5 terneros/as.</div>'
+        'mensaje' => '<div class="alert alert-warning">'
+          . htmlspecialchars(bovs_mensaje_max_crias_parto(), ENT_QUOTES, 'UTF-8')
+          . '</div>'
       ));
       break;
     }
@@ -1880,7 +2053,10 @@ switch ($action) {
    /// CALCULANDO EL PERIODO DE CELO
         //***************** */
         $data_celo = Mperiodo::find_by_sql(" select dias_gestacion as dias from mperiodos where mfundos_id=" . $mfundos_id . " and codper_bov='PPS';");
-        
+
+        /* Si el fundo no tiene período PPS la consulta no devuelve filas:
+           $dias quedaba sin definir (warning + valor nulo) y se usaba abajo. */
+        $dias = 0;
         foreach ($data_celo as $d_celo) {
           $dias = $d_celo->dias;
         }
@@ -2016,8 +2192,18 @@ switch ($action) {
             $reg_ternero->created = date('Y-m-d H:i:s');
             $reg_ternero->status = 1;
             $reg_ternero->user_create = $usuario_id;
-            if (!$reg_ternero->save()) {
+            /* Model::save() LANZA DatabaseException ante un choque de
+               restricciones (no devuelve false): sin este try/catch la
+               excepción escapaba, el navegador recibía un 500 vacío y la
+               transacción quedaba abierta. */
+            try {
+              if (!$reg_ternero->save()) {
+                $detalle_guardado = false;
+                break;
+              }
+            } catch (Throwable $e) {
               $detalle_guardado = false;
+              $sovca_nac_err = $e->getMessage();
               break;
             }
           }
@@ -2032,7 +2218,15 @@ switch ($action) {
             $reg_nac_fundo->mfundos_id = $mfundos_id;
             $reg_nac_fundo->user_create = $usuario_id;
 
-            if ($reg_nac_fundo->save()) {
+            $fundo_guardado = false;
+            try {
+              $fundo_guardado = (bool) $reg_nac_fundo->save();
+            } catch (Throwable $e) {
+              $fundo_guardado = false;
+              $sovca_nac_err = $e->getMessage();
+            }
+
+            if ($fundo_guardado) {
               $servicio_actualizado = true;
               if ($servicio_gestante) {
                 $serviciosCiclo = Mregservicio::find('all', array('conditions' => array(
@@ -2052,8 +2246,14 @@ switch ($action) {
                     $servicioCiclo->nro_terneros = count($terneros);
                     $servicio_encontrado = true;
                   }
-                  if (!$servicioCiclo->save()) {
+                  try {
+                    if (!$servicioCiclo->save()) {
+                      $servicio_actualizado = false;
+                      break;
+                    }
+                  } catch (Throwable $e) {
                     $servicio_actualizado = false;
+                    $sovca_nac_err = $e->getMessage();
                     break;
                   }
                 }
@@ -2182,11 +2382,47 @@ switch ($action) {
 
         $hoy = date('d-m-Y');
 
+        /* El tope de crías se valida ANTES de guardar: si se validaba después,
+           el parto ya quedaba modificado y el usuario recibía un error con los
+           cambios a medias.
+
+           Un parto cargado antes de esta regla puede tener más crías que el
+           tope: se permite guardarlo siempre que no se AGREGUEN más (así se
+           puede corregir la fecha, el padre o el peso sin bloqueos). */
+        if (isset($_POST['terneros'])) {
+          $crias_tope = json_decode((string) $_POST['terneros'], true);
+          $max_crias_edit = bovs_max_crias_parto((int) $t_ganaderia);
+          if (is_array($crias_tope) && count($crias_tope) > $max_crias_edit) {
+            $crias_actuales = 0;
+            try {
+              $crias_actuales = (int) Mregnacimiento::connection()->query_and_fetch_one(
+                'SELECT COUNT(*) FROM public.mternerosxnacimientos
+                  WHERE mregnacimientos_id = ? AND mfundos_id = ? AND status = 1',
+                array($id_reg_nac, $mfundos_id)
+              );
+            } catch (Throwable $e) {
+              $crias_actuales = 0;
+            }
+            if (count($crias_tope) > $crias_actuales) {
+              echo json_encode(array(
+                'resultado' => 'error',
+                'mensaje' => '<div class="alert alert-warning">'
+                  . htmlspecialchars(bovs_mensaje_max_crias_parto((int) $t_ganaderia), ENT_QUOTES, 'UTF-8')
+                  . '</div>'
+              ));
+              break;
+            }
+          }
+        }
+
 
          /// CALCULANDO EL PERIODO DE CELO
         //***************** */
         $data_celo = Mperiodo::find_by_sql(" select dias_gestacion as dias from mperiodos where mfundos_id=" . $mfundos_id . " and codper_bov='PPS';");
-        
+
+        /* Si el fundo no tiene período PPS la consulta no devuelve filas:
+           $dias quedaba sin definir (warning + valor nulo) y se usaba abajo. */
+        $dias = 0;
         foreach ($data_celo as $d_celo) {
           $dias = $d_celo->dias;
         }
@@ -2298,14 +2534,7 @@ switch ($action) {
             $crias_edit = json_decode((string)$_POST['terneros'], true);
 
             if (is_array($crias_edit) && count($crias_edit) > 0) {
-
-              if (count($crias_edit) > 5) {
-                echo json_encode(array(
-                  'resultado' => 'error',
-                  'mensaje' => '<div class="alert alert-warning">Un nacimiento admite como máximo 5 terneros/as.</div>'
-                ));
-                break;
-              }
+              /* El tope de crías ya se validó antes de guardar. */
 
               try {
                 $crias_existentes = Mterneroxnacimiento::find('all', array(
@@ -3029,6 +3258,10 @@ foreach ($data as $rs) {
     
     break;
 } //end switch
+} catch (Throwable $e) {
+  error_log('[NAC] excepción no controlada: ' . $e->getMessage());
+  nac_responder_error_interno(nac_resumen_tecnico($e->getMessage()));
+}
 
 
 function tiempo_t($fecha_nac)

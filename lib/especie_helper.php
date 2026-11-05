@@ -54,6 +54,50 @@ if (!function_exists('bovs_especie_es_caprina')) {
     }
 }
 
+if (!function_exists('bovs_max_crias_parto')) {
+    /**
+     * Crías que puede tener un parto según la especie del fundo.
+     *
+     *   Caprinos: 3 crías · Ovinos: 4 crías.
+     *
+     * Con "todas" (3) o sin fundo activo (0) se usa el tope mayor: es el
+     * que no rechaza un parto válido de cualquiera de las dos especies.
+     *
+     * @param int|null $tipo_ganaderia Tipo de ganadería (null = fundo activo).
+     * @return int
+     */
+    function bovs_max_crias_parto($tipo_ganaderia = null)
+    {
+        $tipo = ($tipo_ganaderia === null) ? bovs_especie_tipo_ganaderia() : (int) $tipo_ganaderia;
+
+        return $tipo === 2 ? 3 : 4;
+    }
+}
+
+if (!function_exists('bovs_mensaje_max_crias_parto')) {
+    /**
+     * Mensaje para el usuario cuando el parto supera el tope de crías.
+     *
+     * @param int|null $tipo_ganaderia Tipo de ganadería (null = fundo activo).
+     * @return string
+     */
+    function bovs_mensaje_max_crias_parto($tipo_ganaderia = null)
+    {
+        $tipo = ($tipo_ganaderia === null) ? bovs_especie_tipo_ganaderia() : (int) $tipo_ganaderia;
+
+        if ($tipo === 2) {
+            $especie = 'caprinos';
+        } elseif ($tipo === 1) {
+            $especie = 'ovinos';
+        } else {
+            $especie = 'ovinos y caprinos';
+        }
+
+        return 'Un parto de ' . $especie . ' admite como máximo '
+            . bovs_max_crias_parto($tipo) . ' crías.';
+    }
+}
+
 if (!function_exists('bovs_especie_formatear')) {
     /**
      * Aplica el formato pedido a una palabra.

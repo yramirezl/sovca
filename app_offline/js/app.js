@@ -4925,15 +4925,22 @@ function poblarSelectAnimalesDesdeLista(idCampo, animales, textoVacio) {
 // que antes.
 // ---------------------------------------------------------------------
 
-const MAX_TERNEROS_PARTO = 5;
+/* Tope de crías del parto según la especie del fundo activo: 3 en caprinos
+   y 4 en ovinos. Es la misma regla que aplica la web y el servidor. */
+async function maxTernerosParto() {
+  const fundos = await Db.listarFundosMeta().catch(() => []);
+  const activo = fundos.find((fundo) => Number(fundo.id) === Number(Db.fundoActivo()));
+  return (activo && Number(activo.tipo_ganaderia_id) === 1) ? 4 : 3;
+}
 
 async function agregarFilaTernero(datos = {}) {
   const lista = el('nacimientos-terneros');
   if (!lista) return;
 
-  if (lista.querySelectorAll('.ternero-fila').length >= MAX_TERNEROS_PARTO) {
+  const maxTerneros = await maxTernerosParto();
+  if (lista.querySelectorAll('.ternero-fila').length >= maxTerneros) {
     el('form-nacimientos-mensaje').textContent = 'Un parto no puede tener más de '
-      + MAX_TERNEROS_PARTO + ' terneros/as.';
+      + maxTerneros + ' terneros/as.';
     return;
   }
 

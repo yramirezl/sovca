@@ -1,6 +1,8 @@
 <?php
 include("../../lib/validar_session.php");
 ValidaSession("../login");
+require_once __DIR__ . '/../../lib/especie_helper.php';
+$nac_max_crias = bovs_max_crias_parto();
 
 $parametros = base64_decode($_GET["%$%"]);
 $valores = explode("=", $parametros);
@@ -1115,7 +1117,9 @@ $("#exit").click(function() {
    Se listan aquí para poder corregir sus datos y se guardan con
    el resto del parto.
    ============================================================ */
-var MAX_CRIAS_PARTO = 5;
+/* Tope de crías según la especie del fundo: 3 en caprinos y 4 en ovinos
+   (lib/especie_helper.php), el mismo que valida el controlador. */
+var MAX_CRIAS_PARTO = <?= (int) $nac_max_crias ?>;
 var criasParto = [];
 
 function escaparHtmlCria(valor) {

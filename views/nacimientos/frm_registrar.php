@@ -1,6 +1,9 @@
 <?php
 include("../../lib/validar_session.php");
 ValidaSession("../login");
+require_once __DIR__ . '/../../lib/especie_helper.php';
+$nac_max_crias = bovs_max_crias_parto();
+$nac_max_crias_msj = bovs_mensaje_max_crias_parto();
 ?>
 <?php include("../layouts/constantes.php") ?>
 <?php include_once("../layouts/cabecera.php") ?>
@@ -461,7 +464,7 @@ ValidaSession("../login");
                             <i class="fa fa-plus"></i> Agregar cría
                         </button>
                     </div>
-                    <small class="nac-terneros-hint">Registra aquí las crías del mismo parto (máximo 5). Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</small>
+                    <small class="nac-terneros-hint">Registra aquí las crías del mismo parto (máximo <?= (int) $nac_max_crias ?>). Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</small>
                     <small class="nac-terneros-tope" id="nac_terneros_tope">
                         <i class="fa fa-exclamation-circle"></i>
                         <span id="nac_terneros_tope_texto">Ya registraste el máximo de crías posibles de este parto.</span>
@@ -552,10 +555,10 @@ var temporizadorBusquedaGestante = null;
 var solicitudBusquedaGestante = null;
 var tipoServicioGestanteSeleccionado = '';
 
-/* Un parto admite como máximo 5 crías: en ganadería ovina y caprina los
-   partos múltiples (2 a 5 crías) son habituales. Es el mismo tope que
-   aplica la app sin conexión y el controlador al guardar. */
-var MAX_TERNEROS = 5;
+/* Tope de crías del parto según la especie del fundo: 3 en caprinos y
+   4 en ovinos (lib/especie_helper.php). Es el mismo tope que aplica la
+   app sin conexión y el controlador al guardar. */
+var MAX_TERNEROS = <?= (int) $nac_max_crias ?>;
 var ternerosBloqueados = true;
 
 function maxTernerosAlcanzado() {
@@ -573,8 +576,8 @@ function actualizarBotonAgregarTernero() {
 
     $('#nac_terneros_tope').toggle(tope);
     $('#nac_terneros_tope_texto').text(
-        'Ya registraste las ' + MAX_TERNEROS + ' crías posibles de este parto. '
-        + 'Quita una para poder agregar otra.'
+        <?= json_encode($nac_max_crias_msj, JSON_UNESCAPED_UNICODE) ?>
+        + ' Quita una para poder agregar otra.'
     );
 }
 

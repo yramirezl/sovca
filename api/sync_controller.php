@@ -32,6 +32,7 @@
 require_once __DIR__ . '/config/bootstrap.php';
 require_once __DIR__ . '/lib/SyncModulos.php';
 require_once __DIR__ . '/../lib/fecha_secado_helper.php';
+require_once __DIR__ . '/../lib/especie_helper.php';
 require_once __DIR__ . '/../lib/edad_hembra_helper.php';
 require_once __DIR__ . '/../lib/arete_helper.php';
 require_once __DIR__ . '/../models/Musuario.php';
@@ -1637,6 +1638,23 @@ function crear_registro_nacimiento(string $uuid, array $cambio, array $config, s
     if ($errorTerneros) {
         return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => $errorTerneros];
     }
+
+    /* Tope de crías por parto según la especie del fundo (3 caprinos,
+       4 ovinos). La app sin conexión ya lo aplica; esto cierra el paso a
+       cualquier cliente que mande más crías de las permitidas. */
+    $fundoEspecie = Musuario::connection()->query(
+        'SELECT mtipoganaderias_id FROM mfundos WHERE id = ?',
+        [(int) $usuario['fundo_id']]
+    )->fetch();
+    $tipoGanaderiaFundo = (int) ($fundoEspecie['mtipoganaderias_id'] ?? 0);
+    if (count($terneros) > bovs_max_crias_parto($tipoGanaderiaFundo)) {
+        return [
+            'uuid_local' => $uuid,
+            'resultado'  => 'error',
+            'mensaje'    => bovs_mensaje_max_crias_parto($tipoGanaderiaFundo),
+        ];
+    }
+
     $terneroPrincipal = $terneros[0];
     $datos['id_ternero'] = $terneroPrincipal['id_ternero'];
     $datos['peso_nacimiento'] = $terneroPrincipal['peso_nacimiento'];
