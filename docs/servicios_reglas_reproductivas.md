@@ -103,7 +103,7 @@ Los períodos se identifican por `mperiodos.codper_bov`:
 | `PGB` | Gestación | `PG` · fecha probable de parto |
 | `PPS` | Parto/servicio | celo · días no productivos |
 | `PPL` | Producción de leche | secado normal (parto + PPL) |
-| `PSD` | Secado | ajuste por servicio (210 ovino · 120 caprino) |
+| `PSD` | Secado | solo ovinos: ajuste por servicio (1–180 días; si falta, 210) |
 | `PBL` | Lactancia | destete (120 días en ovinos y caprinos) |
 | `EMM` / `EHM` | Edad mínima macho/hembra | validación de servicios |
 
@@ -113,7 +113,29 @@ palpación/gestación además buscan el período por nombre como respaldo.
 
 ---
 
-## 4. Recordatorio de palpación en Notificaciones
+## 4. Fecha de secado (control del servicio)
+
+La fecha de secado **no se digita**: el sistema la calcula y el campo queda en
+solo lectura (sin calendario). La regla vive en `lib/fecha_secado_helper.php`
+y la comparten el control del servicio, los nacimientos y la sincronización
+offline.
+
+1. Solo aplica a hembras de aptitud **leche (2)** o **doble propósito (3)**.
+2. Si el intervalo entre el **último parto** y el **servicio** es **menor a
+   6 meses (180 días)**: `fecha de secado = fecha de servicio + 120 días`
+   (4 meses). En caprinos son siempre 120 días; en ovinos se respeta el `PSD`
+   del fundo solo si está entre 1 y 180 días (si no, 210).
+3. Si el servicio ocurrió a los 180 días o más desde el parto se mantiene el
+   ciclo normal de lactancia: `fecha de parto + PPL` del fundo.
+4. El servidor vuelve a calcular la fecha al guardar el control
+   (`edit_control`); lo que muestre el navegador no se toma como dato.
+
+Un `PSD` mal configurado (por ejemplo 728 días, que programaba secados a dos
+años del servicio) ya no afecta a los caprinos.
+
+---
+
+## 5. Recordatorio de palpación en Notificaciones
 
 `v_palpacion_alertas` alimenta `malertas` (tipo 2) desde
 `alertas/controlador_alertas.php` (cron `scripts/cron/crear_alerta.sh`, lunes,
@@ -139,7 +161,7 @@ Corregido en `scripts/migracion_alerta_palpacion.sql`:
 
 ---
 
-## 5. Puesta en producción
+## 6. Puesta en producción
 
 ```bash
 psql -d sovca -f scripts/migracion_periodos_codper_bov.sql

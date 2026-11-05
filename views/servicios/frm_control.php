@@ -420,13 +420,22 @@ $(document).ready(function() {
                 inactivar_fecha_secado();
             }
 
-            // Si hay fecha de secado (guardada o calculada) se deja editable:
-            // la regla propone la fecha y el usuario puede ajustarla.
-            if (parsedJson.fecha_destete != "") {
-                document.getElementById("fecha_secado").disabled = false;
+            // La fecha de secado NO se digita: la calcula el sistema con la
+            // regla única (servicio + 120 días si el intervalo post-parto es
+            // menor a 6 meses). Se deja siempre en solo lectura.
+            if (parsedJson.estado_fisiologico == 1
+                && (parsedJson.aptitud_h == 2 || parsedJson.aptitud_h == 3)) {
+                activar_fecha_secado();
+                CalcularFechaSecado();
+            } else if (parsedJson.fecha_destete != "") {
+                activar_fecha_secado();
+                $("#fecha_secado").val(parsedJson.fecha_destete);
                 if (parsedJson.secado_mensaje) {
                     $("#fecha_secado").attr('title', parsedJson.secado_mensaje);
                 }
+            }
+            if (document.getElementById("fecha_secado") !== null) {
+                document.getElementById("fecha_secado").disabled = true;
             }
 
             /* DNP = días entre el último parto y el servicio. Si el
@@ -449,7 +458,7 @@ $(document).ready(function() {
             calcularFechaProbableParto(false);
         }
 
-        if (fecha_fup != "") {
+        if (fecha_fup != "" && $.trim($("#fecha_secado").val()) !== "") {
             activar_fecha_secado();
         }
 
@@ -609,11 +618,8 @@ $('#estado_fisiologico').change(function(event) {
         if ((aptitud_h == 2) || (aptitud_h == 3)) {
             activar_fecha_secado();
 
-            if (fecha_secado_destete == "") {
-                CalcularFechaSecado();
-            } else {
-                $("#fecha_secado").val(fecha_secado_destete);
-            }
+            // Siempre se recalcula: la fecha de secado no se digita.
+            CalcularFechaSecado();
         } else {
             inactivar_fecha_secado();
         }
@@ -672,8 +678,8 @@ function CalcularFechaSecado() {
         var mifecha = parsedJson.mifecha || "";
         fecha_secado_destete = mifecha;
         $("#fecha_secado").val(mifecha);
-        // Siempre editable: la regla propone la fecha y el usuario puede ajustarla.
-        document.getElementById("fecha_secado").disabled = false;
+        // Campo calculado: nunca se habilita para escribir a mano.
+        document.getElementById("fecha_secado").disabled = true;
         if (parsedJson.mensaje) {
             $("#fecha_secado").attr('title', parsedJson.mensaje);
         }
@@ -764,14 +770,7 @@ $('#fecha_fpp').datepicker({
     language: 'es',
     showOnFocus: true
 });
-$('#fecha_secado').datepicker({
-    endDate: '+0d',
-    todayBtn: false,
-    todayHighlight: true,
-    autoclose: true,
-    language: 'es',
-    showOnFocus: true
-});
+/* La fecha de secado es calculada por el sistema: no lleva datepicker. */
 $('#fecha_fp').datepicker({
     endDate: '+0d',
     todayBtn: false,

@@ -4,6 +4,7 @@ require_once '../models/Mdetacrlsanitariolote.php';
 require_once '../models/Mdetatemp.php';
 require_once '../models/Vmproductosxlote.php';
 require_once '../models/Mcontrolsanitario.php';
+require_once '../lib/transaccion_helper.php';
 
 date_default_timezone_set('America/Caracas');
 
@@ -58,40 +59,60 @@ switch ($action) {
             //( A )
 
             if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-            @$usuario_id = $_SESSION['idusuariox'];
-            $id_sesion_usuario = $_SESSION['instante'];
-            $mfundos_id = $_SESSION['mfundos_id'];
+            $usuario_id = isset($_SESSION['idusuariox']) ? (int) $_SESSION['idusuariox'] : 0;
+            $id_sesion_usuario = isset($_SESSION['instante']) ? $_SESSION['instante'] : null;
+            $mfundos_id = isset($_SESSION['mfundos_id']) ? (int) $_SESSION['mfundos_id'] : 0;
+            $id_control_sanit = (int) $id_control_sanit;
 
             $hoy = date('d-m-Y');
-            $conexion = null;
+            $respuesta = null;
 
-            try {
-                $reg_prod_control_sanitario = new Mdetacrlsanitario();
+            /* Igual que en la unificación de nacimientos: si PostgreSQL deja
+               la transacción abortada (25P02), se revierte y se reintenta una
+               vez. La pasada anterior no deja cambios. */
+            for ($intento = 1; $intento <= 2; $intento++) {
+                $conexion = null;
+                $token_transaccion = null;
 
-                $reg_prod_control_sanitario->mcontrolsanitarios_id = $id_control_sanit;
+                try {
+                    $control = Mcontrolsanitario::find('first', array(
+                        'conditions' => array(
+                            'id = ? and mfundos_id = ? and status = 1',
+                            $id_control_sanit,
+                            $mfundos_id
+                        )
+                    ));
+                    if (!$control) {
+                        throw new RuntimeException('El control sanitario no existe o no pertenece al fundo de la sesión.');
+                    }
 
-                $reg_prod_control_sanitario->mproductos_id = $producto;
-                $reg_prod_control_sanitario->dosis = $dosis;
-                $reg_prod_control_sanitario->detalles = $detalles_indicaciones;
+                    $reg_prod_control_sanitario = new Mdetacrlsanitario();
 
-                $reg_prod_control_sanitario->mfundos_id = $mfundos_id;
+                    $reg_prod_control_sanitario->mcontrolsanitarios_id = $id_control_sanit;
 
-                $reg_prod_control_sanitario->user_create = $usuario_id;
-                $reg_prod_control_sanitario->created = $hoy;
+                    $reg_prod_control_sanitario->mproductos_id = $producto;
+                    $reg_prod_control_sanitario->dosis = $dosis;
+                    $reg_prod_control_sanitario->detalles = $detalles_indicaciones;
 
-                $conexion = Mcontrolsanitario::connection();
-                $conexion->transaction();
-                if ($reg_prod_control_sanitario->save()) {
-                    $controlActualizado = marcar_control_sanitario_actualizado(
-                        (int) $id_control_sanit,
-                        (int) $mfundos_id,
-                        (int) $usuario_id
-                    );
+                    $reg_prod_control_sanitario->mfundos_id = $mfundos_id;
 
-                    if ($controlActualizado) {
-                        $conexion->commit();
+                    $reg_prod_control_sanitario->user_create = $usuario_id;
+                    $reg_prod_control_sanitario->created = $hoy;
 
-                        $respuesta = array('resultado' => 'ok', 'mensaje' => '<div class="alert alert-success alert-dismissable">
+                    $conexion = Mcontrolsanitario::connection();
+                    $token_transaccion = bovs_tx_iniciar($conexion);
+
+                    if (!$reg_prod_control_sanitario->save()) {
+                        throw new RuntimeException('La base de datos rechazó el detalle del producto.');
+                    }
+
+                    if (!marcar_control_sanitario_actualizado($id_control_sanit, $mfundos_id, $usuario_id)) {
+                        throw new RuntimeException('No se pudo actualizar el control sanitario.');
+                    }
+
+                    bovs_tx_confirmar($conexion, $token_transaccion);
+
+                    $respuesta = array('resultado' => 'ok', 'mensaje' => '<div class="alert alert-success alert-dismissable">
                  <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
                  <h4>
                  <i class="icon fa fa-check"></i>
@@ -99,29 +120,31 @@ switch ($action) {
                  </h4>
                  Los datos han sido registrados exitosamente!.
                  </div>');
-                    } else {
-                        $conexion->rollBack();
-                        $respuesta = array('resultado' => 'error', 'mensaje' => 'No se pudo actualizar el control sanitario. No se guardó el producto.');
+                    break;
+                } catch (Throwable $e) {
+                    if ($conexion && $token_transaccion !== null) {
+                        try {
+                            bovs_tx_revertir($conexion, $token_transaccion);
+                        } catch (Throwable $e_revertir) {
+                            error_log('[control sanitario] no se pudo revertir: ' . $e_revertir->getMessage());
+                        }
                     }
-                } else {
-                    $conexion->rollBack();
 
-                    $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger alert-dismissable">
-                     <button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>
-                     <h4>
-                     <i class="icon fa fa-ban"></i>
-                     Alerta!
-                     </h4>
-                     Error al registrar los datos.
-                     </div>');
+                    if ($intento === 1 && bovs_tx_error_abortado($e)) {
+                        continue;
+                    }
+
+                    error_log('[control sanitario] add_productos: ' . $e->getMessage());
+
+                    if ($e instanceof RuntimeException) {
+                        $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudo guardar el producto. '
+                            . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</div>');
+                    } else {
+                        $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudo guardar el producto. Detalle: '
+                            . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</div>');
+                    }
+                    break;
                 }
-            } catch (Throwable $e) {
-                if ($conexion) {
-                    try { $conexion->rollBack(); } catch (Throwable $e2) { /* sin transacción */ }
-                }
-                error_log('[control sanitario] add_productos: ' . $e->getMessage());
-                $respuesta = array('resultado' => 'error', 'mensaje' => '<div class="alert alert-danger">No se pudo guardar el producto. Detalle: '
-                    . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</div>');
             }
         }
         echo json_encode($respuesta);

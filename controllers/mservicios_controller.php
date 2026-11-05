@@ -1040,10 +1040,12 @@ switch ($action) {
 
                 $reg_servicio = Mregservicio::find($id_regservicio);
 
-                // Si el usuario no fijó una fecha de secado, se calcula con la
-                // regla única. Si ya viene una fecha (registrada o editada a
-                // mano), se respeta: el dato no se recalcula.
-                if (trim((string)$fecha_secado) === '' && $bovs_estado_fisio == 1 && trim((string)$fecha_fup) !== '') {
+                // La fecha de secado NO viene del formulario: se calcula
+                // siempre en el servidor con la regla única (fecha de servicio
+                // + 120 días si el intervalo desde el último parto es menor a
+                // 6 meses; en caso contrario, parto + período de producción).
+                $fecha_secado = '';
+                if ($bovs_estado_fisio == 1 && trim((string)$fecha_fup) !== '') {
                     $aptitud_hembra = (int)$reg_servicio->aptitud;
                     $calculo_secado = bovs_calcular_secado_servicio(
                         $reg_servicio->f_servicio,
