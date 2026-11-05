@@ -46,7 +46,7 @@ deja de considerarse inactivo.
 | Archivo | Función |
 |---|---|
 | `scripts/migracion_alerta_inactividad.sql` | Crea la tabla de seguimiento `malertas_inactividad_estado` |
-| `alertas/enviar_inactividad.php` | Clase `Enviar_Correo`: `construir_cuerpo()`, `enviar_inactividad()`, `enviar_resumen()` |
+| `alertas/enviar_inactividad.php` | Clase `Enviar_Correo`: `construir_cuerpo()`, `construir_cuerpo_resumen()`, `enviar_inactividad()`, `enviar_resumen()` |
 | `alertas/controlador_email_inactividad.php` | Proceso (cron): detecta, **agrupa por productor**, envía y registra |
 | `alertas/enviar.php` | Se le agregaron `construir_cuerpo_agrupado()` y `enviar_agrupado()` para las alertas de eventos |
 | `alertas/controlador_email.php` | Alertas de eventos: ahora **agrupa el envío por productor** + modo `--dry-run` |
@@ -96,7 +96,11 @@ php controlador_email_inactividad.php --limite=20
 php controlador_email_inactividad.php --forzar
 
 # Enviar el resumen interno de la corrida a un correo del equipo
+# (además de los administradores de roles 1 y 4, que lo reciben siempre)
 php controlador_email_inactividad.php --resumen=soporte@ruted.net
+
+# No enviar el resumen a los administradores (solo los avisos a productores)
+php controlador_email_inactividad.php --sin-resumen
 ```
 
 | Parámetro | Descripción |
@@ -106,7 +110,8 @@ php controlador_email_inactividad.php --resumen=soporte@ruted.net
 | `--dry-run` | Solo informa los candidatos; **no envía** ni registra nada |
 | `--html` | Junto a `--dry-run`, imprime el HTML del correo del primer candidato |
 | `--forzar` | Ignora el control de avisos repetidos |
-| `--resumen=correo` | Correo interno que recibe el resumen de la corrida |
+| `--sin-resumen` | No envía el correo de resumen a los administradores |
+| `--resumen=correo` | Destinatario interno **adicional** para el resumen (los administradores de roles 1 y 4 ya lo reciben siempre) |
 
 El proceso solo se ejecuta por **línea de comandos**: si se abre por URL responde
 `403 Forbidden`.
@@ -151,6 +156,23 @@ diario por falta de control).
 - Tabla con los usuarios activos del fundo, su rol y su última conexión.
 - Botón `Ingrese Aquí` hacia `https://global.ruted.net/sovca/`.
 - Firma "Ruted, Tecnología y Desarrollo Rural."
+
+### Correo de resumen a administradores (roles 1 y 4)
+
+Al terminar cada corrida **real** (no en `--dry-run`), el proceso envía un correo de
+resumen a **todos los usuarios activos con `mroles_id` 1 o 4** que tengan correo válido
+(`musuarios.status = 1`). Es el mismo patrón del resumen del envío de alertas.
+
+El correo incluye:
+
+- Totales de la corrida: fundos candidatos, correos enviados (agrupados por productor),
+  fundos avisados, fundos omitidos por aviso reciente, errores y días de inactividad.
+- Tabla del detalle: **productor, correo, fundos avisados, cantidad y estado**
+  (`ENVIADO` o `ERROR`), para saber a qué usuarios se les notificó.
+- Lista de omitidos y errores, cuando existan.
+
+Con `--resumen=correo` se agrega una dirección interna adicional; con `--sin-resumen`
+no se envía este correo (útil en pruebas o corridas manuales).
 
 ---
 

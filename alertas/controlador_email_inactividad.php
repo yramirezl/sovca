@@ -40,6 +40,14 @@
  *   php controlador_email_inactividad.php --dias=10       (cambia el umbral)
  *   php controlador_email_inactividad.php --limite=20     (máximo de correos por corrida)
  *   php controlador_email_inactividad.php --forzar        (ignora el control de repetidos)
+ *   php controlador_email_inactividad.php --sin-resumen  (no envía el resumen a administradores)
+ *
+ * Resumen de la corrida:
+ *   Al terminar cada envío real se manda un correo de resumen a TODOS los
+ *   administradores activos (musuarios.mroles_id 1 y 4) con correo válido,
+ *   indicando cuántas notificaciones salieron y a qué usuarios (productores),
+ *   con sus fundos y correos. Igual que el resumen del envío de alertas.
+ *   Con --resumen=correo se agrega un destinatario interno adicional.
  *
  * Cron sugerido (todos los días a las 6:00 a.m.):
  *   0 6 * * * cd /var/www/html/sovca/alertas && php controlador_email_inactividad.php >> /var/log/sovca_inactividad.log 2>&1
@@ -53,8 +61,9 @@ require_once 'conexion.php';
 require_once 'enviar_inactividad.php';
 date_default_timezone_set('America/Caracas');
 
-/* Correo interno del equipo para recibir el resumen de cada corrida.
-   Dejar vacío para no enviar resumen (o usar --resumen=correo). */
+/* Correo interno ADICIONAL para el resumen de cada corrida (opcional).
+   Los administradores activos con roles 1 y 4 ya se agregan SIEMPRE desde
+   musuarios; aquí solo se suma una dirección extra si se necesita. */
 define('ALERTA_INACTIVIDAD_RESUMEN', '');
 
 /* ---------------------------------------------------------------- */
@@ -66,11 +75,11 @@ if (PHP_SAPI !== 'cli') {
   exit;
 }
 
-$opciones = getopt('', ['dias::', 'limite::', 'resumen::', 'dry-run', 'html', 'forzar', 'ayuda', 'help']);
+$opciones = getopt('', ['dias::', 'limite::', 'resumen::', 'dry-run', 'html', 'forzar', 'sin-resumen', 'ayuda', 'help']);
 $opciones = is_array($opciones) ? $opciones : [];
 
 if (isset($opciones['ayuda']) || isset($opciones['help'])) {
-  echo "Uso: php controlador_email_inactividad.php [--dry-run] [--html] [--dias=N] [--limite=N] [--forzar] [--resumen=correo]\n";
+  echo "Uso: php controlador_email_inactividad.php [--dry-run] [--html] [--dias=N] [--limite=N] [--forzar] [--sin-resumen] [--resumen=correo]\n";
   exit(0);
 }
 
@@ -81,6 +90,7 @@ $LIMITE    = (isset($opciones['limite']) && $opciones['limite'] !== false && $op
 $DRY_RUN   = isset($opciones['dry-run']);
 $VER_HTML  = isset($opciones['html']);
 $FORZAR    = isset($opciones['forzar']);
+$SIN_RESUMEN = isset($opciones['sin-resumen']);
 $RESUMEN   = (isset($opciones['resumen']) && is_string($opciones['resumen']) && trim($opciones['resumen']) !== '')
   ? trim($opciones['resumen'])
   : ALERTA_INACTIVIDAD_RESUMEN;
@@ -162,6 +172,15 @@ $SQL_GUARDAR_ESTADO = "INSERT INTO malertas_inactividad_estado
                                  correo_enviado   = EXCLUDED.correo_enviado,
                                  updated          = now()";
 
+/* Administradores activos que reciben el resumen de la corrida (roles 1 y 4) */
+$SQL_ADMINISTRADORES = "SELECT btrim(name)          AS nombre,
+                               lower(btrim(email))  AS email
+                          FROM musuarios
+                         WHERE mroles_id IN (1, 4)
+                           AND status = 1
+                           AND coalesce(btrim(email), '') <> ''
+                         ORDER BY mroles_id, name";
+
 /* ------------------------------------------------------------------ */
 /* Ejecución                                                           */
 /* ------------------------------------------------------------------ */
@@ -176,6 +195,7 @@ $avisados = 0;
 $omitidos = 0;
 $errores = 0;
 $detalle = [];
+$envios_detalle = []; // registro estructurado para el correo de resumen
 
 if (!$con->CONNECT()) {
   $LOG('ERROR: no se pudo conectar a la base de datos. Se cancela la corrida.');
@@ -292,6 +312,12 @@ foreach ($grupos as $email => $grupo) {
   }
   $ids_txt = implode(', ', $ids);
 
+  /* Nombres de los fundos para el resumen de administradores */
+  $fundos_envio = array();
+  foreach ($grupo['pendientes'] as $p) {
+    $fundos_envio[] = $p['fundo'] . ' (#' . $p['mfundos_id'] . ')';
+  }
+
   $datos = array(
     'productor' => $grupo['productor'],
     'fundos'    => $grupo['fundos'],
@@ -340,10 +366,24 @@ foreach ($grupos as $email => $grupo) {
 
     $detalle[] = 'ENVIADO  ' . $email . ' (' . $grupo['productor'] . ') → ' . $n_fundos
       . ' fundo(s) en un solo correo [' . $ids_txt . ']';
+
+    $envios_detalle[] = array(
+      'productor' => $grupo['productor'],
+      'correo'    => $email,
+      'fundos'    => $fundos_envio,
+      'estado'    => 'ENVIADO',
+    );
   } else {
     $errores++;
     $detalle[] = 'ERROR    ' . $email . ' (' . $grupo['productor'] . ') → ' . $n_fundos
       . ' fundo(s): no se pudo enviar el correo (' . $enviar_correo->ErrorInfo . ')';
+
+    $envios_detalle[] = array(
+      'productor' => $grupo['productor'],
+      'correo'    => $email,
+      'fundos'    => $fundos_envio,
+      'estado'    => 'ERROR: no se pudo enviar',
+    );
   }
 
   $correos++;
@@ -353,17 +393,55 @@ foreach ($grupos as $email => $grupo) {
   }
 }
 
-if (!$DRY_RUN && $RESUMEN !== '' && ($enviados > 0 || $errores > 0 || $candidatos > 0)) {
-  $resumen_ok = $enviar_correo->enviar_resumen($RESUMEN, [
-    'revisados' => $candidatos,
-    'enviados'  => $enviados,
-    'avisados'  => $avisados,
-    'omitidos'  => $omitidos,
-    'errores'   => $errores,
-    'dias'      => $DIAS,
-    'detalle'   => implode('<br>', array_map('htmlspecialchars', $detalle)),
-  ]);
-  $LOG('Resumen interno ' . ($resumen_ok ? 'enviado' : 'NO enviado') . ' a ' . $RESUMEN);
+/* ------------------------------------------------------------------ */
+/* 3) Resumen a los ADMINISTRADORES (roles 1 y 4), como en las alertas. */
+/* ------------------------------------------------------------------ */
+if (!$DRY_RUN && !$SIN_RESUMEN) {
+  /* Omitidos y errores: lo que interesa revisar en el correo. */
+  $novedades = array();
+  foreach ($detalle as $linea) {
+    if (strpos($linea, 'ERROR') === 0 || strpos($linea, 'OMITIDO') === 0) {
+      $novedades[] = $linea;
+    }
+  }
+
+  /* Destinatarios: administradores activos (roles 1 y 4) + --resumen extra */
+  $destinatarios_resumen = array();
+  $rsAdmin = pg_query($con->obj_conec, $SQL_ADMINISTRADORES);
+  if ($rsAdmin) {
+    while ($admin = pg_fetch_assoc($rsAdmin)) {
+      $destinatarios_resumen[] = $admin['email'];
+    }
+    pg_free_result($rsAdmin);
+  }
+  if ($RESUMEN !== '') {
+    $destinatarios_resumen[] = $RESUMEN;
+  }
+
+  /* Solo correos válidos y sin repetir */
+  $destinatarios_resumen = array_values(array_unique(array_filter(
+    $destinatarios_resumen,
+    function ($correo) {
+      return filter_var($correo, FILTER_VALIDATE_EMAIL) !== false;
+    }
+  )));
+
+  if (empty($destinatarios_resumen)) {
+    $LOG('Resumen interno NO enviado: no hay administradores activos (roles 1 y 4) con correo válido.');
+  } else {
+    $resumen_ok = $enviar_correo->enviar_resumen($destinatarios_resumen, array(
+      'revisados' => $candidatos,
+      'enviados'  => $enviados,
+      'avisados'  => $avisados,
+      'omitidos'  => $omitidos,
+      'errores'   => $errores,
+      'dias'      => $DIAS,
+      'envios'    => $envios_detalle,
+      'novedades' => $novedades,
+    ));
+    $LOG('Resumen interno ' . ($resumen_ok ? 'enviado' : 'NO enviado') . ' a '
+      . implode(', ', $destinatarios_resumen));
+  }
 }
 
 if ($DRY_RUN) {

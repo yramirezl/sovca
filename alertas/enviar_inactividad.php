@@ -239,20 +239,129 @@ class Enviar_Correo
   }
 
   /**
-   * Resumen interno de la corrida (para el equipo de soporte).
+   * Cuerpo HTML del resumen de la corrida (separado del envío para poder
+   * revisarlo sin mandar correos).
+   *
+   * @param array $datos revisados, enviados, avisados, omitidos,
+   *                     errores, dias, envios[] y novedades[]
+   * @return string HTML
+   */
+  function construir_cuerpo_resumen($datos)
+  {
+    $revisados = (int) (isset($datos['revisados']) ? $datos['revisados'] : 0);
+    $enviados  = (int) (isset($datos['enviados']) ? $datos['enviados'] : 0);
+    $avisados  = (int) (isset($datos['avisados']) ? $datos['avisados'] : 0);
+    $omitidos  = (int) (isset($datos['omitidos']) ? $datos['omitidos'] : 0);
+    $errores   = (int) (isset($datos['errores']) ? $datos['errores'] : 0);
+    $dias      = (int) (isset($datos['dias']) ? $datos['dias'] : 7);
+
+    /* Tabla de notificaciones: a qué usuario (productor) se le envió,
+       a qué correo y cuáles fundos cubrió el aviso. */
+    $filas = '';
+    if (!empty($datos['envios']) && is_array($datos['envios'])) {
+      foreach ($datos['envios'] as $envio) {
+        $fundos = (isset($envio['fundos']) && is_array($envio['fundos']))
+          ? $envio['fundos'] : array();
+        $estado = isset($envio['estado']) ? $envio['estado'] : 'ENVIADO';
+
+        $filas .= '<tr>'
+          . '<td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars(isset($envio['productor']) ? $envio['productor'] : '', ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars(isset($envio['correo']) ? $envio['correo'] : '', ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars(implode(' · ', $fundos), ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">' . count($fundos) . '</td>'
+          . '<td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars($estado, ENT_QUOTES, 'UTF-8') . '</td>'
+          . '</tr>';
+      }
+    }
+    if ($filas === '') {
+      $filas = '<tr><td colspan="5" style="padding:8px;color:#6b7280;">'
+        . 'No se enviaron notificaciones en esta corrida.</td></tr>';
+    }
+
+    /* Omitidos y errores: solo lo relevante para el registro. */
+    $novedades = '';
+    if (!empty($datos['novedades']) && is_array($datos['novedades'])) {
+      $novedades = '<ul style="font-family:sans-serif;font-size:13px;margin:0 0 15px;padding-left:20px;">';
+      foreach ($datos['novedades'] as $linea) {
+        $novedades .= '<li style="margin-bottom:4px;">'
+          . htmlspecialchars($linea, ENT_QUOTES, 'UTF-8') . '</li>';
+      }
+      $novedades .= '</ul>';
+    }
+
+    $cuerpo = '<div style="font-family:sans-serif;font-size:14px;color:#111827;">'
+      . '<p style="margin:0 0 12px;">Resumen del aviso por <strong>inactividad de fundos</strong> '
+      . 'del ' . date('d-m-Y H:i') . ':</p>'
+      . '<table role="presentation" border="0" cellpadding="0" cellspacing="0" '
+      . 'style="border-collapse:collapse;margin-bottom:16px;font-size:13px;">'
+      . '<tr><td style="padding:4px 10px 4px 0;">Fundos candidatos:</td><td><strong>' . $revisados . '</strong></td></tr>'
+      . '<tr><td style="padding:4px 10px 4px 0;">Correos enviados (agrupados por productor):</td><td><strong>' . $enviados . '</strong></td></tr>'
+      . '<tr><td style="padding:4px 10px 4px 0;">Fundos avisados:</td><td><strong>' . $avisados . '</strong></td></tr>'
+      . '<tr><td style="padding:4px 10px 4px 0;">Fundos omitidos (aviso reciente):</td><td><strong>' . $omitidos . '</strong></td></tr>'
+      . '<tr><td style="padding:4px 10px 4px 0;">Errores:</td><td><strong>' . $errores . '</strong></td></tr>'
+      . '<tr><td style="padding:4px 10px 4px 0;">Días de inactividad configurados:</td><td><strong>' . $dias . '</strong></td></tr>'
+      . '</table>'
+      . '<p style="margin:0 0 8px;"><strong>Detalle de notificaciones</strong></p>'
+      . '<table role="presentation" border="0" cellpadding="0" cellspacing="0" '
+      . 'style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:16px;">'
+      . '<thead><tr style="background:#f3f4f6;">'
+      . '<th style="text-align:left;padding:6px 8px;">Productor</th>'
+      . '<th style="text-align:left;padding:6px 8px;">Correo</th>'
+      . '<th style="text-align:left;padding:6px 8px;">Fundos avisados</th>'
+      . '<th style="text-align:center;padding:6px 8px;">Cant.</th>'
+      . '<th style="text-align:left;padding:6px 8px;">Estado</th>'
+      . '</tr></thead><tbody>' . $filas . '</tbody></table>'
+      . ($novedades !== ''
+        ? '<p style="margin:0 0 8px;"><strong>Omitidos y errores</strong></p>' . $novedades
+        : '')
+      . '<p style="margin:0 0 15px;">Ruted, Tecnología y Desarrollo Rural.</p>'
+      . '</div>';
+
+    return $cuerpo;
+  }
+
+  /**
+   * Resumen interno de la corrida para los ADMINISTRADORES (roles 1 y 4).
+   *
+   * Deja registro de cuántas notificaciones salieron y a qué usuarios
+   * (productores) se les envió, con sus fundos y correos.
+   *
+   * @param string|array $correo uno o varios destinatarios
+   * @param array        $datos  revisados, enviados, avisados, omitidos,
+   *                             errores, dias, envios[] y novedades[]
+   * @return bool true si el correo salió
    */
   function enviar_resumen($correo, $datos)
   {
-    $mensaje = 'Fundos candidatos: ' . (int) (isset($datos['revisados']) ? $datos['revisados'] : 0)
-      . '<br>Correos enviados (agrupados por productor): ' . (int) (isset($datos['enviados']) ? $datos['enviados'] : 0)
-      . '<br>Fundos avisados: ' . (int) (isset($datos['avisados']) ? $datos['avisados'] : 0)
-      . '<br>Fundos omitidos (ya avisados antes): ' . (int) (isset($datos['omitidos']) ? $datos['omitidos'] : 0)
-      . '<br>Errores: ' . (int) (isset($datos['errores']) ? $datos['errores'] : 0)
-      . '<br><br>Días de inactividad configurados: ' . (int) $datos['dias'];
-
-    if (!empty($datos['detalle'])) {
-      $mensaje .= '<br><br>' . $datos['detalle'];
+    /* Destinatarios: se aceptan uno o varios correos. */
+    $destinatarios = array();
+    foreach ((array) $correo as $destino) {
+      $destino = trim((string) $destino);
+      if ($destino !== '' && filter_var($destino, FILTER_VALIDATE_EMAIL)) {
+        $destinatarios[] = $destino;
+      }
     }
+    if (empty($destinatarios)) {
+      return false;
+    }
+
+    $revisados = (int) (isset($datos['revisados']) ? $datos['revisados'] : 0);
+    $enviados  = (int) (isset($datos['enviados']) ? $datos['enviados'] : 0);
+    $avisados  = (int) (isset($datos['avisados']) ? $datos['avisados'] : 0);
+    $omitidos  = (int) (isset($datos['omitidos']) ? $datos['omitidos'] : 0);
+    $errores   = (int) (isset($datos['errores']) ? $datos['errores'] : 0);
+    $dias      = (int) (isset($datos['dias']) ? $datos['dias'] : 7);
+
+    $resumen = 'Fundos candidatos: ' . $revisados
+      . ' | Correos enviados: ' . $enviados
+      . ' | Fundos avisados: ' . $avisados
+      . ' | Omitidos: ' . $omitidos
+      . ' | Errores: ' . $errores
+      . ' | Días de inactividad: ' . $dias;
 
     $mail = new PHPMailer();
     // Servidor, remitente y clave salen de config/mail.php
@@ -262,13 +371,14 @@ class Enviar_Correo
     if (function_exists('bovs_mail_cabeceras')) {
       bovs_mail_cabeceras($mail, 'notificacion');
     }
-    $mail->Subject       = "Notificaciones SOVCA - Inactividad de fundos";
-    $mail->AltBody       = strip_tags(str_replace('<br>', "\n", $mensaje));
-    $mail->MsgHTML('<div style="font-family:sans-serif;font-size:14px;">'
-      . '<p>Resumen del aviso por inactividad de fundos:</p>'
-      . '<p>' . $mensaje . '</p>'
-      . '<p>Ruted, Tecnología y Desarrollo Rural.</p></div>');
-    $mail->AddAddress($correo);
+    $mail->Subject       = 'Notificaciones SOVCA - Inactividad de fundos ('
+      . $enviados . ' enviadas)';
+    $mail->AltBody       = $resumen;
+    $mail->MsgHTML($this->construir_cuerpo_resumen($datos));
+
+    foreach ($destinatarios as $destino) {
+      $mail->AddAddress($destino);
+    }
 
     $enviado = $mail->Send();
     $mail->ClearAddresses();
