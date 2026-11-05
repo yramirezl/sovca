@@ -1,6 +1,16 @@
 {
-  "actual": "1.00047",
+  "actual": "1.00048",
   "versiones": [
+    {
+      "version": "1.00048",
+      "fecha": "2026-11-05",
+      "notas": [
+        "Nacimientos: máximo 3 crías por parto en caprinos y 4 en ovinos (antes 5).",
+        "Nacimientos: el servidor ya no corta el guardado con un error 500 vacío; si algo falla muestra el motivo.",
+        "Formularios: los botones Editar, Guardar y Regresar quedan en la cabecera, siempre a la vista.",
+        "Servicios: la fecha de secado se calcula (servicio + 120 días si el parto fue hace menos de 6 meses)."
+      ]
+    },
     {
       "version": "1.00047",
       "fecha": "2026-11-03",

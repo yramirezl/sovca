@@ -327,3 +327,95 @@ móvil los tres botones comparten una sola fila. Aplica a todos los
 formularios de proceso y de gestión sin tocar cada vista.
 
 No requiere migraciones SQL.
+
+---
+
+## 9. Despliegue de la entrega del 2026-11-05
+
+**No requiere migraciones SQL.** Solo hay código, estilos y documentos.
+
+### 9.1 Archivos nuevos
+
+| Archivo | Para qué |
+|---|---|
+| `lib/transaccion_helper.php` | Transacciones con SAVEPOINT (arreglo del 25P02) |
+| `js/crud-form-acciones.js` | Botones Editar / Guardar / Regresar en la cabecera |
+
+Si se suben solo los archivos modificados y se olvidan estos dos, las
+acciones de nacimientos y control sanitario fallan, así que verificar que
+queden en el servidor.
+
+### 9.2 Actualización
+
+```bash
+cd /var/www/html/sovca
+sudo -u www-data git pull origin main      # o rsync de los archivos
+sudo find . -path ./vendor -prune -o -name '*.php' -newer composer.json -print | head
+```
+
+Comprobar que existen y son legibles:
+
+```bash
+ls -l lib/transaccion_helper.php js/crud-form-acciones.js
+php -l lib/transaccion_helper.php
+php -l controllers/mnacimientos_controller.php
+```
+
+### 9.3 Recargar PHP
+
+```bash
+sudo systemctl reload apache2       # o php-fpm
+```
+
+Si el servidor usa OPcache con `validate_timestamps=0`, reiniciar PHP-FPM
+para que tome el código nuevo:
+
+```bash
+sudo systemctl restart php8.3-fpm   # ajustar a la versión instalada
+```
+
+### 9.4 Caché del navegador
+
+Las versiones ya vienen incrementadas en el código:
+
+- `views/layouts/constantes.php` → `tema-bovs.css?v=14`
+- `views/layouts/pie.php` → `crud-form-acciones.js?v=3`
+
+Los navegadores piden los archivos nuevos solos. Si algún equipo muestra
+los botones en el lugar anterior, hacer una recarga forzada
+(Ctrl+F5 / mantener recargar en el móvil).
+
+### 9.5 App sin conexión (PWA)
+
+- `app_offline/service-worker.js` sube a `sovca-shell-v6`: al abrir la app
+  instalada descarga el shell nuevo y aplica el tope de crías por especie.
+- `app_offline/versiones.json` queda en **1.00048** (visible en el badge).
+
+En los equipos de campo: abrir la app con internet una vez para que
+actualice, y confirmar en **Nacimientos → Nueva cría** que el botón
+"Agregar cría" se detiene en 3 (caprinos) o 4 (ovinos).
+
+### 9.6 Verificación después del despliegue
+
+- [ ] Login y cambio de fundo funcionan.
+- [ ] Formularios (ficha animal, servicios, control sanitario): los botones
+      Editar / Guardar / Regresar aparecen arriba y funcionan.
+- [ ] Control de servicio: la fecha de secado no se puede escribir y se
+      calcula sola (servicio + 120 días si el parto fue hace menos de 6 meses).
+- [ ] Registrar nacimiento: guarda y, si falta un dato, muestra el motivo
+      (ya no aparece un 500 vacío).
+- [ ] Intentar un 4.º ternero en un fundo caprino: lo bloquea con el mensaje
+      "Un parto de caprinos admite como máximo 3 crías".
+- [ ] Revisar duplicados → unificar: completa sin 25P02.
+- [ ] Control sanitario → Incluir producto: guarda sin 25P02.
+
+### 9.7 Reversión
+
+```bash
+cd /var/www/html/sovca
+git log --oneline -8
+git reset --hard <commit_anterior>
+sudo systemctl reload apache2
+```
+
+No hay cambios de base de datos que revertir.
