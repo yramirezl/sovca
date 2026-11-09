@@ -385,53 +385,58 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                         </button>
                     </div>
 
-                    <label>Datos de la Cría</label>
+                    <!-- Campos planos del parto. No se muestran: los datos de la
+                         cría se editan en "Crías del Parto" y este bloque los
+                         replica desde la primera cría (sincronizarCriaPlana),
+                         porque el controlador sigue leyéndolos para validar y
+                         para el registro principal. -->
+                    <div id="datos_cria_plano" style="display:none;" aria-hidden="true">
+                        <div class="crud-form__row--3">
+                            <div class="crud-form__field">
+                                <label for="nacio">¿ Nació ?</label>
+                                <select id="nacio" class="btn-sm" tabindex="3">
+                                    <option value="*">--</option>
+                                    <option value="1">Vivo</option>
+                                    <option value="2">Muerto</option>
+                                </select>
+                            </div>
+                            <div class="crud-form__field">
+                                <label for="sexo">Sexo</label>
+                                <select id="sexo" class="btn-sm" tabindex="3">
+                                    <option value="*">--</option>
+                                    <option value="1">Hembra</option>
+                                    <option value="2">Macho</option>
+                                </select>
+                            </div>
+                            <div class="crud-form__field">
+                                <label>Peso</label>
+                                <input type="text" id="peso_nacer" class="form-control" placeholder="Peso al Nacer"
+                                       onpaste="return false" tabindex="12"
+                                       onkeypress="return filterFloat(event,this)">
+                            </div>
+                        </div>
 
-                    <div class="crud-form__row--3">
-                        <div class="crud-form__field">
-                            <label for="nacio">¿ Nació ?</label>
-                            <select id="nacio" class="btn-sm" tabindex="3">
-                                <option value="*">--</option>
-                                <option value="1">Vivo</option>
-                                <option value="2">Muerto</option>
-                            </select>
-                        </div>
-                        <div class="crud-form__field">
-                            <label for="sexo">Sexo</label>
-                            <select id="sexo" class="btn-sm" tabindex="3">
-                                <option value="*">--</option>
-                                <option value="1">Hembra</option>
-                                <option value="2">Macho</option>
-                            </select>
-                        </div>
-                        <div class="crud-form__field">
-                            <label>Peso</label>
-                            <input type="text" id="peso_nacer" class="form-control" placeholder="Peso al Nacer"
-                                   onpaste="return false" tabindex="12"
-                                   onkeypress="return filterFloat(event,this)">
-                        </div>
-                    </div>
-
-                    <div class="crud-form__row">
-                        <div class="crud-form__field">
-                            <label>ID-N° Arete
-                                <a data-toggle="tooltip" title="Identificador que se asignará a la cría.">
-                                    <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
-                                </a>
-                            </label>
-                            <input type="text" id="id_ternero" class="form-control"
-                                   placeholder="ID / Arete de la Cría"
-                                   onpaste="return false"
-                                   onkeypress="return es_id_ternero(event);">
-                            <div id='ms_id_ternero'><p></p></div>
-                        </div>
-                        <div class="crud-form__field">
-                            <label>Estado
-                                <a data-toggle="tooltip" title="Indica si la cría ya tiene una ficha en el Registro de Animales.">
-                                    <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
-                                </a>
-                            </label>
-                            <input type="text" id="fichado" class="form-control" readonly="true">
+                        <div class="crud-form__row">
+                            <div class="crud-form__field">
+                                <label>ID-N° Arete
+                                    <a data-toggle="tooltip" title="Identificador que se asignará a la cría.">
+                                        <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
+                                    </a>
+                                </label>
+                                <input type="text" id="id_ternero" class="form-control"
+                                       placeholder="ID / Arete de la Cría"
+                                       onpaste="return false"
+                                       onkeypress="return es_id_ternero(event);">
+                                <div id='ms_id_ternero'><p></p></div>
+                            </div>
+                            <div class="crud-form__field">
+                                <label>Estado
+                                    <a data-toggle="tooltip" title="Indica si la cría ya tiene una ficha en el Registro de Animales.">
+                                        <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
+                                    </a>
+                                </label>
+                                <input type="text" id="fichado" class="form-control" readonly="true">
+                            </div>
                         </div>
                     </div>
 
@@ -492,7 +497,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                             <i class="fa fa-bookmark"></i> Fichar crías
                         </a>
                         <small class="text-muted" style="display:block;margin-top:6px;">
-                            Este parto tiene varias crías. Cada una lleva su propia ficha en el Registro de Animales.
+                            Cada cría del parto lleva su propia ficha en el Registro de Animales.
                         </small>
                     </div>
 
@@ -1189,6 +1194,20 @@ function pintarCriasParto() {
     });
 
     actualizarBotonAgregarCria();
+    sincronizarCriaPlana();
+}
+
+/* El controlador sigue leyendo los campos planos del parto (nacio, sexo,
+   peso, id_ternero) para validar y para el registro principal, pero ahora
+   solo se editan en "Crías del Parto". Se copian aquí desde la primera cría
+   para que lo que se guarda coincida con lo que ve el operador. */
+function sincronizarCriaPlana() {
+    var $fila = $('#crias_parto_tbody .cria-item').first();
+    if (!$fila.length) { return; }
+    $('#id_ternero').val($.trim($fila.find('.cria-id').val()));
+    $('#sexo').val($fila.find('.cria-sexo').val());
+    $('#peso_nacer').val($.trim($fila.find('.cria-peso').val()));
+    $('#nacio').val($fila.find('.cria-nacio').val());
 }
 
 function actualizarBotonAgregarCria() {
@@ -1222,18 +1241,39 @@ function cargarCriasParto() {
         action: 'listar_terneros_nacimiento',
         id_reg_nac: idReg
     }, null, 'json').done(function(resp) {
-        if (!resp || resp.resultado !== 'ok') { return; }
+        var cargadas = (resp && resp.resultado === 'ok' && resp.terneros) ? resp.terneros : null;
 
-        criasParto = resp.terneros || [];
+        criasParto = cargadas || [];
 
-        if (criasParto.length > 1) {
-            $('#bloque_crias_parto').show();
-            /* Con mellizos el botón de ficha del ternero único no aplica */
-            $('#fichar_id').hide();
-            pintarCriasParto();
-        } else {
-            $('#bloque_crias_parto').hide();
+        /* El parto sin detalle (registros anteriores a las crías múltiples)
+           se edita como una cría más: se siembra con los campos planos que
+           ya traía el registro. Si no hay ningún dato, se deja vacío para no
+           crear una cría fantasma al guardar. */
+        if (criasParto.length === 0) {
+            var idPlano = $.trim($('#id_ternero').val() || '');
+            var pesoPlano = $.trim($('#peso_nacer').val() || '');
+            if (idPlano !== '' || pesoPlano !== '') {
+                criasParto = [{
+                    id_cria: 0,
+                    id_ternero: idPlano,
+                    sexo: parseInt($('#sexo').val(), 10) || 0,
+                    peso_nacimiento: pesoPlano,
+                    estatus_nacido: parseInt($('#nacio').val(), 10) || 1,
+                    aptitud: $('#aptitud_animal').val() || 0,
+                    fichado: 0,
+                    codigo_animal: ''
+                }];
+            }
         }
+
+        /* Los datos de la cría se editan siempre en "Crías del Parto"; el
+           bloque plano de arriba quedó oculto. */
+        $('#bloque_crias_parto').show();
+        /* Con mellizos el botón de ficha del ternero único no aplica; con el
+           parto ya fichado el botón queda deshabilitado y su bloque oculto. */
+        var puedeFichar = !document.getElementById('fichar').disabled;
+        $('#fichar_id').toggle(criasParto.length <= 1 && puedeFichar);
+        pintarCriasParto();
     });
 }
 
@@ -1264,6 +1304,7 @@ $('#crias_parto_tbody').on('click', '.quitar-cria', function() {
 
 $('#save').click(function() {
     document.getElementById('save').disabled = true;
+    sincronizarCriaPlana();
     if (ValidarCamposVacios()) {
         $.confirm({
             title: '¿Está Seguro de Guardar el Registro ?',
