@@ -205,6 +205,10 @@ pool_mode   = transaction
 max_client_conn = 1000
 ```
 
+Las conexiones PostgreSQL de ActiveRecord usan preparados emulados en PDO.
+Esto evita `DEALLOCATE pdo_stmt_*` contra un backend distinto cuando
+PgBouncer usa `pool_mode = transaction`.
+
 `auth_type = scram-sha-256` es obligatorio con PostgreSQL 16: el servidor guarda
 los secretos como SCRAM y PgBouncer no puede autenticar un secreto SCRAM si está
 en modo `md5`.

@@ -257,7 +257,16 @@ abstract class Connection
 			else
 				$host = "unix_socket=$info->host";
 
-			$this->connection = new PDO("$info->protocol:$host;dbname=$info->db", $info->user, $info->pass, static::$PDO_OPTIONS);
+			$options = static::$PDO_OPTIONS;
+			if ($info->protocol == 'pgsql')
+			{
+				/* PgBouncer transaction pooling may route DEALLOCATE to a backend
+				 * that never held PDO's named prepared statement. Emulated
+				 * prepares avoid server-side statement state across transactions. */
+				$options[PDO::ATTR_EMULATE_PREPARES] = true;
+			}
+
+			$this->connection = new PDO("$info->protocol:$host;dbname=$info->db", $info->user, $info->pass, $options);
 		} catch (PDOException $e) {
 			throw new DatabaseException($e);
 		}
