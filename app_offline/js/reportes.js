@@ -1995,7 +1995,7 @@ const Reportes = {
               <th>Hembra</th>
               <th>Servicio</th>
               <th>F. parto</th>
-              <th>N° terneros</th>
+              <th>N° crías</th>
             </tr>
           </thead>
           <tbody>

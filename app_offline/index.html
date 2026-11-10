@@ -950,7 +950,7 @@
                   <input type="date" id="servicios-fecha-parto" data-solo-pasado>
                 </div>
                 <div class="campo">
-                  <label for="servicios-nro-terneros">N.º de terneros</label>
+                  <label for="servicios-nro-terneros">N.º de crías</label>
                   <input type="number" id="servicios-nro-terneros" min="0">
                 </div>
               </div>
@@ -1009,8 +1009,8 @@
           <button type="button" id="boton-cancelar-modal-nacimiento" class="boton-secundario">Cancelar</button>
         </div>
         <p id="form-nacimientos-codigo" class="form-animal-codigo oculto"></p>
-        <button type="button" id="boton-fichar-nacimiento" class="boton-secundario oculto">Fichar ternero</button>
-        <p id="nacimiento-fichado-info" class="texto-ayuda oculto">El ternero ya tiene una ficha de animal; este nacimiento queda como histórico de solo consulta.</p>
+        <button type="button" id="boton-fichar-nacimiento" class="boton-secundario oculto">Fichar cría</button>
+        <p id="nacimiento-fichado-info" class="texto-ayuda oculto">La cría ya tiene una ficha de animal; este nacimiento queda como histórico de solo consulta.</p>
         <form id="form-nacimientos">
           <div class="campo">
             <label for="nacimientos-origen-tipo">Activar búsqueda por</label>
@@ -1071,8 +1071,8 @@
 
           <div class="campo">
             <div class="terneros-cabecera">
-              <label>Terneros del parto</label>
-              <button type="button" id="nacimientos-agregar-ternero" class="boton-agregar">Agregar ternero/a</button>
+              <label>Crías del parto</label>
+              <button type="button" id="nacimientos-agregar-ternero" class="boton-agregar">Agregar cría</button>
             </div>
             <div id="nacimientos-terneros" class="terneros-lista"></div>
             <p class="texto-ayuda">Registra una o varias crías del mismo parto. Los datos de la madre, el padre, el servicio y la fecha se guardan una sola vez.</p>
@@ -1117,7 +1117,7 @@
             <textarea id="nacimientos-observaciones" rows="2"></textarea>
           </div>
 
-          <p class="texto-ayuda">El código del ternero (MA-…) y la fecha probable de celo los asigna/calcula el servidor al sincronizar.</p>
+          <p class="texto-ayuda">El código de la cría (MA-…) y la fecha probable de celo los asigna/calcula el servidor al sincronizar.</p>
           <p id="form-nacimientos-mensaje" class="mensaje-error"></p>
 
           <div class="form-acciones">

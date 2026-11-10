@@ -1,6 +1,13 @@
 {
-  "actual": "1.00048",
+  "actual": "1.00049",
   "versiones": [
+    {
+      "version": "1.00049",
+      "fecha": "2026-11-09",
+      "notas": [
+        "Nacimientos y fichas: se usa «cría» en los textos visibles, incluidos los reportes."
+      ]
+    },
     {
       "version": "1.00048",
       "fecha": "2026-11-05",

@@ -3005,7 +3005,7 @@ const CAMPOS_DETALLE_REGISTRO = {
         ['f_palpacion', 'Fecha de palpación'],
         ['parto', 'Parto confirmado'],
         ['fecha_parto', 'Fecha del parto'],
-        ['nro_terneros', 'Número de terneros'],
+        ['nro_terneros', 'Número de crías'],
         ['dnp', 'DNP'],
         ['f_probable_parto', 'Fecha probable de parto'],
         ['f_ultimo_parto', 'Fecha del último parto'],
@@ -3015,9 +3015,9 @@ const CAMPOS_DETALLE_REGISTRO = {
   ],
   nacimientos: [
     {
-      titulo: 'Ternero',
+      titulo: 'Cría',
       campos: [
-        ['codigo_ternero', 'Código del ternero'],
+        ['codigo_ternero', 'Código de la cría'],
         ['id_ternero', 'Identificación'],
         ['sexo', 'Sexo'],
         ['f_parto', 'Fecha de nacimiento'],
@@ -3026,7 +3026,7 @@ const CAMPOS_DETALLE_REGISTRO = {
       ],
     },
     {
-      titulo: 'Terneros del parto',
+      titulo: 'Crías del parto',
       condicional: 'terneros',
       campos: [['_terneros', 'Detalle']],
     },
@@ -3429,7 +3429,7 @@ function etiquetaConflicto(modulo, registro) {
       return escaparHtml(registro.codigo_rgb_id_animal_hembra || '—') + ' × ' + escaparHtml(registro.codigo_rgb_id_animal_macho || '—')
         + (registro.f_servicio ? ' (' + escaparHtml(formatearFecha(registro.f_servicio)) + ')' : '');
     case 'nacimientos':
-      return escaparHtml(registro.codigo_ternero || registro.id_ternero || '(cria)')
+      return escaparHtml(registro.codigo_ternero || registro.id_ternero || '(cría)')
         + ' — Madre: ' + escaparHtml(registro.codigo_rgb_id_animal_hembra || '—')
         + (registro.f_parto ? ' (' + escaparHtml(formatearFecha(registro.f_parto)) + ')' : '');
     case 'desincorporacion':
@@ -4940,7 +4940,7 @@ async function agregarFilaTernero(datos = {}) {
   const maxTerneros = await maxTernerosParto();
   if (lista.querySelectorAll('.ternero-fila').length >= maxTerneros) {
     el('form-nacimientos-mensaje').textContent = 'Un parto no puede tener más de '
-      + maxTerneros + ' terneros/as.';
+      + maxTerneros + ' crías.';
     return;
   }
 
@@ -4978,7 +4978,7 @@ async function agregarFilaTernero(datos = {}) {
 
   fila.querySelector('[data-quitar-ternero]').addEventListener('click', () => {
     if (lista.querySelectorAll('.ternero-fila').length <= 1) {
-      el('form-nacimientos-mensaje').textContent = 'El parto debe tener al menos un ternero.';
+      el('form-nacimientos-mensaje').textContent = 'El parto debe tener al menos una cría.';
       return;
     }
     fila.remove();
@@ -4994,7 +4994,7 @@ function renumerarFilasTerneros() {
   if (!lista) return;
   lista.querySelectorAll('.ternero-fila').forEach((fila, indice) => {
     const titulo = fila.querySelector('.ternero-fila__titulo');
-    if (titulo) titulo.textContent = 'Ternero #' + (indice + 1);
+    if (titulo) titulo.textContent = 'Cría #' + (indice + 1);
   });
 }
 
@@ -5026,31 +5026,31 @@ function leerTernerosFormulario() {
 }
 
 function validarTernerosFormulario(terneros) {
-  if (!terneros.length) return 'Agrega al menos un ternero al parto.';
+  if (!terneros.length) return 'Agrega al menos una cría al parto.';
 
   const idsVistos = new Set();
   for (let indice = 0; indice < terneros.length; indice += 1) {
     const ternero = terneros[indice];
     const nro = indice + 1;
 
-    if (![1, 2].includes(ternero.sexo)) return 'Selecciona el sexo del ternero #' + nro + '.';
-    if (![1, 2].includes(ternero.estatus_nacido)) return 'Indica si el ternero #' + nro + ' nació vivo o muerto.';
+    if (![1, 2].includes(ternero.sexo)) return 'Selecciona el sexo de la cría #' + nro + '.';
+    if (![1, 2].includes(ternero.estatus_nacido)) return 'Indica si la cría #' + nro + ' nació viva o muerta.';
 
-    if (ternero.peso_nacimiento === '') return 'Registra el peso al nacer del ternero #' + nro + '.';
+    if (ternero.peso_nacimiento === '') return 'Registra el peso al nacer de la cría #' + nro + '.';
     const peso = Number(String(ternero.peso_nacimiento).replace(',', '.'));
     if (!Number.isFinite(peso) || peso <= 0 || peso > 200) {
-      return 'El peso del ternero #' + nro + ' debe estar entre 1 y 200 kg.';
+      return 'El peso de la cría #' + nro + ' debe estar entre 1 y 200 kg.';
     }
     ternero.peso_nacimiento = String(peso);
 
-    if (!ternero.aptitud) return 'Selecciona la aptitud del ternero #' + nro + '.';
+    if (!ternero.aptitud) return 'Selecciona la aptitud de la cría #' + nro + '.';
 
     if (ternero.id_ternero !== '') {
       if (ternero.id_ternero.length > 20) {
-        return 'El ID/arete del ternero #' + nro + ' no puede tener más de 20 caracteres.';
+        return 'El ID/arete de la cría #' + nro + ' no puede tener más de 20 caracteres.';
       }
       if (idsVistos.has(ternero.id_ternero)) {
-        return 'El ID/arete ' + ternero.id_ternero + ' está repetido entre los terneros de este parto.';
+        return 'El ID/arete ' + ternero.id_ternero + ' está repetido entre las crías de este parto.';
       }
       idsVistos.add(ternero.id_ternero);
     }
@@ -5993,8 +5993,8 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
   // texto del botón para que no confunda.
   const totalTernerosRegistro = Array.isArray(registro.terneros) ? registro.terneros.length : 1;
   el('boton-fichar-nacimiento').textContent = totalTernerosRegistro > 1
-    ? 'Fichar primer ternero'
-    : 'Fichar ternero';
+    ? 'Fichar primera cría'
+    : 'Fichar cría';
   el('nacimiento-fichado-info').classList.add('oculto');
   if (registro.codigo_ternero && registro.codigo_ternero.indexOf('PEND') === -1) {
     el('form-nacimientos-codigo').textContent = registro.codigo_ternero;
@@ -6065,7 +6065,7 @@ function esBanderaActiva(valor) {
 async function manejarFicharNacimiento() {
   if (!edicionNacimientosUuid) return;
   if (formularioTieneCambiosSinGuardar('form-nacimientos', 'form-nacimientos-contenedor')) {
-    el('form-nacimientos-mensaje').textContent = 'Guarda los cambios del nacimiento antes de fichar el ternero.';
+    el('form-nacimientos-mensaje').textContent = 'Guarda los cambios del nacimiento antes de fichar la cría.';
     return;
   }
 
@@ -6095,8 +6095,8 @@ async function manejarFicharNacimiento() {
     await renderizarListaNacimientos();
 
     mostrarModalAviso(
-      'Este ternero ya tiene ficha',
-      '<p style="margin:0 0 10px;">El ternero de este nacimiento ya fue fichado como animal en el fundo:</p>'
+      'Esta cría ya tiene ficha',
+      '<p style="margin:0 0 10px;">La cría de este nacimiento ya fue fichada como animal en el fundo:</p>'
       + '<div style="background:#f5f5f5; padding:10px 12px; border-radius:8px; margin-bottom:12px;">'
       +   '<div style="font-weight:700; color:#1f2937;">' + escaparHtml(yaExiste.nombre || '(sin nombre)') + '</div>'
       +   '<div style="color:#5d676d; font-size:12px; margin-top:4px;">'
@@ -6128,7 +6128,7 @@ async function manejarFicharNacimiento() {
   edicionAnimalUuid = null;
   await alternarFormulario(true);
 
-  el('form-animal-titulo').textContent = 'Fichar ternero';
+  el('form-animal-titulo').textContent = 'Fichar cría';
   el('form-animal-codigo').textContent = 'Código de nacimiento: ' + (nacimiento.codigo_ternero || 'Pendiente');
   el('form-animal-codigo').classList.remove('oculto');
   el('grupo-fecha-nacimiento-animal').classList.remove('oculto');
@@ -8595,7 +8595,7 @@ async function renderizarListaNacimientos() {
     const resumenTerneros = ternerosTarjeta.length === 1
       ? (sexoTexto[ternerosTarjeta[0].sexo] || '—')
         + (Number(ternerosTarjeta[0].estatus_nacido) === 2 ? ' · muerto' : '')
-      : ternerosTarjeta.length + ' terneros';
+      : ternerosTarjeta.length + ' crías';
 
     const tarjeta = document.createElement('article');
     tarjeta.className = 'chapeta chapeta--' + (registro.estado_sync || 'pendiente');
