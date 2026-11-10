@@ -18,6 +18,7 @@ let servicioOrigenNacimiento = null;
 let nacimientoSinServicio = false;
 let focoAnteriorModalNacimiento = null;
 let nacimientoParaFicharUuid = null;
+let nacimientoParaFicharNroTernero = null;
 let deferredInstallPrompt = null;
 
 function mostrarModalAviso(titulo, contenidoHtml, opciones = {}) {
@@ -4954,6 +4955,8 @@ async function agregarFilaTernero(datos = {}) {
   fila.innerHTML =
     '<div class="ternero-fila__cabecera">'
     + '<span class="ternero-fila__titulo"></span>'
+    + '<span class="ternero-fila__ficha" data-estado-ficha></span>'
+    + '<button type="button" class="boton-secundario" data-fichar-ternero>Fichar cría</button>'
     + '<button type="button" class="ternero-fila__quitar" data-quitar-ternero>Quitar</button>'
     + '</div>'
     + '<div class="ternero-fila__campos">'
@@ -4984,6 +4987,9 @@ async function agregarFilaTernero(datos = {}) {
     fila.remove();
     renumerarFilasTerneros();
   });
+  fila.querySelector('[data-fichar-ternero]').addEventListener('click', () => {
+    manejarFicharNacimiento(Number(fila.dataset.nroTernero));
+  });
 
   lista.appendChild(fila);
   renumerarFilasTerneros();
@@ -4992,9 +4998,13 @@ async function agregarFilaTernero(datos = {}) {
 function renumerarFilasTerneros() {
   const lista = el('nacimientos-terneros');
   if (!lista) return;
-  lista.querySelectorAll('.ternero-fila').forEach((fila, indice) => {
+  const filas = lista.querySelectorAll('.ternero-fila');
+  filas.forEach((fila, indice) => {
+    fila.dataset.nroTernero = String(indice + 1);
     const titulo = fila.querySelector('.ternero-fila__titulo');
     if (titulo) titulo.textContent = 'Cría #' + (indice + 1);
+    const boton = fila.querySelector('[data-fichar-ternero]');
+    if (boton) boton.classList.toggle('oculto', !edicionNacimientosUuid || filas.length === 1);
   });
 }
 
@@ -5573,6 +5583,9 @@ async function alternarFormularioNacimientos(mostrar) {
     }
   } else {
     edicionNacimientosUuid = null;
+    el('form-nacimientos').querySelectorAll('input, select, textarea, button').forEach((campo) => {
+      campo.disabled = false;
+    });
     el('nacimientos-hembra').disabled = false;
     el('nacimientos-macho').disabled = false;
     el('nacimientos-dona').disabled = false;
@@ -5946,22 +5959,15 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
   if (!registro) return;
 
   const animalesExistentes = await Animales.listar();
-  const fichaExistente = animalesExistentes.find((animal) =>
-    Number(animal.status ?? 1) === 1
-    && ((animal.codigo_ternero && animal.codigo_ternero === registro.codigo_ternero)
-      || animal.nacimiento_uuid_local === uuidLocal)
-  );
-  const yaFichado = esBanderaActiva(registro.fichado) || !!fichaExistente;
+  const ternerosPrevios = ternerosDeNacimiento(registro);
+  const fichas = fichasPorTerneroNacimiento(registro, animalesExistentes);
+  const fichadas = fichas.filter(Boolean).length;
+  const yaFichado = fichadas === ternerosPrevios.length;
 
   if (yaFichado) {
     let cambio = false;
     if (!esBanderaActiva(registro.fichado)) {
       registro.fichado = true;
-      cambio = true;
-    }
-    if (fichaExistente && registro.ficha_animal_uuid_local !== fichaExistente.uuid_local) {
-      registro.ficha_animal_uuid_local = fichaExistente.uuid_local;
-      registro.ficha_animal_codigo = fichaExistente.codigo_rgb_id_animal;
       cambio = true;
     }
     if (cambio) await Db.guardar('nacimientos', registro);
@@ -5986,15 +5992,11 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
   if (tarjetaEl) moverFormularioAntesDe('form-nacimientos-contenedor', tarjetaEl);
   await poblarSelectAnimalesNacimientos();
 
-  el('form-nacimientos-titulo').textContent = 'Editar nacimiento';
-  el('boton-fichar-nacimiento').classList.remove('oculto');
-  // Con varias crías la ficha del animal se arma con la primera (el
-  // código de nacimiento es uno solo por parto), así que se avisa en el
-  // texto del botón para que no confunda.
-  const totalTernerosRegistro = Array.isArray(registro.terneros) ? registro.terneros.length : 1;
-  el('boton-fichar-nacimiento').textContent = totalTernerosRegistro > 1
-    ? 'Fichar primera cría'
-    : 'Fichar cría';
+  el('form-nacimientos-titulo').textContent = fichadas
+    ? 'Fichar crías pendientes'
+    : 'Editar nacimiento';
+  el('boton-fichar-nacimiento').classList.toggle('oculto', ternerosPrevios.length > 1);
+  el('boton-fichar-nacimiento').textContent = 'Fichar cría';
   el('nacimiento-fichado-info').classList.add('oculto');
   if (registro.codigo_ternero && registro.codigo_ternero.indexOf('PEND') === -1) {
     el('form-nacimientos-codigo').textContent = registro.codigo_ternero;
@@ -6040,16 +6042,9 @@ async function abrirEdicionNacimiento(uuidLocal, tarjetaEl) {
   // Terneros: se usa el detalle del parto si vino del servidor; si el
   // registro es antiguo (una sola cría en campos planos), se arma la
   // fila con esos datos para no perder nada.
-  const ternerosPrevios = Array.isArray(registro.terneros) && registro.terneros.length
-    ? registro.terneros
-    : [{
-        sexo: registro.sexo,
-        estatus_nacido: registro.estatus_nacido,
-        peso_nacimiento: registro.peso_nacimiento,
-        id_ternero: registro.id_ternero,
-        aptitud: registro.aptitud,
-      }];
   await poblarTernerosFormulario(ternerosPrevios);
+  bloquearEdicionNacimientoParcial(fichas);
+  renumerarFilasTerneros();
 
   configurarBusquedaOrigenNacimiento();
 
@@ -6062,7 +6057,62 @@ function esBanderaActiva(valor) {
   return valor === true || valor === 1 || valor === '1' || valor === 't' || valor === 'true';
 }
 
-async function manejarFicharNacimiento() {
+function ternerosDeNacimiento(registro) {
+  return Array.isArray(registro.terneros) && registro.terneros.length
+    ? registro.terneros
+    : [{
+        sexo: registro.sexo,
+        estatus_nacido: registro.estatus_nacido,
+        peso_nacimiento: registro.peso_nacimiento,
+        id_ternero: registro.id_ternero,
+        aptitud: registro.aptitud,
+      }];
+}
+
+function fichasPorTerneroNacimiento(registro, animales) {
+  const terneros = ternerosDeNacimiento(registro);
+  const activas = animales.filter((animal) => Number(animal.status ?? 1) === 1);
+  const fichas = terneros.map((ternero, indice) => activas.find((animal) => (
+    (animal.nacimiento_uuid_local === registro.uuid_local
+      && Number(animal.nacimiento_nro_cria) === indice + 1)
+    || (ternero.id_ternero && animal.codigo_ternero === ternero.id_ternero)
+    || (indice === 0 && animal.codigo_ternero === registro.codigo_ternero)
+  )) || null);
+
+  if (!fichas.some(Boolean) && esBanderaActiva(registro.fichado)) {
+    fichas[0] = { legado: true };
+  }
+  return fichas;
+}
+
+function bloquearEdicionNacimientoParcial(fichas) {
+  const formulario = el('form-nacimientos');
+  if (fichas.some(Boolean)) {
+    formulario.querySelectorAll('input, select, textarea, button').forEach((campo) => {
+      if (campo.matches('[data-fichar-ternero], #boton-cancelar-form-nacimientos')) return;
+      campo.disabled = true;
+    });
+  }
+  const terneros = leerTernerosFormulario();
+  const faltaIdMultiple = fichas.length > 1
+    && terneros.some((ternero) => Number(ternero.estatus_nacido) !== 2 && !ternero.id_ternero);
+  formulario.querySelectorAll('[data-fichar-ternero]').forEach((boton) => {
+    const fila = boton.closest('.ternero-fila');
+    const indice = Number(fila?.dataset.nroTernero) - 1;
+    const yaFichada = !!fichas[indice];
+    const ternero = leerTernerosFormulario()[indice];
+    const esMuerta = Number(ternero?.estatus_nacido) === 2;
+    const sinIdMultiple = faltaIdMultiple && Number(ternero?.estatus_nacido) !== 2;
+    const estado = fila.querySelector('[data-estado-ficha]');
+    boton.disabled = yaFichada || esMuerta || sinIdMultiple;
+    if (estado) {
+      estado.textContent = yaFichada ? 'Fichada' : esMuerta ? 'Nació muerta'
+        : sinIdMultiple ? 'Falta ID / arete' : '';
+    }
+  });
+}
+
+async function manejarFicharNacimiento(nroTernero = null) {
   if (!edicionNacimientosUuid) return;
   if (formularioTieneCambiosSinGuardar('form-nacimientos', 'form-nacimientos-contenedor')) {
     el('form-nacimientos-mensaje').textContent = 'Guarda los cambios del nacimiento antes de fichar la cría.';
@@ -6071,32 +6121,44 @@ async function manejarFicharNacimiento() {
 
   const nacimiento = await Db.obtener('nacimientos', edicionNacimientosUuid);
   if (!nacimiento) return;
-  if (esBanderaActiva(nacimiento.fichado)) {
+  const animales = await Animales.listar();
+  const terneros = ternerosDeNacimiento(nacimiento);
+  const fichas = fichasPorTerneroNacimiento(nacimiento, animales);
+  const indice = nroTernero === null
+    ? fichas.findIndex((ficha) => !ficha)
+    : nroTernero - 1;
+  if (indice < 0 || indice >= terneros.length) return;
+  if (fichas[indice]) {
     await alternarFormularioNacimientos(false);
-    await renderizarListaNacimientos();
     abrirDetalleRegistro('nacimientos', nacimiento.uuid_local);
     return;
   }
+  const ternero = terneros[indice];
+  if (Number(ternero.estatus_nacido) === 2) {
+    el('form-nacimientos-mensaje').textContent = 'La cría nacida muerta no puede ficharse como animal.';
+    return;
+  }
+  if (terneros.length > 1
+    && terneros.some((cria) => Number(cria.estatus_nacido) !== 2 && !String(cria.id_ternero || '').trim())) {
+    el('form-nacimientos-mensaje').textContent = 'Asigna un ID/arete a cada cría antes de fichar un parto múltiple.';
+    return;
+  }
 
-  const animales = await Animales.listar();
-  const yaExiste = animales.find((animal) =>
-    Number(animal.status ?? 1) === 1
-    && ((animal.codigo_ternero && animal.codigo_ternero === nacimiento.codigo_ternero)
-      || animal.nacimiento_uuid_local === nacimiento.uuid_local)
-  );
-
+  const codigoTernero = ternero.id_ternero || nacimiento.codigo_ternero;
+  const yaExiste = animales.find((animal) => Number(animal.status ?? 1) === 1
+    && ((codigoTernero && animal.codigo_ternero === codigoTernero)
+      || (animal.nacimiento_uuid_local === nacimiento.uuid_local
+        && Number(animal.nacimiento_nro_cria) === indice + 1)));
   if (yaExiste) {
     nacimiento.fichado = true;
-    nacimiento.ficha_animal_uuid_local = yaExiste.uuid_local;
-    nacimiento.ficha_animal_codigo = yaExiste.codigo_rgb_id_animal;
     await Db.guardar('nacimientos', nacimiento);
 
-    await alternarFormularioNacimientos(false);
+    bloquearEdicionNacimientoParcial(fichasPorTerneroNacimiento(nacimiento, animales));
     await renderizarListaNacimientos();
 
     mostrarModalAviso(
       'Esta cría ya tiene ficha',
-      '<p style="margin:0 0 10px;">La cría de este nacimiento ya fue fichada como animal en el fundo:</p>'
+      '<p style="margin:0 0 10px;">La cría #' + (indice + 1) + ' de este nacimiento ya fue fichada como animal en el fundo:</p>'
       + '<div style="background:#f5f5f5; padding:10px 12px; border-radius:8px; margin-bottom:12px;">'
       +   '<div style="font-weight:700; color:#1f2937;">' + escaparHtml(yaExiste.nombre || '(sin nombre)') + '</div>'
       +   '<div style="color:#5d676d; font-size:12px; margin-top:4px;">'
@@ -6106,7 +6168,7 @@ async function manejarFicharNacimiento() {
       + '</div>'
       + '<div style="background:#e7f0fa; border:1px solid #b9d3ec; padding:10px 12px; border-radius:8px; font-size:12px; color:#1e4976;">'
       +   'El nacimiento queda en modo <strong>solo lectura</strong>. '
-      +   'Si nnecesitas modificar los datos del animal, andá al módulo <strong>Animales</strong>.'
+      +   'Si necesitas modificar los datos del animal, andá al módulo <strong>Animales</strong>.'
       + '</div>'
     );
     return;
@@ -6120,30 +6182,32 @@ async function manejarFicharNacimiento() {
   const padre = animalesPorCodigo(animales, nacimiento.codigo_rgb_id_animal_macho);
 
   nacimientoParaFicharUuid = nacimiento.uuid_local;
+  nacimientoParaFicharNroTernero = indice + 1;
   if (!mostrarTab('animales')) {
     nacimientoParaFicharUuid = null;
+    nacimientoParaFicharNroTernero = null;
     el('form-nacimientos-mensaje').textContent = 'No se pudo abrir Animales porque hay otro formulario con cambios pendientes.';
     return;
   }
   edicionAnimalUuid = null;
   await alternarFormulario(true);
 
-  el('form-animal-titulo').textContent = 'Fichar cría';
-  el('form-animal-codigo').textContent = 'Código de nacimiento: ' + (nacimiento.codigo_ternero || 'Pendiente');
+  el('form-animal-titulo').textContent = 'Fichar cría #' + (indice + 1);
+  el('form-animal-codigo').textContent = 'Código: ' + (codigoTernero || 'Pendiente');
   el('form-animal-codigo').classList.remove('oculto');
   el('grupo-fecha-nacimiento-animal').classList.remove('oculto');
-  el('campo-nombre').value = nacimiento.id_ternero || '';
-  el('campo-sexo').value = String(nacimiento.sexo || '1');
-  el('campo-arete').value = nacimiento.id_ternero || '';
+  el('campo-nombre').value = ternero.id_ternero || '';
+  el('campo-sexo').value = String(ternero.sexo || '1');
+  el('campo-arete').value = ternero.id_ternero || '';
   el('campo-raza').value = String((servicio && servicio.mrazas_id) || (madre && madre.mrazas_id) || '');
-  el('campo-aptitud').value = String(nacimiento.aptitud || (servicio && servicio.aptitud) || (madre && madre.aptitud) || '');
+  el('campo-aptitud').value = String(ternero.aptitud || (servicio && servicio.aptitud) || (madre && madre.aptitud) || '');
   el('campo-lote').value = madre && madre.mlotes_id ? String(madre.mlotes_id) : '';
-  el('campo-peso').value = nacimiento.peso_nacimiento || '';
+  el('campo-peso').value = ternero.peso_nacimiento || '';
   el('campo-observaciones').value = nacimiento.observaciones || '';
   el('campo-fecha-nacimiento').value = comoFechaInput(nacimiento.f_parto);
   el('campo-estatus').value = '1';
   el('campo-servicio').value = String(nacimiento.mtiposervicios_id || '');
-  el('campo-codigo-ternero').value = nacimiento.codigo_ternero || '';
+  el('campo-codigo-ternero').value = codigoTernero || '';
   el('form-animal-mensaje').textContent = 'Completa o confirma nombre, arete, raza y aptitud para crear la ficha.';
   snapshotsFormulario['form-animal'] = capturarSnapshotFormulario('form-animal');
   el('campo-nombre').focus();
@@ -6160,6 +6224,7 @@ async function manejarCancelarFormularioAnimal() {
 
   const nacimientoUuid = nacimientoParaFicharUuid;
   nacimientoParaFicharUuid = null;
+  nacimientoParaFicharNroTernero = null;
   await alternarFormulario(false);
   mostrarTab('nacimientos');
   await abrirEdicionNacimiento(nacimientoUuid);
@@ -6541,8 +6606,16 @@ async function manejarGuardarAnimal(evento) {
   const nacimientoFichaUuid = nacimientoParaFicharUuid;
   if (nacimientoFichaUuid) {
     const nacimiento = await Db.obtener('nacimientos', nacimientoFichaUuid);
-    if (!nacimiento || esBanderaActiva(nacimiento.fichado)) {
+    const nroTernero = Number(nacimientoParaFicharNroTernero) || 1;
+    const terneros = nacimiento ? ternerosDeNacimiento(nacimiento) : [];
+    const ternero = terneros[nroTernero - 1];
+    if (!nacimiento || !ternero) {
       el('form-animal-mensaje').textContent = 'Este nacimiento ya fue fichado o no está disponible.';
+      return;
+    }
+    const fichas = fichasPorTerneroNacimiento(nacimiento, await Animales.listar());
+    if (fichas[nroTernero - 1]) {
+      el('form-animal-mensaje').textContent = 'Esta cría ya fue fichada.';
       return;
     }
     const animales = await Animales.listar();
@@ -6553,9 +6626,10 @@ async function manejarGuardarAnimal(evento) {
       ? servicios.find((item) => item.uuid_local === nacimiento.servicio_uuid_local)
       : servicios.find((item) => Number(item.id) === Number(nacimiento.mregservicios_id));
 
-    datosFormulario.codigo_ternero = nacimiento.codigo_ternero || '';
+    datosFormulario.codigo_ternero = ternero.id_ternero || nacimiento.codigo_ternero || '';
     datosFormulario.f_nacimiento = nacimiento.f_parto || el('campo-fecha-nacimiento').value || null;
     datosFormulario.nacimiento_uuid_local = nacimiento.uuid_local;
+    datosFormulario.nacimiento_nro_cria = nroTernero;
     datosFormulario.rgd_madre = nacimiento.codigo_rgb_id_animal_hembra || '';
     datosFormulario.nombre_madre = madre ? (madre.nombre || '') : '';
     datosFormulario.rgd_padre = nacimiento.codigo_rgb_id_animal_macho || '';
@@ -6590,11 +6664,14 @@ async function manejarGuardarAnimal(evento) {
     const nacimiento = await Db.obtener('nacimientos', nacimientoFichaUuid);
     if (nacimiento) {
       nacimiento.fichado = true;
-      nacimiento.ficha_animal_uuid_local = animalCreado.uuid_local;
-      nacimiento.ficha_animal_codigo = animalCreado.codigo_rgb_id_animal;
+      if (Number(nacimientoParaFicharNroTernero) === 1) {
+        nacimiento.ficha_animal_uuid_local = animalCreado.uuid_local;
+        nacimiento.ficha_animal_codigo = animalCreado.codigo_rgb_id_animal;
+      }
       await Db.guardar('nacimientos', nacimiento);
     }
     nacimientoParaFicharUuid = null;
+    nacimientoParaFicharNroTernero = null;
   }
 
   mostrarToast(
@@ -8578,20 +8655,20 @@ async function renderizarListaNacimientos() {
   const sexoTexto = { 1: 'Hembra', 2: 'Macho' };
 
   for (const registro of registros) {
-    const fichaLocal = animalesLocales.find((animal) => Number(animal.status ?? 1) === 1
-      && ((animal.codigo_ternero && animal.codigo_ternero === registro.codigo_ternero)
-        || animal.nacimiento_uuid_local === registro.uuid_local));
-    const fichado = esBanderaActiva(registro.fichado) || !!fichaLocal;
-    if (fichaLocal && !esBanderaActiva(registro.fichado)) {
+    const ternerosTarjeta = ternerosDeNacimiento(registro);
+    const fichas = fichasPorTerneroNacimiento(registro, animalesLocales);
+    const cantidadFichadas = fichas.filter(Boolean).length;
+    const fichado = cantidadFichadas === ternerosTarjeta.length;
+    if (cantidadFichadas && !esBanderaActiva(registro.fichado)) {
       registro.fichado = true;
-      registro.ficha_animal_uuid_local = fichaLocal.uuid_local;
-      registro.ficha_animal_codigo = fichaLocal.codigo_rgb_id_animal;
+      const fichaPrimera = fichas[0];
+      if (fichaPrimera && !fichaPrimera.legado) {
+        registro.ficha_animal_uuid_local = fichaPrimera.uuid_local;
+        registro.ficha_animal_codigo = fichaPrimera.codigo_rgb_id_animal;
+      }
       await Db.guardar('nacimientos', registro);
     }
 
-    const ternerosTarjeta = Array.isArray(registro.terneros) && registro.terneros.length
-      ? registro.terneros
-      : [{ sexo: registro.sexo, estatus_nacido: registro.estatus_nacido }];
     const resumenTerneros = ternerosTarjeta.length === 1
       ? (sexoTexto[ternerosTarjeta[0].sexo] || '—')
         + (Number(ternerosTarjeta[0].estatus_nacido) === 2 ? ' · muerto' : '')
@@ -8609,7 +8686,9 @@ async function renderizarListaNacimientos() {
       <div class="chapeta__nombre">Madre: ${escaparHtml(registro.codigo_rgb_id_animal_hembra || '')}${registro.codigo_rgb_id_animal_macho ? ' · Padre: ' + escaparHtml(registro.codigo_rgb_id_animal_macho) : ''}</div>
       <div class="chapeta__detalle">${escaparHtml(formatearFecha(registro.f_parto) || '—')} · ${escaparHtml(resumenTerneros)}</div>
       <div class="chapeta__pie">
-        <div class="chapeta__estado">${fichado ? 'Fichado · Solo consulta' : estadoSyncTexto(registro, estadoTexto)}</div>
+        <div class="chapeta__estado">${fichado ? 'Fichado · Solo consulta'
+          : cantidadFichadas ? cantidadFichadas + ' de ' + ternerosTarjeta.length + ' crías fichadas'
+            : estadoSyncTexto(registro, estadoTexto)}</div>
         ${modoConsulta || fichado
           ? `<button class="chapeta__boton-ver" type="button" data-ver-registro="${escaparHtml(registro.uuid_local)}" data-modulo="nacimientos" aria-label="Ver detalle del nacimiento ${escaparHtml(registro.codigo_ternero || '')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Ver detalle</button>`
           : `<button class="chapeta__boton-editar" type="button" data-editar-nacimientos="${escaparHtml(registro.uuid_local)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Editar</button>`}

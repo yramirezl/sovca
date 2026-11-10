@@ -189,7 +189,8 @@ const Animales = {
 
     const animal = {
       uuid_local: uuid,
-        nacimiento_uuid_local: datosFormulario.nacimiento_uuid_local || null,
+      nacimiento_uuid_local: datosFormulario.nacimiento_uuid_local || null,
+      nacimiento_nro_cria: datosFormulario.nacimiento_nro_cria || null,
       id: null,
       codigo_rgb_id_animal: codigo,
       codigo_provisional: provisional,
@@ -203,7 +204,8 @@ const Animales = {
     await Db.guardar('animales', animal);
     await Db.guardar('outbox', {
       uuid_local: uuid,
-        nacimiento_uuid_local: animal.nacimiento_uuid_local,
+      nacimiento_uuid_local: animal.nacimiento_uuid_local,
+      nacimiento_nro_cria: animal.nacimiento_nro_cria,
       modulo: CONFIG.MODULO_ANIMALES,
       version_base: null, // null = es una creación, no una edición
       datos: datosParaEnviar(animal),
@@ -252,6 +254,8 @@ const Animales = {
       uuid_local: uuidLocal,
       modulo: CONFIG.MODULO_ANIMALES,
       version_base: versionBase,
+      nacimiento_uuid_local: animalLocal.nacimiento_uuid_local || null,
+      nacimiento_nro_cria: animalLocal.nacimiento_nro_cria || null,
       // A propósito NO se manda datosParaEnviar(animalLocal) (todo el
       // registro) ni camposDesdeFormulario (esa incluye nro_arete):
       // al editar solo viajan los campos que este formulario

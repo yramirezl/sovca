@@ -16,7 +16,7 @@
  *   Fase 8  control sanitario por lote
  *   Fase 9  movimiento de rebaño (lote de origen → destino)
  *   Fase 10 nacimiento con dos crías y cierre del ciclo reproductivo
- *   Fase 11 fichaje del ternero (nacimiento → ficha de animal)
+ *   Fase 11 fichaje individual de las dos crías del nacimiento
  *   Fase 12 desincorporación (venta)
  *   Fase 13 idempotencia (reenviar lo mismo no duplica)
  *   Fase 14 ida y vuelta: pull de los 9 módulos y comparación campo a campo
@@ -246,7 +246,7 @@ $base = ['fundo_id' => $FUNDO];
 $uuids = [
     'animal_h1' => uuid4(), 'animal_m1' => uuid4(),
     'animal_h2' => uuid4(), 'animal_m2' => uuid4(),
-    'ternero'   => uuid4(),
+    'ternero'   => uuid4(), 'ternero_2' => uuid4(),
     'servicio_1' => uuid4(), 'servicio_2' => uuid4(),
     'servicio_provisional' => uuid4(),
     'peso_1' => uuid4(), 'peso_2' => uuid4(), 'peso_dup' => uuid4(),
@@ -315,7 +315,7 @@ function limpiar(): void
     $conexion->query('DELETE FROM mdesincorporacionanimales WHERE uuid_local = ? AND mfundos_id = ?', [$uuids['baja'], $FUNDO]);
 
     // Animales (+ relación fundo)
-    foreach (['animal_h1', 'animal_m1', 'animal_h2', 'animal_m2', 'ternero'] as $clave) {
+    foreach (['animal_h1', 'animal_m1', 'animal_h2', 'animal_m2', 'ternero', 'ternero_2'] as $clave) {
         $fila = $conexion->query('SELECT id FROM manimales WHERE uuid_local = ? AND mfundos_id = ?', [$uuids[$clave], $FUNDO])->fetch();
         if ($fila) {
             $conexion->query('DELETE FROM manimalxfundos WHERE manimales_id = ?', [(int) $fila['id']]);
@@ -800,7 +800,7 @@ try {
     comprobar((int) ($ciclo['nro_terneros'] ?? 0) === 2, 'El servicio registra 2 terneros', 'nro_terneros=' . (int) ($ciclo['nro_terneros'] ?? -1));
 
     // ---------------------------------------------------------------- 11
-    titulo('11. Fichaje del ternero (nacimiento → ficha de animal)');
+    titulo('11. Fichaje individual de las crías (nacimiento → fichas de animal)');
     $fichaTernero = [
         'codigo_rgb_id_animal' => $provisional('SOVCA'),
         'nombre' => 'CRIA DE H2',
@@ -816,23 +816,46 @@ try {
         'mlotes_id' => $loteB,
         'procedencia' => 'Nacido en este fundo',
         'observaciones' => 'Ficha de la cría',
-        'codigo_ternero' => $codTerneroFinal,
+        'codigo_ternero' => $idTernero1,
     ];
     $respFicha = push($token, 'animales', [[
         'uuid_local' => $uuids['ternero'],
         'version_base' => null,
         'datos' => $fichaTernero,
         'nacimiento_uuid_local' => $uuids['nacimiento'],
+        'nacimiento_nro_cria' => 1,
     ]], $base);
-    comprobar(tipo_de($respFicha) === 'creado', 'Se crea la ficha del ternero', tipo_de($respFicha) . ' ' . mensaje_de($respFicha));
-    comprobar(!empty(resultado_de($respFicha)['nacimiento_fichado']), 'El servidor vincula la ficha con el nacimiento');
+    comprobar(tipo_de($respFicha) === 'creado', 'Se crea la ficha de la primera cría', tipo_de($respFicha) . ' ' . mensaje_de($respFicha));
+    comprobar((int) (resultado_de($respFicha)['nacimiento_cria_fichada']['nro_ternero'] ?? 0) === 1, 'El servidor vincula la primera ficha con la cría #1');
     guardar_enviado('animales', $uuids['ternero'], $fichaTernero);
 
     $nacFichado = $conexion->query(
         'SELECT fichado FROM mregnacimientos WHERE uuid_local = ? AND mfundos_id = ?',
         [$uuids['nacimiento'], $FUNDO]
     )->fetch();
-    comprobar(!empty($nacFichado['fichado']), 'El nacimiento queda fichado en la base');
+    $fichasParciales = $conexion->query(
+        'SELECT COUNT(*) AS n FROM manimales WHERE mfundos_id = ? AND codigo_ternero IN (?, ?) AND status = 1',
+        [$FUNDO, $idTernero1, $idTernero2]
+    )->fetch();
+    comprobar(!empty($nacFichado['fichado']), 'El nacimiento registra la ficha parcial');
+    comprobar((int) ($fichasParciales['n'] ?? 0) === 1, 'Solo la primera cría está fichada antes del segundo registro');
+    $fichaTernero2 = array_merge($fichaTernero, [
+        'codigo_rgb_id_animal' => $provisional('SOVCA'),
+        'nombre' => 'CRIA DE H2 2',
+        'sexo' => 2,
+        'nro_arete' => $arete(),
+        'codigo_ternero' => $idTernero2,
+    ]);
+    $respFicha2 = push($token, 'animales', [[
+        'uuid_local' => $uuids['ternero_2'],
+        'version_base' => null,
+        'datos' => $fichaTernero2,
+        'nacimiento_uuid_local' => $uuids['nacimiento'],
+        'nacimiento_nro_cria' => 2,
+    ]], $base);
+    comprobar(tipo_de($respFicha2) === 'creado', 'Se crea la ficha de la segunda cría tras la primera', tipo_de($respFicha2) . ' ' . mensaje_de($respFicha2));
+    comprobar((int) (resultado_de($respFicha2)['nacimiento_cria_fichada']['nro_ternero'] ?? 0) === 2, 'El servidor vincula la segunda ficha con la cría #2');
+    guardar_enviado('animales', $uuids['ternero_2'], $fichaTernero2);
 
     // ---------------------------------------------------------------- 12
     titulo('12. Desincorporación (venta)');
@@ -917,7 +940,7 @@ try {
         'SELECT codigo_ternero, nombre FROM manimales WHERE mfundos_id = ? AND uuid_local = ?',
         [$FUNDO, $uuids['ternero']]
     )->fetch();
-    comprobar(($fichaRemota['codigo_ternero'] ?? '') === $codTerneroFinal, 'La ficha de la cría conserva el código del parto', (string) ($fichaRemota['codigo_ternero'] ?? '—'));
+    comprobar(($fichaRemota['codigo_ternero'] ?? '') === $idTernero1, 'La ficha de la primera cría conserva su ID individual', (string) ($fichaRemota['codigo_ternero'] ?? '—'));
 
     // ---------------------------------------------------------------- resumen
     $okCampos = array_sum($GLOBALS['cmp_ok']);

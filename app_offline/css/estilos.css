@@ -1165,8 +1165,9 @@ textarea:focus-visible {
 }
 .ternero-fila__cabecera {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -1174,6 +1175,17 @@ textarea:focus-visible {
   font-size: 13px;
   font-weight: 700;
   color: var(--verde-pasto-oscuro);
+}
+.ternero-fila__ficha {
+  margin-left: auto;
+  color: var(--verde-pasto-oscuro);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ternero-fila__cabecera [data-fichar-ternero] {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  font-size: 12px;
 }
 .ternero-fila__quitar {
   background: none;

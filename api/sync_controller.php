@@ -987,6 +987,73 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
     $datos = \Api\SyncModulos::filtrarCampos($cambio['datos'] ?? [], $config['campos_editables']);
     $datos = formatear_campos_especiales($datos);
     quitar_valores_nulos($datos);
+    $nacimientoFicha = null;
+    $nacimientoFichaNroTernero = null;
+    if (($config['tabla'] ?? '') === 'manimales' && !empty($cambio['nacimiento_uuid_local'])) {
+        $nacimientoFicha = \MregnacimientoSync::find('first', [
+            'conditions' => [
+                'uuid_local = ? and mfundos_id = ? and status = 1',
+                (string) $cambio['nacimiento_uuid_local'], (int) $usuario['fundo_id'],
+            ],
+        ]);
+        if (!$nacimientoFicha) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'No se encontró el nacimiento asociado a esta ficha.'];
+        }
+
+        $nroTerneroRecibido = $cambio['nacimiento_nro_cria'] ?? null;
+        $nacimientoFichaNroTernero = $nroTerneroRecibido === null || $nroTerneroRecibido === ''
+            ? 1
+            : filter_var($nroTerneroRecibido, FILTER_VALIDATE_INT);
+        if ($nacimientoFichaNroTernero === false || $nacimientoFichaNroTernero < 1) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'El número de cría indicado no es válido.'];
+        }
+        $detalleTernero = \Mterneroxnacimiento::find('first', [
+            'conditions' => [
+                'mregnacimientos_id = ? and mfundos_id = ? and nro_ternero = ? and status = 1',
+                (int) $nacimientoFicha->id, (int) $usuario['fundo_id'], $nacimientoFichaNroTernero,
+            ],
+        ]);
+        if (!$detalleTernero) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'No se encontró la cría indicada dentro del nacimiento.'];
+        }
+        if ((int) $detalleTernero->estatus_nacido === 2) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'No se puede fichar una cría nacida muerta.'];
+        }
+
+        $cantidadCrias = Musuario::connection()->query(
+            'SELECT COUNT(*) AS n FROM mternerosxnacimientos WHERE mregnacimientos_id = ? AND mfundos_id = ? AND status = 1',
+            [(int) $nacimientoFicha->id, (int) $usuario['fundo_id']]
+        )->fetch();
+        if ((int) ($cantidadCrias['n'] ?? 0) > 1) {
+            $criasVivasSinId = Musuario::connection()->query(
+                "SELECT COUNT(*) AS n FROM mternerosxnacimientos
+                 WHERE mregnacimientos_id = ? AND mfundos_id = ? AND status = 1
+                   AND estatus_nacido <> 2 AND NULLIF(TRIM(id_ternero), '') IS NULL",
+                [(int) $nacimientoFicha->id, (int) $usuario['fundo_id']]
+            )->fetch();
+            if ((int) ($criasVivasSinId['n'] ?? 0) > 0) {
+                return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'Asigne un ID/arete a cada cría viva antes de fichar un parto múltiple.'];
+            }
+        }
+        $codigoCria = trim((string) $detalleTernero->id_ternero);
+        if ($codigoCria === '' && (int) ($cantidadCrias['n'] ?? 0) > 1) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'Asigne un ID/arete a cada cría antes de fichar un parto múltiple.'];
+        }
+        $datos['codigo_ternero'] = $codigoCria !== '' ? $codigoCria : (string) $nacimientoFicha->codigo_ternero;
+        if ($datos['codigo_ternero'] === '') {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'La cría no tiene un ID/arete o código para asociar su ficha.'];
+        }
+
+        $fichaExistente = \ManimalSync::find('first', [
+            'conditions' => [
+                'codigo_ternero = ? and mfundos_id = ? and status = 1',
+                $datos['codigo_ternero'], (int) $usuario['fundo_id'],
+            ],
+        ]);
+        if ($fichaExistente) {
+            return ['uuid_local' => $uuid, 'resultado' => 'error', 'mensaje' => 'Esta cría ya tiene una ficha de animal.'];
+        }
+    }
     $productosAplicados = [];
     if (!empty($config['sincroniza_productos_aplicados'])) {
         [$productosAplicados, $errorProductos] = validar_productos_control_sanitario(
@@ -1040,8 +1107,7 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
     completar_valores_por_defecto($datos, $config['valores_por_defecto'] ?? []);
     completar_enteros_con_defecto($datos, $config['enteros_con_defecto'] ?? []);
 
-    $nacimientoFicha = null;
-    if (($config['tabla'] ?? '') === 'manimales' && !empty($datos['codigo_ternero'])) {
+    if (!$nacimientoFicha && ($config['tabla'] ?? '') === 'manimales' && !empty($datos['codigo_ternero'])) {
         $nacimientoFicha = \MregnacimientoSync::find('first', [
             'conditions' => [
                 'codigo_ternero = ? and mfundos_id = ? and status = 1',
@@ -1193,6 +1259,12 @@ function crear_registro(string $uuid, array $cambio, array $config, string $mode
             'version' => (int) $nacimientoFicha->version,
             'updated' => $nacimientoFicha->updated,
         ];
+        if ($nacimientoFichaNroTernero !== null) {
+            $resultado['nacimiento_cria_fichada'] = [
+                'nro_ternero' => $nacimientoFichaNroTernero,
+                'codigo_ternero' => $datos['codigo_ternero'],
+            ];
+        }
     }
 
     return $resultado;

@@ -1,6 +1,13 @@
 {
-  "actual": "1.00049",
+  "actual": "1.00050",
   "versiones": [
+    {
+      "version": "1.00050",
+      "fecha": "2026-11-09",
+      "notas": [
+        "Nacimientos: ahora se puede fichar cada cría de un parto múltiple por separado, con estado parcial y asociación individual."
+      ]
+    },
     {
       "version": "1.00049",
       "fecha": "2026-11-09",

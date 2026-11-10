@@ -3,7 +3,8 @@
 
 const CAMPOS_INTERNOS_NO_ENVIAR = new Set([
   'uuid_local', 'id', 'version', 'estado_sync', 'created', 'updated', 'mfundos_id',
-  'codigo_provisional', 'nacimiento_uuid_local', 'ficha_animal_uuid_local', 'ficha_animal_codigo', 'fichado',
+  'codigo_provisional', 'nacimiento_uuid_local', 'nacimiento_nro_cria',
+  'ficha_animal_uuid_local', 'ficha_animal_codigo', 'fichado',
   // Código provisional que este animal tenía antes de que el servidor le
   // asignara el definitivo. Solo existe en el dispositivo (ver
   // mapaCodigosRenombrados) y NO se envía.
@@ -164,6 +165,9 @@ const Sync = {
     const modulosEnOrden = Object.keys(porModulo).sort((a, b) =>
       (prioridadModulo[a] ?? 10) - (prioridadModulo[b] ?? 10)
     );
+    if (porModulo.animales && porModulo.nacimientos) {
+      modulosEnOrden.push('reintentar_fichas_nacimiento');
+    }
 
     let enviados = 0;
     let conflictos = 0;
@@ -184,7 +188,9 @@ const Sync = {
     // registro sería muy costoso.
     const indiceAnimales = { porCodigo: null };
 
-    for (const modulo of modulosEnOrden) {
+    for (const moduloOrden of modulosEnOrden) {
+      const esReintentoFichasNacimiento = moduloOrden === 'reintentar_fichas_nacimiento';
+      const modulo = esReintentoFichasNacimiento ? 'animales' : moduloOrden;
       // El outbox se vuelve a leer módulo por módulo, JUSTO antes de
       // enviarlo, en vez de usar el snapshot del inicio. Al subir un
       // animal el servidor le asigna el código definitivo y
@@ -195,7 +201,8 @@ const Sync = {
       // servidor los rechazaba ("Ninguno de los animales seleccionados
       // está activo en este fundo").
       const items = (await Db.obtenerTodos('outbox'))
-        .filter((o) => (o.modulo || 'animales') === modulo);
+        .filter((o) => (o.modulo || 'animales') === modulo
+          && (!esReintentoFichasNacimiento || !!o.nacimiento_uuid_local));
       if (!items.length) continue;
       const almacen = modulo;
       // Anulaciones (borrado lógico) dentro de este lote: si alguna
@@ -208,6 +215,14 @@ const Sync = {
         // decisión del usuario (reintentar o revertir). No se reenvía
         // en las corridas automáticas.
         if (p.bloqueado === true) continue;
+
+        if (modulo === 'animales' && p.nacimiento_uuid_local) {
+          const nacimiento = await Db.obtener('nacimientos', p.nacimiento_uuid_local);
+          if (!nacimiento || !nacimiento.id) {
+            await this.marcarEnEsperaDeNacimiento(p, almacen, !nacimiento);
+            continue;
+          }
+        }
 
         // Espera progresiva entre reintentos: 1, 2, 4, 8, 16 y 30 min.
         if (!forzarReintento && this._enEsperaDeReintento(p)) continue;
@@ -289,6 +304,7 @@ const Sync = {
           revertir: p.revertir === true,
           motivo_reversion: p.motivo_reversion || null,
           nacimiento_uuid_local: p.nacimiento_uuid_local || null,
+          nacimiento_nro_cria: p.nacimiento_nro_cria || null,
         });
       }
 
@@ -481,6 +497,33 @@ const Sync = {
     }
 
     return { enviados, conflictos, errores, modulos_con_error: modulosConError };
+  },
+
+  async marcarEnEsperaDeNacimiento(item, almacen, huerfano) {
+    const fila = await Db.obtener('outbox', item.uuid_local);
+    const mensaje = huerfano
+      ? 'El nacimiento asociado ya no está en este dispositivo. Revisá la ficha de esta cría.'
+      : 'Esperando que el nacimiento asociado termine de sincronizarse.';
+    if (fila) {
+      fila.ultimo_error = mensaje;
+      fila.proximo_intento = null;
+      if (huerfano) {
+        fila.bloqueado = true;
+        fila.bloqueado_en = new Date().toISOString();
+      }
+      await Db.guardar('outbox', fila);
+    }
+    const registro = await Db.obtener(almacen, item.uuid_local);
+    if (registro) {
+      if (huerfano) {
+        registro.estado_sync = 'error';
+        registro.ultimo_error = mensaje;
+      } else if (registro.estado_sync === 'error') {
+        registro.estado_sync = 'pendiente';
+        delete registro.ultimo_error;
+      }
+      await Db.guardar(almacen, registro);
+    }
   },
 
   /**
