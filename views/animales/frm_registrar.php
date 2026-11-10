@@ -2,7 +2,7 @@
 date_default_timezone_set('America/Caracas');
 
 /* ---------------------------------------------------------------------
-   Alta iniciada desde un NACIMIENTO (crear la ficha del ternero):
+   Alta iniciada desde un NACIMIENTO (crear la ficha de la cría):
    llega  ?%$%=<base64(id_reg_nac=..&sexo=..&fecha=..&peso=..)>
    Al guardar, manimales_controller marca el nacimiento como "Fichado".
    --------------------------------------------------------------------- */
@@ -1975,6 +1975,7 @@ $(function () {
     var preSexo        = '<?php echo htmlspecialchars($bovs_pre_sexo, ENT_QUOTES, 'UTF-8'); ?>';
     var preFecha       = '<?php echo htmlspecialchars($bovs_pre_fecha, ENT_QUOTES, 'UTF-8'); ?>';
     var prePeso        = '<?php echo htmlspecialchars($bovs_pre_peso, ENT_QUOTES, 'UTF-8'); ?>';
+    var preArete       = '<?php echo htmlspecialchars($bovs_pre_ternero, ENT_QUOTES, 'UTF-8'); ?>';
     var preAptitud     = '<?php echo htmlspecialchars($bovs_pre_aptitud, ENT_QUOTES, 'UTF-8'); ?>';
     var preRaza        = '<?php echo htmlspecialchars($bovs_pre_raza, ENT_QUOTES, 'UTF-8'); ?>';
     var preServicio    = '<?php echo htmlspecialchars($bovs_pre_servicio, ENT_QUOTES, 'UTF-8'); ?>';
@@ -1991,6 +1992,7 @@ $(function () {
     /* 1) Datos que ya vienen del parto */
     if (preFecha !== '') { $('#fech_nac').val(preFecha); }
     if (prePeso !== '')  { $('#peso_nac').val(prePeso); }
+    if (preArete !== '') { $('#numero_arete').val(preArete); }
     if (preSexo === '1' || preSexo === '2') { $('#sexo').val(preSexo); }
 
     bovsFijarSelect('aptitud_animal', preAptitud);

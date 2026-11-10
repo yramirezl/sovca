@@ -9,8 +9,8 @@ $rol_actual = (int) $_SESSION['rolx'];
 
 <?php
 $crud = [
-    'title' => 'Terneros Desincorporados',
-    'subtitle' => 'Registro de bajas de terneros',
+    'title' => 'Crías Desincorporadas',
+    'subtitle' => 'Registro de bajas de crías',
     'icon' => 'fa-archive',
     'theme' => 'warning',
 
@@ -27,7 +27,7 @@ $crud = [
 
     'extraButtonsHtml' => '<a href="../nacimientos/" class="crud-btn crud-btn--warning" style="text-decoration:none; color:#ffffff !important;"><i class="fa fa-reply" style="color:#ffffff !important;"></i> <span style="color:#ffffff !important;">Regresar</span></a>',
     'columns' => [
-        ['data' => 'codigo_ternero', 'title' => 'Código del Ternero'],
+        ['data' => 'codigo_ternero', 'title' => 'Código de la Cría'],
         ['data' => 'codigo_rgb_id_animal_hembra', 'title' => 'Código / HEMBRA'],
         ['data' => 'nro_arete', 'title' => 'Nro Arete / Microchip HEMBRA'],
         ['data' => 'codigo_rgb_id_animal_macho', 'title' => 'Código / MACHO'],
@@ -41,7 +41,7 @@ $crud = [
     ],
 
     'order' => [[0, 'asc']],
-    'searchPlaceholder' => 'Buscar ternero…',
+    'searchPlaceholder' => 'Buscar cría…',
     'scrollY' => '350px',
 
     'rowCallbackJs' => "

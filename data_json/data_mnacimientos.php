@@ -15,6 +15,7 @@ if (($mfundos_id != '') && ($mfundos_id != ' ')) {
 		       n.fichado,
 		       n.nro_arete,
 	       COALESCE(crias.cantidad, 1) AS cantidad_terneros,
+	       COALESCE(crias.cantidad, 0) AS cantidad_crias_detalle,
 	       COALESCE(crias.fichadas, 0) AS crias_fichadas,
 	       COALESCE(NULLIF(crias.ids_terneros, ''), NULLIF(n.id_ternero, ''), 'Sin ID') AS ids_terneros
 		  FROM Vmregnacimientos n
@@ -25,16 +26,20 @@ if (($mfundos_id != '') && ($mfundos_id != ' ')) {
 		              STRING_AGG(NULLIF(t.id_ternero, ''), ', ' ORDER BY t.nro_ternero) AS ids_terneros
 		         FROM mternerosxnacimientos t
 		    /* Solo se considera fichada si la cría tiene ID: con el ID vacío el
-		       join `'' = ''` contaba como fichadas a todos los animales sin
-		       codigo_ternero del fundo. */
+		       join `'' = ''` contaba animales sin código ni arete del fundo. */
 		    LEFT JOIN LATERAL (
 		              SELECT m.id
 		                FROM manimales m
 		               WHERE m.mfundos_id = t.mfundos_id
 		                 AND m.status = 1
 		                 AND BTRIM(COALESCE(t.id_ternero, '')) <> ''
-		                 AND UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
-		               ORDER BY m.id
+		                 AND (UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+		                   OR UPPER(BTRIM(m.nro_arete)) = UPPER(BTRIM(t.id_ternero)))
+		               ORDER BY CASE
+		                          WHEN UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero)) THEN 0
+		                          ELSE 1
+		                        END,
+		                        m.id
 		               LIMIT 1
 		         ) a ON true
 		        WHERE t.status = 1
@@ -52,6 +57,10 @@ if (($mfundos_id != '') && ($mfundos_id != ' ')) {
 		   En partos de una sola cría se mantiene el rótulo original. */
 		if ($cantidad_crias > 1) {
 			$estado_ficha = $crias_fichadas . ' de ' . $cantidad_crias . ' fichadas';
+		} elseif ((int)$rs->cantidad_crias_detalle > 0) {
+			$estado_ficha = ($crias_fichadas > 0 || strtoupper(trim((string)$rs->fichado)) === 'FICHADO')
+				? 'FICHADO'
+				: 'Sin Fichar';
 		} else {
 			$estado_ficha = $rs->fichado;
 		}

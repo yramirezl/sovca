@@ -797,6 +797,7 @@ switch ($action) {
 
                 $reg_animal = new Manimale();
                 $reg_animal->codigo_rgb_id_animal = $cod_rgb_animal;
+                $reg_animal->codigo_ternero = $codigo_ternero;
                 $reg_animal->nombre = $nombre_animal;
                 $reg_animal->sexo = $sexo;
                 $reg_animal->estatus_animal = $estatus_animal;
@@ -822,6 +823,7 @@ switch ($action) {
                 $reg_animal->user_create = $usuario_id;
                 $reg_animal->mfundos_id = $mfundos_id;
                 $reg_animal->mtipoganaderias_id = $t_ganaderia;
+                $reg_animal->nac_fundo = ((int)$id_reg_nac > 0);
 
                 $reg_animal->created = $hoy;
 
@@ -860,6 +862,9 @@ switch ($action) {
 
                     if ($reg_animal_fundo->save()) {
 
+                        $nacimiento_fichado = ((int)$id_reg_nac <= 0)
+                            || bovs_marcar_nacimiento_fichado($id_reg_nac);
+
                         $max_animal = Manimalxfundo::find_by_sql("SELECT count(id) as cant_animal
                     FROM Manimalxfundos
                     WHERE status=1 and mfundos_id=" . $mfundos_id . ' ;');
@@ -883,7 +888,10 @@ switch ($action) {
                         Alerta!
                         </h4>
                         El Animal  [' . $nombre_animal . '] registrado exitosamente...
-                        </div>' . $img_aviso;
+                        </div>' . $img_aviso
+                        . (!$nacimiento_fichado
+                            ? '<div class="alert alert-warning">El animal se registró, pero no se pudo actualizar el estado del nacimiento. Verifique el registro antes de volver a fichar.</div>'
+                            : '');
                     }
                 } else {
                     echo '<div class="alert alert-danger alert-dismissable">

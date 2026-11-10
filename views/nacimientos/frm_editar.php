@@ -441,7 +441,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                     </div>
 
                     <div class="crud-form__field" id="fichar_id" style="display:none;">
-                        <label for="fichar">¿ Ficharlo ?
+                        <label for="fichar">¿Crear su ficha?
                             <a data-toggle="tooltip" title="Si la cría aún no tiene ficha, puedes crearla desde esta opción.">
                                 <img src="../../dist/img/ayuda.jpeg" height="13" width="13">
                             </a>

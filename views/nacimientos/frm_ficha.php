@@ -17,7 +17,7 @@ if ($id_animal <= 0) { die('ID de animal inválido'); }
 
 /* ---------------------------------------------------------------------
    El parámetro de esta página es el id del NACIMIENTO, pero la ficha es
-   la del ANIMAL. Hay que resolver el ternero:
+   la del ANIMAL. Hay que resolver la cría:
      · si ya está registrado  -> se muestra su ficha (con el id del animal),
      · si todavía no existe   -> se ofrece CREARLA.
    Antes se llamaba al endpoint con el id del nacimiento y respondía
@@ -43,7 +43,7 @@ chdir($cwd_ficha);
 
 /* ---------------------------------------------------------------------
    Helpers del alta de crías (se usan cuando el parto tiene mellizos y
-   hay que preparar una ficha por cada ternero/a).
+   hay que preparar una ficha por cada cría).
    --------------------------------------------------------------------- */
 if (!function_exists('bovs_nac_nombre_animal')) {
     function bovs_nac_nombre_animal($codigo, $mfundos_id)
@@ -129,10 +129,8 @@ if ($nac) {
     $nac_sexo_txt = ((int)$nac->sexo === 1) ? 'Hembra' : (((int)$nac->sexo === 2) ? 'Macho' : '');
     $nac_peso_txt = trim((string)$nac->peso_nacimiento);
 
-    /* ¿El ternero ya tiene ficha? El vínculo es manimales.codigo_ternero
-       (el animal se crea con su código SOVCA y guarda aquí el código del
-       parto, p. ej. MA-063-0140). Se acepta también el código del animal
-       como respaldo. */
+    /* ¿La cría ya tiene ficha? Se busca por el código del parto o por su
+       arete, además de aceptar el código del animal como respaldo. */
     $id_animal_ficha = 0;
     $nac_fichado = in_array($nac->fichado, array(true, 1, '1', 't', 'true'), true);
     if ($nac_codigo_cria === '') {
@@ -148,8 +146,13 @@ if ($nac) {
                   WHERE mfundos_id = ' . (int)$_SESSION['mfundos_id'] . '
                     AND status = 1
                     AND ( UPPER(BTRIM(codigo_ternero)) = UPPER(' . $cod_cria_sql . ')
+                       OR UPPER(BTRIM(nro_arete)) = UPPER(' . $cod_cria_sql . ')
                        OR UPPER(BTRIM(codigo_rgb_id_animal)) = UPPER(' . $cod_cria_sql . ') )
-                  ORDER BY CASE WHEN UPPER(BTRIM(codigo_ternero)) = UPPER(' . $cod_cria_sql . ') THEN 0 ELSE 1 END
+                  ORDER BY CASE
+                             WHEN UPPER(BTRIM(codigo_ternero)) = UPPER(' . $cod_cria_sql . ') THEN 0
+                             WHEN UPPER(BTRIM(nro_arete)) = UPPER(' . $cod_cria_sql . ') THEN 1
+                             ELSE 2
+                           END
                   LIMIT 1'
             );
             if ($q_ficha) {
@@ -263,7 +266,7 @@ if ($nac) {
    CRÍAS DEL PARTO (MELLIZOS)
    ---------------------------------------------------------------------
    Un nacimiento puede tener 2 crías y cada una necesita SU PROPIA ficha
-   de animal. Antes esta pantalla resolvía únicamente el ternero principal
+   de animal. Antes esta pantalla resolvía únicamente la cría principal
    del registro, así que la segunda cría no se podía fichar y la ficha
    mostraba los datos de una sola.
    --------------------------------------------------------------------- */
@@ -284,16 +287,21 @@ if ($nac) {
                     COALESCE(a.codigo_rgb_id_animal, \'\') AS codigo_animal
                FROM mternerosxnacimientos t
           /* Solo se cruza con un animal cuando la cría tiene ID: con el ID
-             vacío el join igualaba cadenas vacías y traía a todos los animales
-             sin codigo_ternero del fundo, mostrando la cría repetida. */
+             vacío el join igualaba cadenas vacías y traía animales sin código
+             ni arete del fundo, mostrando la cría repetida. */
           LEFT JOIN LATERAL (
                     SELECT m.id, m.codigo_rgb_id_animal
                       FROM manimales m
                      WHERE m.mfundos_id = t.mfundos_id
                        AND m.status = 1
                        AND BTRIM(COALESCE(t.id_ternero, \'\')) <> \'\'
-                       AND UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
-                     ORDER BY m.id
+                       AND (UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero))
+                         OR UPPER(BTRIM(m.nro_arete)) = UPPER(BTRIM(t.id_ternero)))
+                     ORDER BY CASE
+                                WHEN UPPER(BTRIM(m.codigo_ternero)) = UPPER(BTRIM(t.id_ternero)) THEN 0
+                                ELSE 1
+                              END,
+                              m.id
                      LIMIT 1
                ) a ON true
               WHERE t.mregnacimientos_id = ' . (int)$id_reg_nac . '
@@ -965,7 +973,7 @@ if ($nac) {
 <div id="ficha_pendiente" style="max-width:<?php echo $nac_multiples ? '900px' : '640px'; ?>;margin:30px auto;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.06);overflow:hidden;">
     <div style="background:linear-gradient(135deg,#2f8f4a,#237a3c);color:#fff;padding:22px 24px;">
         <h2 style="margin:0;font-size:20px;color:#fff;border:none;"><i class="fa fa-id-card-o"></i> <?php echo $nac_multiples ? 'Crías del parto' : 'Ficha pendiente'; ?></h2>
-        <p style="margin:6px 0 0;font-size:13px;opacity:.95;"><?php echo $nac_multiples ? 'Cada ternero/a del parto lleva su propia ficha de animal.' : 'Este nacimiento todavía no tiene ficha de animal registrada.'; ?></p>
+        <p style="margin:6px 0 0;font-size:13px;opacity:.95;"><?php echo $nac_multiples ? 'Cada cría del parto lleva su propia ficha de animal.' : 'Este nacimiento todavía no tiene ficha de animal registrada.'; ?></p>
     </div>
     <div style="padding:20px 24px;">
         <?php if ($nac_multiples): ?>
@@ -1029,14 +1037,14 @@ if ($nac) {
         </table>
         <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
             <?php if (!$nac_multiples): ?>
-            <a class="btn btn-success" href="<?php echo htmlspecialchars($bovs_alta_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="fa fa-plus"></i> Crear ficha del ternero</a>
+            <a class="btn btn-success" href="<?php echo htmlspecialchars($bovs_alta_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="fa fa-plus"></i> Crear ficha de la cría</a>
             <?php endif; ?>
             <a class="btn btn-default" href="index.php">Volver al listado</a>
         </div>
         <?php if ($nac_fichado): ?>
         <p style="margin-top:14px;font-size:12px;color:#b45309;"><b>Atención:</b> este nacimiento figura como <b>Fichado</b>, pero su animal no aparece en el hato (puede estar dado de baja, migrado o con otro código). Revise antes de crear una ficha nueva.</p>
         <?php else: ?>
-        <p style="margin-top:14px;font-size:12px;color:#6b7a8c;"><?php echo $nac_multiples ? 'Al guardar la ficha de cada cría, este nacimiento quedará marcado como <b>Fichado</b>; cada ternero/a conserva su propio estado en la lista de arriba.' : 'Al guardar el animal, este nacimiento quedará marcado como <b>Fichado</b>.'; ?></p>
+        <p style="margin-top:14px;font-size:12px;color:#6b7a8c;"><?php echo $nac_multiples ? 'Al guardar la ficha de cada cría, este nacimiento quedará marcado como <b>Fichado</b>; cada cría conserva su propio estado en la lista de arriba.' : 'Al guardar el animal, este nacimiento quedará marcado como <b>Fichado</b>.'; ?></p>
         <?php endif; ?>
     </div>
 </div>

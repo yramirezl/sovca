@@ -24,7 +24,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
         <span class="crud-form__icon"><i class="fa fa-archive"></i></span>
         <div>
             <h3 class="crud-form__title">Desincorporación del Animal</h3>
-            <p class="crud-form__subtitle">Registre la baja del ternero del sistema</p>
+            <p class="crud-form__subtitle">Registre la baja de la cría del sistema</p>
         </div>
         <div class="crud-form__header-actions">
             <button id="exit_top" type="button" class="btn btn-warning">
@@ -47,7 +47,7 @@ $cad0 = isset($valores[0]) ? $valores[0] : 0;
                 <div class="crud-form__card-body">
 
                     <div class="crud-form__field">
-                        <label for="codigo_ternero">Código del Ternero</label>
+                        <label for="codigo_ternero">Código de la Cría</label>
                         <input class="form-control bbb" id="codigo_ternero" type="text" tabindex="1"
                                placeholder="Codigo" onpaste="return false" readonly="true">
                         <div id='ms_nombre'><p></p></div>
