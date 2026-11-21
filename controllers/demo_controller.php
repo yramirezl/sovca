@@ -79,11 +79,12 @@ switch ($action) {
         /* --- Captcha (mismo esquema que el login) ------------------- */
         $token     = isset($_POST['captcha_token']) ? (string) $_POST['captcha_token'] : '';
         $respuesta = isset($_POST['captcha_respuesta']) ? trim((string) $_POST['captcha_respuesta']) : '';
+        $motivo    = '';
 
-        if (!bovs_captcha_validar($token, $respuesta)) {
+        if (!bovs_captcha_validar($token, $respuesta, 'captcha', $motivo)) {
             demo_responder(array(
                 'ok'      => false,
-                'msg'     => 'La verificación de seguridad no coincide. Intenta con la operación nueva.',
+                'msg'     => bovs_captcha_mensaje_error($motivo),
                 'captcha' => true
             ));
         }
@@ -200,11 +201,12 @@ switch ($action) {
         /* --- Captcha propio de este formulario --------------------- */
         $token     = isset($_POST['captcha_token']) ? (string) $_POST['captcha_token'] : '';
         $respuesta = isset($_POST['captcha_respuesta']) ? trim((string) $_POST['captcha_respuesta']) : '';
+        $motivoLogin = '';
 
-        if (!bovs_captcha_validar($token, $respuesta, 'captcha_demo_login')) {
+        if (!bovs_captcha_validar($token, $respuesta, 'captcha_demo_login', $motivoLogin)) {
             demo_responder(array(
                 'ok'      => false,
-                'msg'     => 'La verificación de seguridad no coincide. Intenta con la operación nueva.',
+                'msg'     => bovs_captcha_mensaje_error($motivoLogin),
                 'captcha' => true
             ));
         }

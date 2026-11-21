@@ -81,9 +81,10 @@ if (!function_exists('bovs_captcha_validar')) {
      * @param string $token      Valor de $_POST['captcha_token']
      * @param string $respuesta  Valor de $_POST['captcha_respuesta']
      * @param string $slot       Espacio de sesión ('captcha' por defecto)
+     * @param string $motivo     (salida) ok | sin_captcha | token | caducado | formato | respuesta
      * @return bool
      */
-    function bovs_captcha_validar($token, $respuesta, $slot = 'captcha')
+    function bovs_captcha_validar($token, $respuesta, $slot = 'captcha', &$motivo = null)
     {
         $guardado = isset($_SESSION[$slot]) ? $_SESSION[$slot] : null;
 
@@ -94,21 +95,62 @@ if (!function_exists('bovs_captcha_validar')) {
             !is_array($guardado) ||
             !isset($guardado['token'], $guardado['resultado'], $guardado['ts'])
         ) {
+            $motivo = 'sin_captcha';
             return false;
         }
 
         if (!hash_equals((string) $guardado['token'], (string) $token)) {
+            $motivo = 'token';
             return false;
         }
 
+        // Se revisa la caducidad antes que el resultado: si la operación
+        // venció, decirle al usuario "no coincide" lo confunde, porque el
+        // número que resolvió sí era el correcto.
         if ((time() - (int) $guardado['ts']) > 900) {
+            $motivo = 'caducado';
             return false;
         }
 
         if (!preg_match('/^-?\d+$/', (string) $respuesta)) {
+            $motivo = 'formato';
             return false;
         }
 
-        return (int) $respuesta === (int) $guardado['resultado'];
+        if ((int) $respuesta !== (int) $guardado['resultado']) {
+            $motivo = 'respuesta';
+            return false;
+        }
+
+        $motivo = 'ok';
+        return true;
+    }
+}
+
+if (!function_exists('bovs_captcha_mensaje_error')) {
+
+    /**
+     * Texto para el usuario según el motivo devuelto por
+     * bovs_captcha_validar(): caducado y usado no son "no coincide".
+     *
+     * @param string $motivo
+     * @return string
+     */
+    function bovs_captcha_mensaje_error($motivo)
+    {
+        switch ((string) $motivo) {
+            case 'caducado':
+                return 'La verificación de seguridad caducó: pasaron más de 15 minutos '
+                    . 'desde que se mostró la operación. Resuelve la operación nueva.';
+            case 'sin_captcha':
+                return 'La verificación de seguridad ya se usó o caducó. '
+                    . 'Resuelve la operación nueva.';
+            case 'formato':
+                return 'La verificación de seguridad debe ser un número. '
+                    . 'Resuelve la operación nueva.';
+            default:
+                return 'La verificación de seguridad no coincide. '
+                    . 'Resuelve la operación nueva.';
+        }
     }
 }

@@ -1404,6 +1404,15 @@ $autofocusPassword = !empty($loginUsuarioPrevio);
               El resultado del captcha no coincide. Intenta nuevamente.
             </div>
           </div>
+        <?php elseif (@$_GET['stat'] == 'captcha_caducado'): ?>
+          <div class="alert alert-warning alert-custom">
+            <i class="fa fa-clock-o"></i>
+            <div>
+              <strong>La verificación de seguridad caducó.</strong><br>
+              Pasaron más de 15 minutos desde que se mostró la operación,
+              aunque la hayas resuelto bien. Resuelve la operación nueva.
+            </div>
+          </div>
         <?php elseif (@$_GET['stat'] == 'subscription_expired'): ?>
           <div class="alert alert-warning alert-custom">
             <i class="fa fa-warning"></i>

@@ -28,8 +28,17 @@ require_once __DIR__ . '/../lib/captcha_helper.php';
 /* El modal de instalación offline pide su propio captcha para no
    invalidar el del formulario de acceso. Cada formulario con captcha
    usa su propio espacio para no pisarse entre sí. Solo se aceptan
-   espacios conocidos. */
-$slot = isset($_GET['slot']) ? (string) $_GET['slot'] : 'captcha';
+   espacios conocidos.
+
+   El espacio puede venir por GET o por POST: las pantallas AJAX lo
+   mandan como dato del POST, y leerlo solo del GET generaba el captcha
+   en el espacio equivocado (se devolvía un token que nunca validaba). */
+$slot = 'captcha';
+if (isset($_GET['slot'])) {
+    $slot = (string) $_GET['slot'];
+} elseif (isset($_POST['slot'])) {
+    $slot = (string) $_POST['slot'];
+}
 if (!in_array($slot, array('captcha', 'captcha_offline', 'captcha_demo_login'), true)) {
     $slot = 'captcha';
 }

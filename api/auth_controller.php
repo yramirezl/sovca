@@ -56,12 +56,13 @@ switch ($action) {
 
             $captchaToken     = (string) ($input['captcha_token'] ?? '');
             $captchaRespuesta = trim((string) ($input['captcha_respuesta'] ?? ''));
+            $captchaMotivo    = '';
 
-            if (!bovs_captcha_validar($captchaToken, $captchaRespuesta, 'captcha_offline')) {
+            if (!bovs_captcha_validar($captchaToken, $captchaRespuesta, 'captcha_offline', $captchaMotivo)) {
                 \Api\ApiResponse::error(
-                    'La verificación de seguridad no coincide. Resuelve la operación nueva.',
+                    bovs_captcha_mensaje_error($captchaMotivo),
                     422,
-                    array('codigo' => 'captcha', 'captcha' => true)
+                    array('codigo' => 'captcha', 'captcha' => true, 'motivo' => $captchaMotivo)
                 );
             }
         }

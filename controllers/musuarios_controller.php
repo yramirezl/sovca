@@ -1878,12 +1878,13 @@ switch ($action) {
 		// 1) Captcha
 		$capToken = isset($_POST['captcha_token']) ? (string) $_POST['captcha_token'] : '';
 		$capResp  = isset($_POST['captcha_respuesta']) ? (string) $_POST['captcha_respuesta'] : '';
+		$capMotivo = '';
 
-		if (!bovs_captcha_validar($capToken, $capResp)) {
+		if (!bovs_captcha_validar($capToken, $capResp, 'captcha', $capMotivo)) {
 			echo json_encode(array(
 				'ok'            => false,
 				'captcha_error' => true,
-				'msg'           => 'La verificación de seguridad no coincide. Intenta nuevamente.'
+				'msg'           => bovs_captcha_mensaje_error($capMotivo)
 			));
 			exit;
 		}
@@ -2248,32 +2249,23 @@ switch ($action) {
 		   ============================================================ */
 		$captchaToken = isset($_POST['captcha_token']) ? (string) $_POST['captcha_token'] : '';
 		$captchaRespuesta = isset($_POST['captcha_respuesta']) ? trim((string) $_POST['captcha_respuesta']) : '';
-		$captchaSession = isset($_SESSION['captcha']) ? $_SESSION['captcha'] : null;
+		$captchaMotivo = '';
 
-		$captchaInvalido = (
-			!is_array($captchaSession) ||
-			!isset($captchaSession['token'], $captchaSession['resultado'], $captchaSession['ts']) ||
-			!hash_equals((string) $captchaSession['token'], $captchaToken) ||
-			(time() - (int) $captchaSession['ts']) > 900
-		);
+		require_once __DIR__ . '/../lib/captcha_helper.php';
 
-		if (!$captchaInvalido) {
-			if (
-				!preg_match('/^-?\d+$/', $captchaRespuesta) ||
-				(int) $captchaRespuesta !== (int) $captchaSession['resultado']
-			) {
-				$captchaInvalido = true;
-			}
-		}
+		$captchaValido = bovs_captcha_validar($captchaToken, $captchaRespuesta, 'captcha', $captchaMotivo);
 
-		// Invalidar captcha (un solo uso)
-		unset($_SESSION['captcha']);
-
-		if ($captchaInvalido) {
+		if (!$captchaValido) {
 			if ($usuario !== '') {
 				$_SESSION['login_usuario_temp'] = $usuario;
 			}
-			header("Location: ../views/login?stat=captcha");
+			/* Caducado y "no coincide" son cosas distintas: al usuario que
+			   resolvió bien la operación vieja hay que decirle que venció,
+			   no que se equivocó. */
+			$estado = ($captchaMotivo === 'caducado' || $captchaMotivo === 'sin_captcha')
+				? 'captcha_caducado'
+				: 'captcha';
+			header("Location: ../views/login?stat=" . $estado);
 			exit();
 		}
 		/* ============================================================

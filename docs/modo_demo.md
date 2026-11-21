@@ -163,7 +163,8 @@ La pantalla `views/demo/index.php` tiene **dos pestañas**:
   sistema) y deja la sesión con `$_SESSION['demo'] = 1`.
 - Tiene su **propio espacio de captcha** (`captcha_demo_login`) para que
   "Cambiar" en un formulario no invalide el del otro
-  (`controllers/mcaptcha_controller.php` acepta ese slot).
+  (`controllers/mcaptcha_controller.php` acepta ese slot por GET **o** por
+  POST: la pantalla lo manda en el cuerpo del POST).
 - El login del sistema tiene **un solo** acceso al módulo
   (**Acceso demostrativo** → `demo/`): las dos opciones viven aquí adentro, no
   en el login. `views/demo/?ingresar=1` sigue abriendo la pestaña de ingreso si
