@@ -160,6 +160,43 @@ table.dataTable.table thead th,
     vertical-align: middle !important;
 }
 
+/* ============================================================
+   ENCABEZADO A DOS TONOS — UBICAR LAS FLECHAS DE ORDEN
+   Cada columna alterna color (pizarra / azul oscuro) y lleva
+   una divisoria, así se sabe qué flecha pertenece a qué título.
+   La columna por la que se ordena se marca con una línea inferior
+   y la flecha activa se resalta en ámbar.
+   ============================================================ */
+/* OJO: con scroll horizontal DataTables clona el <thead> en otra tabla
+   (sin id), por eso se usa la clase .crud-table y no #tabla. */
+.crud-table thead th {
+    padding-right: 22px !important;
+    border-left: 1px solid rgba(255, 255, 255, .16) !important;
+}
+.crud-table thead th:first-child {
+    border-left: none !important;
+}
+.crud-table thead th:nth-child(odd) {
+    background: linear-gradient(180deg, #475569 0%, #1e293b 100%) !important;
+}
+.crud-table thead th:nth-child(even) {
+    background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%) !important;
+}
+.crud-table thead .sorting:after {
+    opacity: .45 !important;
+    right: 6px !important;
+}
+.crud-table thead .sorting_asc:after,
+.crud-table thead .sorting_desc:after {
+    right: 6px !important;
+    opacity: 1 !important;
+    color: #fde68a !important;
+}
+.crud-table thead .sorting_asc,
+.crud-table thead .sorting_desc {
+    box-shadow: inset 0 -3px 0 #a7f3d0 !important;
+}
+
 /* Body — el fix del alto */
 table.dataTable tbody td,
 table.dataTable tbody th,
@@ -593,6 +630,10 @@ $crud = [
         ['width' => '11%', 'targets' => [5]],
         ['width' => '11%', 'targets' => [6]],
         ['width' => '13%', 'targets' => [7]],
+        // Las fechas se muestran d-m-Y: sin un tipo propio DataTables las
+        // ordena como TEXTO (día primero) y el resultado no es cronológico.
+        // El tipo fecha-dmy se define en customScript.
+        ['targets' => [5, 6], 'sType' => 'fecha-dmy'],
     ],
 
     /* ACTIVOS (1) ANTES QUE INACTIVOS (0), luego usuario A→Z */
@@ -669,24 +710,44 @@ $crud = [
 
     'customScript' => "
         /* ------------------------------------------------
-           1) Forzar tipo numérico en columna Estatus
-              y re-aplicar el orden después de la init
+           0) Orden CRONOLÓGICO de las fechas (dd-mm-yyyy)
+              DataTables compara el texto tal cual, así que
+              '30-08-2022' quedaría antes que '05-01-2023'.
+              Con fecha-dmy se comparan como fecha real y
+              'No Aplica' (sin fecha) queda siempre al final.
            ------------------------------------------------ */
-        setTimeout(function () {
-            if (\$.fn.DataTable && \$.fn.DataTable.isDataTable('table.dataTable')) {
-                var dt = \$('table.dataTable').DataTable();
+        function valorFechaDmy(valor) {
+            if (valor === null || valor === undefined) return null;
+            var texto = String(valor).trim();
+            var partes = texto.match(/^(\\d{1,2})[-\\/](\\d{1,2})[-\\/](\\d{4})\$/);
+            if (!partes) return null;
+            return Number(partes[3] + ('0' + partes[2]).slice(-2) + ('0' + partes[1]).slice(-2));
+        }
 
-                /* Re-aplicar el orden con la columna status como numérica */
-                dt.order([[4, 'desc'], [0, 'asc']]).draw(false);
-            }
-        }, 120);
+        \$.fn.dataTable.ext.type.order['fecha-dmy-asc'] = function (a, b) {
+            var fa = valorFechaDmy(a);
+            var fb = valorFechaDmy(b);
+            if (fa === null && fb === null) return 0;
+            if (fa === null) return 1;   // sin fecha: siempre al final
+            if (fb === null) return -1;
+            return fa - fb;
+        };
+
+        \$.fn.dataTable.ext.type.order['fecha-dmy-desc'] = function (a, b) {
+            var fa = valorFechaDmy(a);
+            var fb = valorFechaDmy(b);
+            if (fa === null && fb === null) return 0;
+            if (fa === null) return 1;   // sin fecha: siempre al final
+            if (fb === null) return -1;
+            return fb - fa;
+        };
 
         /* ------------------------------------------------
-           1.b) Filtro por permiso de MODO SIN CONEXIÓN
-                (última columna del listado: Activo / Heredado /
-                 Inactivo). Es un filtro interno de la tabla: se aplica
-                 en memoria y NO se refleja en la URL.
-                OJO: si se agregan columnas antes, ajustar el índice.
+           1) Filtro por permiso de MODO SIN CONEXIÓN
+              (última columna del listado: Activo / Heredado /
+               Inactivo). Es un filtro interno de la tabla: se aplica
+               en memoria y NO se refleja en la URL.
+              OJO: si se agregan columnas antes, ajustar el índice.
            ------------------------------------------------ */
         var COLUMNA_OFFLINE = 7;
         var PATRONES_OFFLINE = { '1': '^(Activo|Heredado)\$', '0': '^Inactivo\$' };

@@ -31,6 +31,9 @@ $crud = array_merge([
 
     'columns'    => [],
     'columnDefs' => [],
+    /* Orden inicial de la tabla. Antes se ignoraba: cada listado podía
+       declararlo pero la tabla siempre arrancaba por la primera columna. */
+    'order'      => [[0, 'asc']],
     'rowCallbackJs' => '',
     'searchPlaceholder' => 'Buscar…',
     /* true = cada término se compara por palabra contra las columnas (ver
@@ -194,6 +197,8 @@ $scrollYJs = is_null($crud['scrollY']) ? 'null' : "'" . addslashes($crud['scroll
         columns: <?php echo $columnsJs; ?>,
 
         columnDefs: <?php echo json_encode($crud['columnDefs'], JSON_UNESCAPED_UNICODE); ?>,
+
+        order: <?php echo json_encode($crud['order']); ?>,
 
         searchPlaceholder: '<?php echo addslashes($crud['searchPlaceholder']); ?>',
         busquedaPorCampos: <?php echo $crud['busquedaPorCampos'] ? 'true' : 'false'; ?>,
