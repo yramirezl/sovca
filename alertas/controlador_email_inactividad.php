@@ -96,9 +96,9 @@ $RESUMEN   = (isset($opciones['resumen']) && is_string($opciones['resumen']) && 
   : ALERTA_INACTIVIDAD_RESUMEN;
 
 $LOG = function ($mensaje) {
-  $linea = date('Y-m-d H:i:s') . ' [inactividad] ' . $mensaje;
-  echo $linea . PHP_EOL;
-  error_log($linea);
+  // Solo stdout: el cron redirige "2>&1" al mismo archivo y con error_log()
+  // cada línea quedaba duplicada en el log.
+  echo date('Y-m-d H:i:s') . ' [inactividad] ' . $mensaje . PHP_EOL;
 };
 
 /* ------------------------------------------------------------------ */
@@ -241,7 +241,15 @@ while ($c = pg_fetch_assoc($rs)) {
     $rsEstado = pg_query_params($con->obj_conec, $SQL_ESTADO, [$mfundos_id, $DIAS]);
     if ($rsEstado && pg_num_rows($rsEstado) > 0) {
       $estado = pg_fetch_assoc($rsEstado);
-      if (!empty($estado['avisado_reciente'])) {
+
+      /* OJO: pg_* entrega los booleanos como texto 't' / 'f'. 'f' NO está
+         vacío, así que `!empty($estado['avisado_reciente'])` daba true
+         siempre y, desde el primer aviso, ningún fundo volvía a recibir el
+         correo (el control de repetidos dejaba de caducar). */
+      $avisado_reciente = isset($estado['avisado_reciente'])
+        && in_array($estado['avisado_reciente'], array(true, 't', 'true', '1', 1), true);
+
+      if ($avisado_reciente) {
         $omitidos++;
         $detalle[] = 'OMITIDO  fundo ' . $mfundos_id . ' (' . $c['fundo'] . '): ya avisado el ' . $estado['ultimo_envio'];
         continue;
@@ -376,7 +384,7 @@ foreach ($grupos as $email => $grupo) {
   } else {
     $errores++;
     $detalle[] = 'ERROR    ' . $email . ' (' . $grupo['productor'] . ') → ' . $n_fundos
-      . ' fundo(s): no se pudo enviar el correo (' . $enviar_correo->ErrorInfo . ')';
+      . ' fundo(s): no se pudo enviar el correo (' . $enviar_correo->ultimo_error . ')';
 
     $envios_detalle[] = array(
       'productor' => $grupo['productor'],
@@ -429,7 +437,7 @@ if (!$DRY_RUN && !$SIN_RESUMEN) {
   if (empty($destinatarios_resumen)) {
     $LOG('Resumen interno NO enviado: no hay administradores activos (roles 1 y 4) con correo válido.');
   } else {
-    $resumen_ok = $enviar_correo->enviar_resumen($destinatarios_resumen, array(
+    $enviar_correo->enviar_resumen($destinatarios_resumen, array(
       'revisados' => $candidatos,
       'enviados'  => $enviados,
       'avisados'  => $avisados,
@@ -439,8 +447,18 @@ if (!$DRY_RUN && !$SIN_RESUMEN) {
       'envios'    => $envios_detalle,
       'novedades' => $novedades,
     ));
-    $LOG('Resumen interno ' . ($resumen_ok ? 'enviado' : 'NO enviado') . ' a '
-      . implode(', ', $destinatarios_resumen));
+    if (!empty($enviar_correo->resumen_enviados)) {
+      $LOG('Resumen interno enviado a ' . implode(', ', $enviar_correo->resumen_enviados) . '.');
+    } else {
+      $LOG('Resumen interno NO enviado a ' . implode(', ', $destinatarios_resumen)
+        . ' (' . $enviar_correo->ultimo_error . ')');
+    }
+    /* Un buzón rechazado por el servidor no puede pasar desapercibido:
+       significa que ese administrador no recibe ningún resumen. */
+    foreach ($enviar_correo->resumen_fallidos as $correo_fallo => $motivo_fallo) {
+      $LOG('ATENCION: el resumen no se pudo entregar a ' . $correo_fallo
+        . ' (' . $motivo_fallo . '). Revise ese correo en Administración → Usuarios.');
+    }
   }
 }
 
@@ -468,4 +486,6 @@ if (!empty($detalle)) {
 pg_free_result($rs);
 $con->DISCONECT();
 unset($con);
-exit(0);
+
+// Salida distinta de cero ante errores para que el cron pueda registrarlo.
+exit(($errores > 0) ? 1 : 0);

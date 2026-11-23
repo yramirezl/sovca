@@ -48,6 +48,7 @@ deja de considerarse inactivo.
 | `scripts/migracion_alerta_inactividad.sql` | Crea la tabla de seguimiento `malertas_inactividad_estado` |
 | `alertas/enviar_inactividad.php` | Clase `Enviar_Correo`: `construir_cuerpo()`, `construir_cuerpo_resumen()`, `enviar_inactividad()`, `enviar_resumen()` |
 | `alertas/controlador_email_inactividad.php` | Proceso (cron): detecta, **agrupa por productor**, envía y registra |
+| `scripts/cron/enviar_inactividad.sh` | Envoltorio del cron: crea `/opt/logs`, pasa las opciones y deja el log de la corrida |
 | `alertas/enviar.php` | Se le agregaron `construir_cuerpo_agrupado()` y `enviar_agrupado()` para las alertas de eventos |
 | `alertas/controlador_email.php` | Alertas de eventos: ahora **agrupa el envío por productor** + modo `--dry-run` |
 
@@ -62,19 +63,57 @@ con su propio bloque SMTP y registro del envío para no repetirlo.
 ```bash
 # 1) Crear la tabla de seguimiento (idempotente)
 psql -h 127.0.0.1 -U postgres -d <base_de_datos> -f scripts/migracion_alerta_inactividad.sql
+
+# 2) Copiar el envoltorio al directorio del cron
+sudo cp /var/www/html/sovca/scripts/cron/enviar_inactividad.sh /opt/backups/script/sovca/
+sudo chown root:root /opt/backups/script/sovca/enviar_inactividad.sh
+sudo chmod 750 /opt/backups/script/sovca/enviar_inactividad.sh
 ```
 
 ```cron
-# 2) Programar la ejecución (todos los días a las 6:00 a.m.)
-0 6 * * * cd /var/www/html/sovca/alertas && php controlador_email_inactividad.php >> /var/log/sovca_inactividad.log 2>&1
+# 3) Programar la ejecución (todos los días a las 6:00 a.m.)
+0 6 * * * /opt/backups/script/sovca/enviar_inactividad.sh >> /opt/logs/inactividad.log 2>&1
 ```
 
 > **Nota (credenciales SMTP):** igual que el resto de los enviadores de `alertas/`, la
 > contraseña del correo se coloca en el despliegue (`$mail->Password`), no se versiona.
 
+> **La tarea no se instala sola.** En SOVCA nunca se programó: la tabla
+> `malertas_inactividad_estado` está **vacía** aunque el proceso funciona (probado con
+> `--dry-run`: 6 fundos, 6 productores). Sin crontab no se envía ni un aviso **ni el
+> resumen a los administradores**, y como el resumen sale en **cada corrida real**,
+> *no recibirlo es la señal de que la tarea no está corriendo*.
+
+### Comprobar que está corriendo
+
+```bash
+# ¿está en el crontab?
+sudo crontab -l | grep inactividad
+
+# ¿corrió hoy? (el archivo debe existir y tener la corrida de la madrugada)
+ls -l /opt/logs/inactividad.log
+tail -20 /opt/logs/inactividad.log
+
+# ¿envió algo? (una fila por aviso; la más reciente debe ser de estos días)
+psql -h 127.0.0.1 -U postgres -d <base_de_datos> \
+  -c "select mfundos_id, ultimo_envio from malertas_inactividad_estado order by ultimo_envio desc limit 5;"
+```
+
+Si el log no existe, la redirección del crontab falló: casi siempre porque no existe
+`/opt/logs` (el envoltorio lo crea, pero si se programó el `php` directo no).
+
 ---
 
 ## 5. Uso del proceso
+
+El envoltorio de `scripts/cron/` acepta las mismas opciones y sirve para probar sin tocar
+el crontab:
+
+```bash
+/var/www/html/sovca/scripts/cron/enviar_inactividad.sh --dry-run
+```
+
+También se puede ejecutar el controlador directamente (dentro de `alertas/`):
 
 ```bash
 # Revisión SIN enviar correos (informe de fundos inactivos)
@@ -174,6 +213,12 @@ El correo incluye:
 Con `--resumen=correo` se agrega una dirección interna adicional; con `--sin-resumen`
 no se envía este correo (útil en pruebas o corridas manuales).
 
+**Buzones rechazados:** el resumen se manda en un solo mensaje y, si el servidor de correo
+rechaza la dirección de algún administrador, el proceso **reintenta uno por uno** para que los
+demás sí lo reciban. El log deja constancia con una línea `ATENCION: el resumen no se pudo
+entregar a <correo>`. Mientras un administrador tenga un correo que no existe, no recibirá
+ningún resumen: se corrige en *Administración → Usuarios*.
+
 ---
 
 ## 8. Comportamientos a tener presentes
@@ -187,6 +232,11 @@ no se envía este correo (útil en pruebas o corridas manuales).
 - El aviso es informativo y **no modifica** fundos, usuarios ni vínculos.
 - La primera corrida real puede detectar muchos fundos históricamente inactivos: se recomienda
   arrancar con `--limite` (por ejemplo `--limite=20`) y luego dejar la corrida diaria sin límite.
+- **Booleanos de PostgreSQL:** `pg_fetch_assoc()` devuelve `'t'`/`'f'`, y `!empty('f')` es
+  `true`. Ese detalle hacía que `avisado_reciente` se tomara como verdadero en cualquier fundo
+  con fila de estado, así que **un fundo no volvía a recibir aviso nunca** después del primero
+  (se corrigió comparando explícitamente contra `true`/`'t'`/`'1'`). Si se agrega otra columna
+  booleana a las consultas de este proceso, hay que leerla igual.
 
 ---
 

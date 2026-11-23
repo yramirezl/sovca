@@ -315,6 +315,79 @@ if (!function_exists('bovs_mail_cabeceras')) {
     }
 }
 
+if (!function_exists('bovs_mail_enviar_destinatarios')) {
+    /**
+     * Envía un correo ya armado a varios destinatarios sin que un buzón
+     * inválido deje al resto sin el mensaje.
+     *
+     * Se intenta primero un solo envío (el primero en "Para", el resto en
+     * copia oculta si $bcc es true). Si el servidor rechaza algún
+     * destinatario, el envío completo falla —un solo buzón inexistente dejaba
+     * sin el resumen a todos los administradores—, por lo que se reintenta
+     * uno por uno para entregarle a quien sí existe.
+     *
+     * @param PHPMailer $mail          instancia ya configurada y con cuerpo/asunto
+     * @param array     $destinatarios correos válidos
+     * @param bool      $bcc           true para mandar el resto en copia oculta
+     * @return array ['enviados' => array, 'fallidos' => array(correo => motivo)]
+     */
+    function bovs_mail_enviar_destinatarios($mail, $destinatarios, $bcc = false)
+    {
+        $resultado = array('enviados' => array(), 'fallidos' => array());
+
+        $destinatarios = array_values(array_unique(array_filter(array_map(function ($correo) {
+            $correo = trim((string) $correo);
+            return filter_var($correo, FILTER_VALIDATE_EMAIL) ? $correo : '';
+        }, (array) $destinatarios))));
+
+        if (!$destinatarios) {
+            return $resultado;
+        }
+
+        if (!$bcc || count($destinatarios) === 1) {
+            foreach ($destinatarios as $destinatario) {
+                $mail->AddAddress($destinatario);
+            }
+        } else {
+            $mail->AddAddress($destinatarios[0]);
+            foreach (array_slice($destinatarios, 1) as $destinatario) {
+                $mail->AddBCC($destinatario);
+            }
+        }
+
+        if ($mail->Send()) {
+            $resultado['enviados'] = $destinatarios;
+            $mail->ClearAddresses();
+            $mail->ClearBCCs();
+            return $resultado;
+        }
+
+        $motivo = (string) $mail->ErrorInfo;
+        $mail->ClearAddresses();
+        $mail->ClearBCCs();
+
+        foreach ($destinatarios as $destinatario) {
+            $mail->AddAddress($destinatario);
+            if ($mail->Send()) {
+                $resultado['enviados'][] = $destinatario;
+            } else {
+                $resultado['fallidos'][$destinatario] = (string) $mail->ErrorInfo;
+            }
+            $mail->ClearAddresses();
+        }
+
+        // Los errores de PHPMailer vienen con saltos de línea: en una línea de
+        // log quedarían partidos en varias entradas.
+        $motivo = trim(preg_replace('/\s+/', ' ', $motivo));
+        foreach ($resultado['fallidos'] as $destinatario => $detalle) {
+            $detalle = trim(preg_replace('/\s+/', ' ', (string) $detalle));
+            $resultado['fallidos'][$destinatario] = $detalle !== '' ? $detalle : $motivo;
+        }
+
+        return $resultado;
+    }
+}
+
 if (!function_exists('bovs_mail_enviar')) {
     /**
      * Envía un correo HTML.

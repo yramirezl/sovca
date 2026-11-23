@@ -266,6 +266,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../mensajes/"><i class="fa fa-envelope-o"></i> <span>Mensajes Internos</span></a></li>';
     echo '<li><a href="../mensajesext/"><i class="fa fa-envelope"></i> <span>Mensajes Externos</span></a></li>';
     echo '<li><a href="../mcontactosext/"><i class="fa fa-users"></i> <span>Contactos Externos</span></a></li>';
+    echo '<li><a href="../mensajesdemo/"><i class="fa fa-envelope-o"></i> <span>Mensajes Demo</span></a></li>';
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-bar-chart"></i> <span>Estadísticas</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
@@ -294,6 +295,7 @@ if (!empty($id_sesion) && function_exists('mf_modo_supervisor_activo') && mf_mod
     echo '<li><a href="../mensajes/"><i class="fa fa-envelope-o"></i> <span>Mensajes Internos</span></a></li>';
     echo '<li><a href="../mensajesext/"><i class="fa fa-envelope"></i> <span>Mensajes Externos</span></a></li>';
     echo '<li><a href="../mcontactosext/"><i class="fa fa-users"></i> <span>Contactos Externos</span></a></li>';
+    echo '<li><a href="../mensajesdemo/"><i class="fa fa-envelope-o"></i> <span>Mensajes Demo</span></a></li>';
     echo '</ul></li>';
 
     echo ' <li class="treeview"><a href="#"><i class="fa fa-users fa-lg"></i> <span>Administrador</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';

@@ -22,6 +22,24 @@ date_default_timezone_set('America/Caracas');
 class Enviar_Correo
 {
   /**
+   * Último error devuelto por SMTP/PHPMailer ('' si el envío salió bien).
+   * El controlador lo escribe en el detalle y en el resumen.
+   *
+   * @var string
+   */
+  public $ultimo_error = '';
+
+  /**
+   * Resultado del último resumen a administradores: a quién se le entregó y
+   * a quién no (con el motivo). Sirve para avisar en el log que un buzón
+   * inválido no debe pasar desapercibido.
+   *
+   * @var array
+   */
+  public $resumen_enviados = array();
+  public $resumen_fallidos = array();
+
+  /**
    * Arma el cuerpo HTML del aviso (separado del envío para poder revisarlo
    * sin mandar correos: `--dry-run --html`).
    *
@@ -232,6 +250,7 @@ class Enviar_Correo
     $mail->AddAddress($correo);
 
     $enviado = $mail->Send();
+    $this->ultimo_error = $enviado ? '' : (string) $mail->ErrorInfo;
     $mail->ClearAddresses();
     $mail->ClearAttachments();
 
@@ -333,7 +352,7 @@ class Enviar_Correo
    * @param string|array $correo uno o varios destinatarios
    * @param array        $datos  revisados, enviados, avisados, omitidos,
    *                             errores, dias, envios[] y novedades[]
-   * @return bool true si el correo salió
+   * @return bool true si el correo salió al menos a un administrador
    */
   function enviar_resumen($correo, $datos)
   {
@@ -345,6 +364,8 @@ class Enviar_Correo
         $destinatarios[] = $destino;
       }
     }
+    $this->resumen_enviados = array();
+    $this->resumen_fallidos = array();
     if (empty($destinatarios)) {
       return false;
     }
@@ -376,14 +397,22 @@ class Enviar_Correo
     $mail->AltBody       = $resumen;
     $mail->MsgHTML($this->construir_cuerpo_resumen($datos));
 
-    foreach ($destinatarios as $destino) {
-      $mail->AddAddress($destino);
-    }
+    /* Un solo mensaje para todos y, si el servidor rechaza algún buzón, un
+       reintento individual: antes un correo inválido de un administrador
+       dejaba sin el resumen a los demás. */
+    $resultado = bovs_mail_enviar_destinatarios($mail, $destinatarios, false);
 
-    $enviado = $mail->Send();
+    $this->resumen_enviados = $resultado['enviados'];
+    $this->resumen_fallidos = $resultado['fallidos'];
+    $fallos = array();
+    foreach ($resultado['fallidos'] as $correo_fallo => $motivo_fallo) {
+      $fallos[] = $correo_fallo . ' (' . $motivo_fallo . ')';
+    }
+    $this->ultimo_error = implode('; ', $fallos);
+
     $mail->ClearAddresses();
     $mail->ClearAttachments();
 
-    return $enviado;
+    return !empty($resultado['enviados']);
   }
 }

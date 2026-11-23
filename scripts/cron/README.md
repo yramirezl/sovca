@@ -11,6 +11,8 @@ los logs y las tareas dejaron de ejecutarse **sin que nadie se enterara**.
 |---|---|---|
 | `crear_alerta.sh` | `0 6 * * 1,3,5` | Regenera la tabla `malertas` (SECADO, DESTETE, CELO, PALPACIÓN, PARTO, CONTROL SANITARIO). **Debe correr antes del envío.** |
 | `enviar_alerta.sh` | `0 8 * * 1,3,5` | Envía por correo las alertas pendientes. Acepta `--dry-run`. |
+| `enviar_inactividad.sh` | `0 6 * * *` | Avisa al productor cuando ningún usuario de su fundo se conecta en 7 días y manda el resumen a los administradores (roles 1 y 4). Acepta `--dry-run`. |
+| `demo_correos_auto.sh` | `0 9 * * *` | Secuencia de correos de la demo: bienvenida (día 0), seguimiento (día 7), aviso de vencimiento (día 14) y dos rescates (días 22 y 30), con el texto adaptado a si el usuario cargó datos o no. No repite etapas y no escribe a quien ya es cliente oficial. Acepta `--dry-run`. |
 | `backup.sh` | `0 1 * * *` | `pg_dump` comprimido en `/opt/backups/databases`, más la copia `sovca/respaldo_db_sovca_DD-MM-YYYY.tar.gz` que se envía por correo. Rotación de 14 días. |
 | `enviar_backup_db.sh` | `0 2 * * *` | Envía el respaldo del día usando `alertas/controlador_email_backup.php` (el controlador oficial, no una copia). |
 | `purgar_sync_log.sh` | `30 3 * * *` | Purga `sync_offline_log` (registro del modo offline que alimenta *Dispositivos → Resumen de sync*). Conserva 180 días. Acepta `--dry-run`. |
@@ -39,6 +41,8 @@ sudo crontab -e
 ```cron
 0 6 * * 1,3,5 /opt/backups/script/sovca/crear_alerta.sh     >> /opt/logs/alerta.log 2>&1
 0 8 * * 1,3,5 /opt/backups/script/sovca/enviar_alerta.sh    >> /opt/logs/correo.log 2>&1
+0 6 * * *     /opt/backups/script/sovca/enviar_inactividad.sh >> /opt/logs/inactividad.log 2>&1
+0 9 * * *     /opt/backups/script/sovca/demo_correos_auto.sh >> /opt/logs/demo_correos.log 2>&1
 0 1 * * *     /opt/backups/script/sovca/backup.sh           >> /opt/logs/backup.log 2>&1
 0 2 * * *     /opt/backups/script/sovca/enviar_backup_db.sh >> /opt/logs/enviar_backup_db.log 2>&1
 30 3 * * *    /opt/backups/script/sovca/purgar_sync_log.sh  >> /opt/logs/sync_log.log 2>&1
@@ -102,6 +106,8 @@ sudo -u www-data php scripts/diagnostico_correo.php --to=tu@correo.com
 ls -l /opt/logs/
 tail -20 /opt/logs/alerta.log
 tail -20 /opt/logs/correo.log
+tail -20 /opt/logs/inactividad.log
+tail -20 /opt/logs/demo_correos.log
 tail -5  /opt/logs/backup.log
 tail -5  /opt/logs/sync_log.log
 ls -lh /opt/backups/databases | tail -5
@@ -111,5 +117,6 @@ ls -lh /opt/backups/databases | tail -5
 
 ```bash
 /var/www/html/sovca/scripts/cron/enviar_alerta.sh --dry-run
+/var/www/html/sovca/scripts/cron/enviar_inactividad.sh --dry-run
 php /var/www/html/sovca/alertas/controlador_email_backup.php --dry-run
 ```

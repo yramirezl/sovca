@@ -153,6 +153,15 @@ switch ($action) {
            REDIRECCIÓN ya trabaja contra la base demo. */
         bovs_demo_iniciar_sesion($resultado['usuario']);
 
+        /* Bienvenida por correo: se envía cuando la petición ya respondió,
+           para que el visitante no espere al SMTP. Si esa primera pasada
+           falla, el cron de la secuencia la reintenta en la ventana del
+           día 0 a 1. */
+        require_once __DIR__ . '/../lib/demo_correos_auto_helper.php';
+        bovs_demo_auto_bienvenida_diferida(
+            isset($resultado['usuario']['id']) ? (int) $resultado['usuario']['id'] : 0
+        );
+
         demo_responder(array(
             'ok'       => true,
             'msg'      => 'Correo verificado. ¡Bienvenido!',
