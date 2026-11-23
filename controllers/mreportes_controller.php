@@ -6,6 +6,7 @@ require_once '../models/Mregnacimiento.php';
 require_once '../models/Mregservicio.php';
 require_once '../models/Mprolechera.php';
 require_once '../models/Vanimalesactivo.php';
+require_once '../lib/animales_conteo_helper.php';
 
 
 @$action = ($_POST["action"]);
@@ -25,7 +26,10 @@ switch ($action){
 
     if($data !=null){
       foreach($data as $rs){
-          @$total_animales = Vanimalesactivo::find_by_sql("SELECT sum(total) as cantidad from Vanimalesactivos WHERE mfundos_id=".$mfundos_id." AND mtipoganaderias_id=".$t_ganaderia." ");  
+          /* Mismo criterio que el resto del sistema (lib/animales_conteo_helper.php):
+             la vista vanimalesactivos sumaba solo el estatus 1 y 2, asi que el
+             contador "TOTAL ANIMALES" podia no coincidir con los graficos. */
+          @$total_animales = Manimale::find_by_sql("SELECT COUNT(*) AS cantidad FROM manimales WHERE mfundos_id=".$mfundos_id." AND " . bovs_animal_activo_sql('') . " AND mtipoganaderias_id=".$t_ganaderia." ");  
           @$total_nacimientos = Mregnacimiento::find_by_sql("SELECT count(codigo_ternero) as cantidad from Mregnacimientos WHERE  mfundos_id=".$mfundos_id." AND  status=1  and fichado = false AND  estatus_nacido = 1 AND mestatus_id = 1 AND f_parto IS NOT NULL;");  
           @$total_gestantes = Mregservicio::find_by_sql("SELECT count(id) as cantidad from Mregservicios WHERE  medofisiologicos_id=1  AND mfundos_id=".$mfundos_id." and parto=0 and status=1;");  
           @$total_prodleche = Mprolechera::find_by_sql("SELECT count(distinct codigo_rgb_id_animal_hembra) as cantidad  from mprolecheras WHERE  mfundos_id=".$mfundos_id." and status=1 ;");  

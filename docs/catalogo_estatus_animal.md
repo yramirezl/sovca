@@ -66,3 +66,36 @@ SELECT codigo_rgb_id_animal, nombre, sexo, estatus_animal
 > Si en el futuro se agrega un estatus nuevo, se inserta en `mestatusanimales`
 > con su sexo (`0` ambos, `1` hembra, `2` macho) y se actualiza
 > `bovs_estatus_animal_base()` del helper: el resto del sistema lo toma de ahí.
+
+## Conteo para el plan y las estadísticas
+
+El criterio de **animal activo** del sistema (`lib/animales_conteo_helper.php`
+→ `bovs_animal_activo_sql()`) es:
+
+```sql
+status = 1 AND mestatus_id = 1 AND estatus_animal IN (1, 2, 4)
+```
+
+Cuentan ACTIVO (1), DONADOR ACTIVO (2) y DONADORA ACTIVO (4). No cuentan
+DONADOR (3) ni DONADORA (5), ni los animales con `mestatus_id` distinto de 1
+(descarte, muerto, vendido, extraviado, migrado). `v_list_animales_activos` y
+`lib/multifundo_helper.php` usan esa misma regla.
+
+Ese criterio es el que aplican el contador **TOTAL ANIMALES** del tablero, el
+gráfico **Distribución por Lote**, el gráfico **Distribución por Categoría** y
+la columna **N° Animales** del módulo Categorías:
+
+| Archivo | Qué cuenta |
+|---------|------------|
+| `controllers/mreportes_controller.php` | Total del tablero: animales activos del fundo y del tipo de ganadería de la sesión |
+| `data_json/data_dashboard_lotes.php` | Animales activos por lote (incluye «Sin lote»), del tipo de ganadería del fundo |
+| `data_json/data_dashboard_categorias.php` | Animales activos por **categoría actual** (sexo + edad en meses), no por la categoría de ingreso; agrega «Sin categoría» para cuadrar con el total |
+| `data_json/data_mcategorias.php` | La misma cuenta por categoría que el gráfico, para que el listado y el gráfico muestren lo mismo |
+
+Antes el gráfico de categorías agrupaba por `categoria_ingreso_id` (un animal
+adulto seguía contando como cría y la categoría de adultos no aparecía) y los
+dos gráficos solo filtraban `status = 1`, así que sumaban animales descartados
+o donadores sin habilitar y no coincidían con el contador del tablero. El
+contador, además, se tomaba de la vista `vanimalesactivos`, que sumaba solo los
+estatus 1 y 2.
+

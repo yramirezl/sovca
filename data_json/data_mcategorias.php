@@ -1,6 +1,7 @@
 <?php
 require_once '../models/Mcategoria.php';
 require_once '../lib/catalogo_fundo_helper.php';
+require_once '../lib/animales_conteo_helper.php';
 
 @session_start();
 @$id_sesion   = $_SESSION['idsessionx'];
@@ -21,14 +22,25 @@ $mfundos_id = intval($mfundos_id);
 $fundo_cat = bovs_catalogo_fundo_id();
 $tipo_cat  = bovs_catalogo_tipo_ganaderia();
 
+/* La cantidad por categoría usa el MISMO criterio que el tablero
+   (data_json/data_dashboard_categorias.php): animal activo del sistema
+   (status 1, mestatus 1, estatus 1/2/4), del tipo de ganadería del fundo
+   y con la edad en [edadminima, edadmaxima). Antes salía del listado
+   v_list_animales_x_lotes, que incluye donadores sin habilitar (3 y 5),
+   así que el listado y el gráfico mostraban números distintos. */
+$edad_meses = "(COALESCE(date_part('year', age(now(), date(a.f_nacimiento))), 0) * 12"
+    . " + COALESCE(date_part('month', age(now(), date(a.f_nacimiento))), 0))";
+
+$filtro_tipo_animal = ($tipo_cat > 0) ? " AND a.mtipoganaderias_id = " . $tipo_cat : "";
+
 $sql_cat = "SELECT c.id, c.nombre, c.edadminima, c.edadmaxima, c.sexo, c.mfundos_id,
             (SELECT COUNT(*)
-             FROM v_list_animales_x_lotes a
+             FROM manimales a
              WHERE a.mfundos_id = " . $mfundos_id . "
-               AND a.estatus_animal IS NOT NULL
+               AND " . bovs_animal_activo_sql('a') . $filtro_tipo_animal . "
                AND ((c.sexo = 0) OR (a.sexo = c.sexo))
-               AND (COALESCE(a.anios, 0) * 12 + COALESCE(a.meses, 0)) >= c.edadminima
-               AND (COALESCE(a.anios, 0) * 12 + COALESCE(a.meses, 0)) <  c.edadmaxima
+               AND " . $edad_meses . " >= c.edadminima
+               AND " . $edad_meses . " <  c.edadmaxima
             ) AS cantidad
         FROM mcategorias c
         WHERE c.status > 0";
