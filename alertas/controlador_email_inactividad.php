@@ -404,7 +404,15 @@ foreach ($grupos as $email => $grupo) {
 /* ------------------------------------------------------------------ */
 /* 3) Resumen a los ADMINISTRADORES (roles 1 y 4), como en las alertas. */
 /* ------------------------------------------------------------------ */
-if (!$DRY_RUN && !$SIN_RESUMEN) {
+/* El resumen solo sale si la corrida tiene algo que contar. Sin esto,
+   los días en que todos los fundos ya estaban avisados llegaba un correo
+   con todo en cero: ruido diario para los administradores. Si hubo
+   errores sí se manda, porque esos hay que atenderlos. */
+$hay_novedad = ($enviados > 0 || $errores > 0);
+
+if (!$DRY_RUN && !$SIN_RESUMEN && !$hay_novedad) {
+  $LOG('Resumen interno no enviado: nada que reportar (0 avisos, 0 errores).');
+} elseif (!$DRY_RUN && !$SIN_RESUMEN) {
   /* Omitidos y errores: lo que interesa revisar en el correo. */
   $novedades = array();
   foreach ($detalle as $linea) {

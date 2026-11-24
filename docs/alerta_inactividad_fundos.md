@@ -202,6 +202,12 @@ Al terminar cada corrida **real** (no en `--dry-run`), el proceso envía un corr
 resumen a **todos los usuarios activos con `mroles_id` 1 o 4** que tengan correo válido
 (`musuarios.status = 1`). Es el mismo patrón del resumen del envío de alertas.
 
+**Solo cuando hay algo que contar.** Si la corrida termina con **0 correos enviados y 0
+errores** (por ejemplo, todos los fundos siguen dentro del período de su último aviso), el
+resumen **no se envía**: sin este filtro llegaba un correo diario con todas las cifras en cero.
+La corrida se ejecuta y queda en el log (`Resumen interno no enviado: nada que reportar`). Si
+hubo **errores** el resumen sí sale, porque son los que hay que atender.
+
 El correo incluye:
 
 - Totales de la corrida: fundos candidatos, correos enviados (agrupados por productor),
@@ -230,6 +236,9 @@ ningún resumen: se corrige en *Administración → Usuarios*.
 - **Fundos sin conexiones registradas nunca** sí generan aviso: se informa el umbral configurado
   y "Sin registros de conexión" como última conexión.
 - El aviso es informativo y **no modifica** fundos, usuarios ni vínculos.
+- **Sin novedades no hay correo:** una corrida con 0 avisos y 0 errores no manda el resumen a
+  los administradores (el detalle queda en el log). Solo se manda cuando envió avisos o cuando
+  hubo errores.
 - La primera corrida real puede detectar muchos fundos históricamente inactivos: se recomienda
   arrancar con `--limite` (por ejemplo `--limite=20`) y luego dejar la corrida diaria sin límite.
 - **Booleanos de PostgreSQL:** `pg_fetch_assoc()` devuelve `'t'`/`'f'`, y `!empty('f')` es
