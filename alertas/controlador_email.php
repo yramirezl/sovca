@@ -38,8 +38,8 @@ if (!$con->CONNECT()) {
     @$i = 0;
 
 
-    @$fundo = [];
-    @$fundo_resumen = [];
+    $resumen_fundos = array();
+    $resumen_fallido = false;
 
     /* AGRUPACIÓN POR PRODUCTOR (multifundo):
        se acumulan las alertas de todos los fundos por correo de destino y
@@ -152,6 +152,7 @@ if (!$con->CONNECT()) {
               }
 
               $envios[$email]['fundos'][] = array(
+                'id'    => (int) $mfundos_id,
                 'fundo' => $fundo_nombre,
                 'lote'  => $lote
               );
@@ -220,6 +221,21 @@ if (!$con->CONNECT()) {
           continue;
         }
 
+        /* Se acumula por fundo para el resumen que reciben los administradores */
+        foreach ($envio['fundos'] as $fundo_enviado) {
+          $fundo_id = (int) $fundo_enviado['id'];
+          if (!isset($resumen_fundos[$fundo_id])) {
+            $resumen_fundos[$fundo_id] = array(
+              'fundo' => $fundo_enviado['fundo'],
+              'lote'  => array()
+            );
+          }
+          $resumen_fundos[$fundo_id]['lote'] = array_merge(
+            $resumen_fundos[$fundo_id]['lote'],
+            $fundo_enviado['lote']
+          );
+        }
+
         /* El correo salió: se registra el seguimiento de cada alerta incluida */
         foreach ($envio['estados'] as $estado_lote) {
           $estado_guardado = pg_query_params($con->obj_conec,
@@ -258,8 +274,41 @@ if (!$con->CONNECT()) {
 
       if ($DRY_RUN) {
         echo 'Correos que se enviarían: ' . count($envios) . PHP_EOL;
-      } else {
-        $enviar_correo->enviar_resumen($i);
+      } elseif ($FORZAR_DESTINO === '' && $i > 0) {
+        /* Resumen para administradores: solo si de verdad salió algún correo */
+        $rs_admin = pg_query($con->obj_conec,
+          "SELECT lower(btrim(email)) AS email
+             FROM public.musuarios
+            WHERE mroles_id IN (1, 4)
+              AND status = 1
+              AND coalesce(btrim(email), '') <> ''
+            ORDER BY mroles_id, name");
+
+        if (!$rs_admin) {
+          error_log('No se pudieron consultar los correos de administradores para el resumen: '
+            . pg_last_error($con->obj_conec));
+          echo 'ERROR: no se pudieron consultar los correos de administradores' . PHP_EOL;
+          $resumen_fallido = true;
+        } else {
+          $destinatarios = array();
+          while ($admin = pg_fetch_assoc($rs_admin)) {
+            $correo_admin = trim((string) $admin['email']);
+            if (filter_var($correo_admin, FILTER_VALIDATE_EMAIL)) {
+              $destinatarios[$correo_admin] = $correo_admin;
+            }
+          }
+          pg_free_result($rs_admin);
+
+          if (!$destinatarios) {
+            error_log('Resumen de alertas no enviado: no hay administradores activos con correo válido.');
+            echo 'ERROR: no hay administradores activos con correo válido para recibir el resumen' . PHP_EOL;
+            $resumen_fallido = true;
+          } elseif (!$enviar_correo->enviar_resumen(array_values($destinatarios), array_values($resumen_fundos))) {
+            error_log('No se pudo enviar el resumen de alertas a los administradores.');
+            echo 'ERROR: no se pudo enviar el resumen de alertas a los administradores' . PHP_EOL;
+            $resumen_fallido = true;
+          }
+        }
       }
 
 
@@ -271,8 +320,10 @@ if (!$con->CONNECT()) {
 
     // Si algún correo no salió, el cron debe enterarse: antes terminaba con
     // salida 0 aunque no se hubiera entregado nada.
-    if (!$DRY_RUN && $envios_fallidos > 0) {
-      echo 'ERROR: ' . $envios_fallidos . ' correo(s) de alertas no se pudieron enviar' . PHP_EOL;
+    if (!$DRY_RUN && ($envios_fallidos > 0 || $resumen_fallido)) {
+      if ($envios_fallidos > 0) {
+        echo 'ERROR: ' . $envios_fallidos . ' correo(s) de alertas no se pudieron enviar' . PHP_EOL;
+      }
       exit(1);
     }
   }

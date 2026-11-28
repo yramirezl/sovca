@@ -296,88 +296,124 @@ class Enviar_Correo{
     return $enviado;
   }
 
-  function enviar_resumen($i){
+  function construir_cuerpo_resumen($fundos)
+  {
+    $fundos = is_array($fundos) ? $fundos : array();
+    $total_alertas = 0;
+    $total_fundos = 0;
+    $secciones = '';
+    $texto = array('Resumen de alertas enviadas por fundo:');
 
-  
-      $mensaje='Fueron Enviadas  : ' .$i.' Notificaciones'.'<br><br> <br>';
+    foreach ($fundos as $fundo) {
+      $lote = isset($fundo['lote']) && is_array($fundo['lote']) ? $fundo['lote'] : array();
+      if (!$lote) {
+        continue;
+      }
 
-  
+      $nombre = isset($fundo['fundo']) ? (string) $fundo['fundo'] : 'Fundo sin nombre';
+      $total_alertas += count($lote);
+      $total_fundos++;
+      $nombre_html = htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8');
+      $nombre_texto = $nombre;
+      $filas = '';
+      $texto[] = '';
+      $texto[] = $nombre_texto . ' (' . count($lote) . ' alerta(s))';
+
+      foreach ($lote as $alerta) {
+        $codigo = isset($alerta[0]) ? (string) $alerta[0] : '';
+        $animal = isset($alerta[1]) ? (string) $alerta[1] : '';
+        $evento = isset($alerta[2]) ? (string) $alerta[2] : '';
+        $fecha = isset($alerta[3]) ? (string) $alerta[3] : '';
+        $dias = isset($alerta[4]) ? (int) $alerta[4] : 0;
+        $plazo = $dias === 1 ? '1 día' : $dias . ' días';
+
+        $filas .= '<tr>'
+          . '<td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars(trim($codigo . ' ' . $animal), ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars($evento, ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8') . '</td>'
+          . '<td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;">'
+          . htmlspecialchars($plazo, ENT_QUOTES, 'UTF-8') . '</td>'
+          . '</tr>';
+
+        $texto[] = '- ' . trim($codigo . ' ' . $animal) . ' | ' . $evento
+          . ' | Fecha: ' . $fecha . ' | Plazo: ' . $plazo;
+      }
+
+      $secciones .= '<table role="presentation" border="0" cellpadding="0" cellspacing="0"'
+        . ' style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #e5e7eb;">'
+        . '<tr><th colspan="4" style="padding:10px;text-align:left;background:#f3f4f6;">'
+        . $nombre_html . ' — ' . count($lote) . ' alerta(s)</th></tr>'
+        . '<tr style="background:#f9fafb;">'
+        . '<th style="padding:7px 8px;text-align:left;">Animal</th>'
+        . '<th style="padding:7px 8px;text-align:left;">Actividad</th>'
+        . '<th style="padding:7px 8px;text-align:left;">Fecha pautada</th>'
+        . '<th style="padding:7px 8px;text-align:left;">Plazo</th>'
+        . '</tr>' . $filas . '</table>';
+    }
+
+    if ($total_alertas === 0) {
+      return array('', '');
+    }
+
+    array_splice($texto, 1, 0, array(
+      'Total: ' . $total_alertas . ' alerta(s) en ' . $total_fundos . ' fundo(s).'
+    ));
+    $encabezado = '<p style="margin:0 0 16px;">Se enviaron <strong>' . $total_alertas
+      . ' alertas</strong> en <strong>' . $total_fundos . ' fundo(s)</strong>.</p>';
+    $body = '<div style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#222;">'
+      . '<p>Hola,</p><p>Este es el resumen de las notificaciones enviadas a los productores,'
+      . ' agrupadas por fundo. Estas alertas son exclusivas de cada productor.</p>'
+      . $encabezado . $secciones
+      . '<p style="margin-top:24px;color:#666;">Correo dirigido a los administradores del sistema.<br>'
+      . 'Ruted, Tecnología y Desarrollo Rural.</p></div>';
+
+    return array($body, implode(PHP_EOL, $texto));
+  }
+
+  function enviar_resumen($destinatarios, $fundos)
+  {
+    $destinatarios_validos = array();
+    foreach ((array) $destinatarios as $destinatario) {
+      $destinatario = trim((string) $destinatario);
+      if (filter_var($destinatario, FILTER_VALIDATE_EMAIL)) {
+        $destinatarios_validos[strtolower($destinatario)] = $destinatario;
+      }
+    }
+    if (!$destinatarios_validos) {
+      return false;
+    }
+
+    list($body, $alt_body) = $this->construir_cuerpo_resumen($fundos);
+    if ($body === '') {
+      return false;
+    }
 
     $mail = new PHPMailer();
-    // Servidor, remitente y clave salen de config/mail.php
-    // (o de la variable de entorno SOVCA_SMTP_PASS). No repetir aquí.
     bovs_mail_configurar_phpmailer($mail);
     if (function_exists('bovs_mail_cabeceras')) {
       bovs_mail_cabeceras($mail, 'notificacion');
     }
-    $mail->Subject       = "Resumen de notificaciones SOVCA";
-    $body                = '             
-              
-              <tr>
-        <td style="font-family: sans-serif; font-size: 14px; vertical-align: top;" valign="top">&nbsp;</td>
-        <td class="container" style="font-family: sans-serif; font-size: 14px; vertical-align: top; display: block; max-width: 580px; padding: 10px; width: 580px; margin: 0 auto;" width="580" valign="top">
-          <div class="content" style="box-sizing: border-box; display: block; margin: 0 auto; max-width: 580px; padding: 10px;">
-
-            <!-- START CENTERED WHITE CONTAINER -->
-            <table role="presentation" class="main" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background: #ffffff; border-radius: 3px; width: 100%;" width="100%">
-
-              <!-- START MAIN CONTENT AREA -->
-              <tr>
-              
-              <table role="presentation" class="main" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background: #ffffff; border-radius: 3px; width: 100%;" width="100%">
-
-              <!-- START MAIN CONTENT AREA -->
-              <tr>
-                <td class="wrapper" style="font-family: sans-serif; font-size: 14px; vertical-align: top; box-sizing: border-box; padding: 20px;" valign="top">
-                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;" width="100%">
-                    <tr>
-                      <td style="font-family: sans-serif; font-size: 14px; vertical-align: top;" valign="top">
-                        <p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">Hola,</p>
-                        <p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">Usted ha recibido este mensaje para informarle que han sido generadas y enviadas las alertas en el Sistema Ganadero SOVCA Web...</p><br> <br>
-
-                        <p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">'.$mensaje.'</p>
-
-                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; box-sizing: border-box; width: 100%;" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="left" style="font-family: sans-serif; font-size: 14px; vertical-align: top; padding-bottom: 15px;" valign="top">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
-                                  <tbody>
-                                    <tr>
-                                    <td class="content-block powered-by" style="font-family: sans-serif; vertical-align: top; padding-bottom: 10px; padding-top: 10px; color: #999999; font-size: 12px; text-align: center;" valign="top" align="center">
-                                      <td style="font-family: sans-serif; font-size: 14px; vertical-align: top; border-radius: 5px; text-align: center; background-color: #3498db;" valign="top" align="center" bgcolor="#3498db"> <a href="https://global.ruted.net/sovca/" target="_blank" style="border: solid 1px #3498db; border-radius: 5px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 14px; font-weight: bold; margin: 0; padding: 12px 25px; text-decoration: none; text-transform: capitalize; background-color: #3498db; border-color: #3498db; color: #ffffff;">Sistema SOVCA Web</a> </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">Este correo va dirigido exclusivamente a los Administradores del Sistema.</p>
-                        <p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">Ruted, Tecnologia y Desarrollo Rural.</p>
-                      </td>
-                    </tr>
-                  </table>
-
-                  </tr>
-
-                  <!-- END MAIN CONTENT AREA -->
-                  </table>
-                  </div>
-                  </td>
-                  <td style="font-family: sans-serif; font-size: 14px; vertical-align: top;" valign="top">&nbsp;</td>
-                </tr>
-              </table>
-            ';
-    $mail->AltBody    = "Sistema SOVCA: se generaron y enviaron las alertas de su cuenta. Abra el sistema para ver el detalle.";
+    $mail->CharSet = 'UTF-8';
+    $mail->Subject = 'Resumen de alertas enviadas por fundo';
+    $mail->AltBody = $alt_body;
     $mail->MsgHTML($body);
 
-    $mail->AddAddress('yonnygr@gmail.com','info@ruted.net');
+    /* Mismo criterio que el resumen de inactividad: si el servidor rechaza
+       el buzón de un administrador, se reintenta uno por uno para que los
+       demás sí reciban el resumen. */
+    $resultado = bovs_mail_enviar_destinatarios($mail, $destinatarios_validos, true);
 
+    foreach ($resultado['fallidos'] as $correo_fallo => $motivo_fallo) {
+      // Queda en el log del cron: ese administrador no está recibiendo nada.
+      error_log('Resumen de alertas no entregado a ' . $correo_fallo . ': ' . $motivo_fallo);
+    }
 
-    $mail->Send();
     $mail->ClearAddresses();
     $mail->ClearAttachments();
+    return !empty($resultado['enviados']);
   }
 
   
